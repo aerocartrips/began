@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import AdminPageHeading from "@/components/admin/admin-page-heading";
 import LoadingButton from "@/components/ui/buttons/LoadingButton";
+import ClientFormattedTime from "@/components/ui/ClientFormattedTime";
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { apiRequest } from "@/lib/api/api-client";
@@ -69,7 +70,7 @@ export default function AdminSupportDetailClient({
           <article key={message._id} className={`admin-message-detail ${message.senderRole}`}>
             <header>
               <strong>{message.senderRole}</strong>
-              <time>{new Date(message.createdAt).toLocaleString()}</time>
+              <ClientFormattedTime value={message.createdAt} />
             </header>
             <p>{message.body}</p>
           </article>

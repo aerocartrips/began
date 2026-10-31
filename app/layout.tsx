@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
+import { Suspense } from "react";
 import { Cinzel_Decorative, Montserrat } from "next/font/google";
-import { getStorefrontCatalog } from "@/lib/catalog/storefront-catalog";
+import { getStaticStorefrontCatalogProducts } from "@/lib/catalog/storefront-catalog";
 import { ProductCatalogProvider } from "@/features/products/product-catalog-provider";
+import type { Product } from "@/features/products/types/product";
+import { StorefrontCatalogBoundary } from "@/app/storefront-catalog-boundary";
 import "./globals.css";
 
 const cinzel = Cinzel_Decorative({
@@ -21,9 +24,9 @@ export const metadata = {
     "Discover heritage sarees and connect directly with verified weavers through NeoVastra's global B2B marketplace.",
 };
 
-export default async function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
-  const catalog = await getStorefrontCatalog();
+const staticCatalogProducts = getStaticStorefrontCatalogProducts() as Product[];
 
+export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html
       lang="en"
@@ -31,9 +34,15 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       data-scroll-behavior="smooth"
     >
       <body>
-        <ProductCatalogProvider initialProducts={catalog.products}>
-          {children}
-        </ProductCatalogProvider>
+        <Suspense
+          fallback={
+            <ProductCatalogProvider initialProducts={staticCatalogProducts}>
+              {children}
+            </ProductCatalogProvider>
+          }
+        >
+          <StorefrontCatalogBoundary>{children}</StorefrontCatalogBoundary>
+        </Suspense>
       </body>
     </html>
   );

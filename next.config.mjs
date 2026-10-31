@@ -3,6 +3,7 @@ const nextConfig = {
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
+  serverExternalPackages: ["pdfkit"],
   images: {
     remotePatterns: [
       {

@@ -2,17 +2,13 @@
 
 import Link from "next/link";
 import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import SuccessCard from "@/components/ui/feedback/SuccessCard";
-import PageLoader from "@/components/ui/loaders/PageLoader";
 import Button from "@/components/ui/button";
 
-type ConfirmationContentProps = {
-  searchParams: Promise<{ orderNumber?: string | string[] }>;
-};
-
-async function ConfirmationContent({ searchParams }: ConfirmationContentProps) {
-  const params = await searchParams;
-  const orderNumber = Array.isArray(params.orderNumber) ? params.orderNumber[0] : params.orderNumber;
+function ConfirmationContent() {
+  const searchParams = useSearchParams();
+  const orderNumber = searchParams.get("orderNumber")?.trim() || "";
 
   return (
     <SuccessCard
@@ -30,8 +26,8 @@ async function ConfirmationContent({ searchParams }: ConfirmationContentProps) {
       action={
         <>
           <Button href="/products">Continue shopping</Button>
-          <Link className="text-button" href="/account/login">
-            View account
+          <Link className="text-button" href="/account/orders">
+            View my orders
           </Link>
         </>
       }
@@ -39,7 +35,7 @@ async function ConfirmationContent({ searchParams }: ConfirmationContentProps) {
   );
 }
 
-export default function CheckoutConfirmationPage(props: ConfirmationContentProps) {
+export default function CheckoutConfirmationPage() {
   return (
     <main className="commerce-page content-width">
       <div className="commerce-heading">
@@ -48,8 +44,17 @@ export default function CheckoutConfirmationPage(props: ConfirmationContentProps
           <h1>Thank you for your order</h1>
         </div>
       </div>
-      <Suspense fallback={<PageLoader label="Loading confirmation" />}>
-        <ConfirmationContent searchParams={props.searchParams} />
+      <Suspense
+        fallback={
+          <SuccessCard
+            title="Order placed successfully"
+            description="Loading your order details…"
+            detail={null}
+            action={<Button href="/products">Continue shopping</Button>}
+          />
+        }
+      >
+        <ConfirmationContent />
       </Suspense>
     </main>
   );

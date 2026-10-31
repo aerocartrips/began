@@ -1,6 +1,6 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { getAuthUser } from "@/lib/middleware/auth";
-import { requireCommerceAdmin } from "@/lib/middleware/admin-api";
+import { resolveAdminAccess } from "@/lib/middleware/admin-access";
 import { ROLES } from "@/lib/constants/roles";
 import { getOrCreateOrderInvoice } from "@/lib/invoices/invoice.service";
 import { ApiError } from "@/lib/utils/api-error";
@@ -12,15 +12,17 @@ export const GET = withDatabase(async (_request, context) => {
   /** @type {string | null | undefined} */
   let userId = sessionUser?._id;
 
-  if (!sessionUser) {
-    await requireCommerceAdmin();
+  if (sessionUser?.role === ROLES.ADMIN && sessionUser.isActive) {
     isAdmin = true;
-    userId = undefined;
-  } else if (sessionUser.role === ROLES.ADMIN) {
-    isAdmin = true;
-  }
-
-  if (!isAdmin && !userId) {
+  } else if (!sessionUser) {
+    try {
+      await resolveAdminAccess();
+      isAdmin = true;
+      userId = undefined;
+    } catch {
+      throw new ApiError(401, "Authentication required.");
+    }
+  } else if (!userId) {
     throw new ApiError(401, "Authentication required.");
   }
 
