@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { ArrowLeft } from "lucide-react";
 import AdminCard, { AdminDetailList } from "@/components/admin/admin-card";
+import AdminCustomerDeletionCard, { type CustomerDeletionInfo } from "@/components/admin/admin-customer-deletion-card";
 import AdminPageHeading from "@/components/admin/admin-page-heading";
 import AdminStatusChip from "@/components/admin/admin-status-chip";
 import AdminSummaryGrid from "@/components/admin/admin-summary-grid";
@@ -38,6 +39,7 @@ type CustomerDetailResponse = {
       items: { quantity: number; productName: string }[];
     }[];
   };
+  deletion?: CustomerDeletionInfo;
 };
 
 const backLink = (
@@ -122,6 +124,9 @@ export default function AdminCustomerDetailClient({ customerId }: { customerId: 
               ]}
             />
           </AdminCard>
+          {data.deletion ? (
+            <AdminCustomerDeletionCard customerId={customer._id} deletion={data.deletion} onCompleted={() => void request.refetch()} />
+          ) : null}
         </aside>
       </div>
     </>

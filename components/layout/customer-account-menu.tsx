@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, LogOut, MessageSquare, Package, Star, User } from "lucide-react";
+import { ChevronDown, LayoutDashboard, LogOut, MapPin, MessageSquare, Package, Star, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { apiRequest } from "@/lib/api/api-client";
 
@@ -91,8 +91,14 @@ export default function CustomerAccountMenu() {
             <strong>{user.name}</strong>
             <span>{user.email}</span>
           </div>
+          <Link href="/account" role="menuitem" onClick={() => setOpen(false)}>
+            <LayoutDashboard size={15} aria-hidden="true" /> My account
+          </Link>
           <Link href="/account/orders" role="menuitem" onClick={() => setOpen(false)}>
             <Package size={15} aria-hidden="true" /> My orders
+          </Link>
+          <Link href="/account/addresses" role="menuitem" onClick={() => setOpen(false)}>
+            <MapPin size={15} aria-hidden="true" /> My addresses
           </Link>
           <Link href="/account/reviews" role="menuitem" onClick={() => setOpen(false)}>
             <Star size={15} aria-hidden="true" /> My reviews

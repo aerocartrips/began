@@ -138,7 +138,7 @@ export default function CustomerOrdersPageClient() {
   }
 
   return (
-    <main className="commerce-page content-width account-page">
+    <div className="account-page">
       <div className="commerce-heading">
         <div>
           <p className="eyebrow">Wholesale account</p>
@@ -282,6 +282,6 @@ export default function CustomerOrdersPageClient() {
           </LoadingButton>
         </div>
       ) : null}
-    </main>
+    </div>
   );
 }

@@ -13,6 +13,7 @@ export const siteNavigation: readonly NavigationItem[] = [
 
 export const footerColumns = {
   account: [
+    { label: "My Account", href: "/account" },
     { label: "My Orders", href: "/account/orders" },
     { label: "My Reviews", href: "/account/reviews" },
     { label: "Support Messages", href: "/account/support" },

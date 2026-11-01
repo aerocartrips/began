@@ -124,13 +124,13 @@ export default function CustomerOrderDetailClient({ orderId }: { orderId: string
   if (loading && !order) return <OrderDetailSkeleton />;
   if (error || !order) {
     return (
-      <main className="commerce-page content-width account-page">
+      <div className="account-page">
         <ErrorCard
           title="Order unavailable"
           description={error || "This order could not be found."}
           action={<Button href="/account/orders" size="sm">Back to orders</Button>}
         />
-      </main>
+      </div>
     );
   }
 
@@ -145,7 +145,7 @@ export default function CustomerOrderDetailClient({ orderId }: { orderId: string
     : [];
 
   return (
-    <main className="commerce-page content-width account-page">
+    <div className="account-page">
       <Link className="account-back-link" href="/account/orders">
         <ArrowLeft size={14} aria-hidden="true" /> All orders
       </Link>
@@ -354,6 +354,6 @@ export default function CustomerOrderDetailClient({ orderId }: { orderId: string
           </p>
         </aside>
       </div>
-    </main>
+    </div>
   );
 }

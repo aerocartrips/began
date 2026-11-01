@@ -21,8 +21,12 @@ import {
   createPaymentOrder,
   fetchCurrentCustomer,
   verifyPayment,
-  type CheckoutAddress,
+  type AddressSelection,
 } from "@/features/checkout/submit-checkout-order";
+import CheckoutAddressPicker, { NEW_ADDRESS } from "@/features/checkout/components/checkout-address-picker";
+import { readAddressForm } from "@/features/account/components/address-form-fields";
+import { accountApi, toFieldErrors } from "@/features/account/account-api";
+import type { AddressBook, FieldErrors } from "@/features/account/types";
 import { usePaymentStatusPoll } from "@/hooks/use-payment-status-poll";
 
 type CheckoutPageClientProps = {
@@ -60,6 +64,18 @@ function mapPaymentPhase(phase: LegacyPaymentPhase): PaymentUiPhase {
   }
 }
 
+/** Splits server errors such as "shippingAddress.pincode" into per-section field errors. */
+function mapAddressErrors(errors: { field: string; message: string }[] | undefined) {
+  const result: { shipping: FieldErrors; billing: FieldErrors } = { shipping: {}, billing: {} };
+  for (const issue of errors ?? []) {
+    const match = /^(shipping|billing)Address(?:Id)?(?:\.(.+))?$/.exec(issue.field);
+    if (!match) continue;
+    const [, kind, field] = match as unknown as [string, "shipping" | "billing", string | undefined];
+    result[kind][field ?? `${kind}AddressId`] ??= issue.message;
+  }
+  return result;
+}
+
 function CheckoutLine({ item }: { item: CartLine }) {
   return (
     <li className="checkout-line">
@@ -94,6 +110,12 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
   const [confirmedOrderNumber, setConfirmedOrderNumber] = useState("");
   const [lastPaymentReference, setLastPaymentReference] = useState("");
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+  const [addressBook, setAddressBook] = useState<AddressBook | null>(null);
+  const [shippingChoice, setShippingChoice] = useState(NEW_ADDRESS);
+  const [billingChoice, setBillingChoice] = useState(NEW_ADDRESS);
+  const [billingSameAsShipping, setBillingSameAsShipping] = useState(true);
+  const [addressErrors, setAddressErrors] = useState<{ shipping: FieldErrors; billing: FieldErrors }>({ shipping: {}, billing: {} });
+  const addressBookFull = addressBook ? addressBook.items.length >= addressBook.limit : false;
   const checkoutItems = buyNow ? (checkoutIntent ? [checkoutIntent] : []) : items;
   const checkoutCount = checkoutItems.reduce((count, item) => count + item.quantity, 0);
   const checkoutSubtotal = checkoutItems.reduce((sum, item) => sum + item.lineTotalCents, 0);
@@ -127,8 +149,58 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
   });
 
   useEffect(() => {
-    fetchCurrentCustomer().then(setCustomer);
+    let cancelled = false;
+    void fetchCurrentCustomer().then(async (current) => {
+      if (cancelled) return;
+      setCustomer(current);
+      if (!current) return;
+      const book = await accountApi.fetchAddresses().then((result) => result.data).catch(() => null);
+      if (cancelled || !book) return;
+      setAddressBook(book);
+      setShippingChoice(book.defaultShippingId ?? NEW_ADDRESS);
+      setBillingChoice(book.defaultBillingId ?? NEW_ADDRESS);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  /**
+   * Turns the picker state into an order address. A new address the customer
+   * chose to save is stored first so the order references it by id; if saving
+   * fails for a non-validation reason (e.g. the address book is full), checkout
+   * continues with the address as entered.
+   */
+  async function resolveAddressSelection(kind: "shipping" | "billing", formData: FormData): Promise<AddressSelection | null> {
+    const choice = kind === "shipping" ? shippingChoice : billingChoice;
+    if (choice !== NEW_ADDRESS && addressBook?.items.some((address) => address.id === choice)) {
+      return { addressId: choice };
+    }
+
+    const address = readAddressForm(formData, `${kind}.`);
+    if (formData.get(`${kind}.save`) !== "on") return { address };
+
+    const makeDefault = formData.get(`${kind}.makeDefault`) === "on";
+    try {
+      const result = await accountApi.createAddress({
+        ...address,
+        makeDefaultShipping: kind === "shipping" && makeDefault,
+        makeDefaultBilling: kind === "billing" && makeDefault,
+      });
+      if (!result.data) return { address };
+      setAddressBook(result.data.book);
+      (kind === "shipping" ? setShippingChoice : setBillingChoice)(result.data.address.id);
+      return { addressId: result.data.address.id };
+    } catch (error) {
+      const fieldErrors = toFieldErrors(error);
+      if (Object.keys(fieldErrors).length) {
+        setAddressErrors((current) => ({ ...current, [kind]: fieldErrors }));
+        return null;
+      }
+      feedback?.warning("Address not saved", "We'll still use it for this order.");
+      return { address };
+    }
+  }
 
   async function submitPayment(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
@@ -151,29 +223,27 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
     const form = formRef.current ?? (event?.currentTarget instanceof HTMLFormElement ? event.currentTarget : null);
     if (!form) return;
 
-    const formData = new FormData(form);
-    const address: CheckoutAddress = {
-      fullName: String(formData.get("name") ?? "").trim(),
-      phone: String(formData.get("phone") ?? "").trim(),
-      addressLine1: String(formData.get("address") ?? "").trim(),
-      city: String(formData.get("city") ?? "").trim(),
-      state: String(formData.get("region") ?? "").trim(),
-      pincode: String(formData.get("postalCode") ?? "").trim(),
-      country: String(formData.get("country") ?? "").trim() || "India",
-    };
-
-    if (Object.values(address).some((value) => value.length === 0)) {
-      setNotice("Complete all required shipping fields before paying.");
-      return;
-    }
-
     paymentStartedRef.current = true;
     setPhase("creating");
+    setAddressErrors({ shipping: {}, billing: {} });
+
+    const formData = new FormData(form);
+    const shipping = await resolveAddressSelection("shipping", formData);
+    const billing = billingSameAsShipping ? null : await resolveAddressSelection("billing", formData);
+    if (!shipping || (!billingSameAsShipping && !billing)) {
+      paymentStartedRef.current = false;
+      setPhase("idle");
+      setNotice("Check the highlighted address fields before paying.");
+      return;
+    }
+    const contact =
+      "address" in shipping ? shipping.address : addressBook?.items.find((address) => address.id === shipping.addressId);
 
     try {
-      const { response, payload } = await createPaymentOrder(checkoutItems, address);
+      const { response, payload } = await createPaymentOrder(checkoutItems, shipping, billing);
       if (!response.ok || !payload.success || !payload.data) {
         paymentStartedRef.current = false;
+        setAddressErrors(mapAddressErrors(payload.errors));
         setPhase("failed");
         setNotice(payload.message ?? "We could not start payment for this order.");
         return;
@@ -188,9 +258,9 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
         currency: payload.data.currency,
         orderId: payload.data.razorpayOrderId,
         customer: {
-          name: address.fullName,
+          name: contact?.fullName ?? currentCustomer.name,
           email: currentCustomer.email,
-          phone: address.phone,
+          phone: contact?.phone ?? "",
         },
         description: `Order ${payload.data.orderNumber}`,
         onDismiss: () => {
@@ -308,43 +378,40 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
             <h2 id="contact-heading">Contact information</h2>
             <div className="checkout-fields">
               <label className="checkout-field checkout-field-wide">
-                Full name
-                <input name="name" autoComplete="name" required />
-              </label>
-              <label className="checkout-field checkout-field-wide">
                 Business email
                 <input name="email" type="email" autoComplete="email" required defaultValue={customer?.email ?? undefined} readOnly={Boolean(customer?.email)} />
-              </label>
-              <label className="checkout-field checkout-field-wide">
-                Phone number
-                <input name="phone" type="tel" autoComplete="tel" required />
               </label>
             </div>
           </section>
           <section className="checkout-form-section" aria-labelledby="shipping-heading">
             <h2 id="shipping-heading">Shipping destination</h2>
-            <div className="checkout-fields">
-              <label className="checkout-field checkout-field-wide">
-                Address
-                <input name="address" autoComplete="street-address" required />
-              </label>
-              <label className="checkout-field">
-                City
-                <input name="city" autoComplete="address-level2" required />
-              </label>
-              <label className="checkout-field">
-                State or region
-                <input name="region" autoComplete="address-level1" required />
-              </label>
-              <label className="checkout-field">
-                Postal code
-                <input name="postalCode" autoComplete="postal-code" required />
-              </label>
-              <label className="checkout-field">
-                Country
-                <input name="country" autoComplete="country-name" required defaultValue="India" />
-              </label>
-            </div>
+            <CheckoutAddressPicker
+              kind="shipping"
+              addresses={addressBook?.items ?? []}
+              value={shippingChoice}
+              onChange={setShippingChoice}
+              errors={addressErrors.shipping}
+              canSave={Boolean(customer)}
+              atLimit={addressBookFull}
+            />
+          </section>
+          <section className="checkout-form-section" aria-labelledby="billing-heading">
+            <h2 id="billing-heading">Billing address</h2>
+            <label className="account-checkbox">
+              <input type="checkbox" checked={billingSameAsShipping} onChange={(event) => setBillingSameAsShipping(event.currentTarget.checked)} />
+              Same as shipping address
+            </label>
+            {!billingSameAsShipping ? (
+              <CheckoutAddressPicker
+                kind="billing"
+                addresses={addressBook?.items ?? []}
+                value={billingChoice}
+                onChange={setBillingChoice}
+                errors={addressErrors.billing}
+                canSave={Boolean(customer)}
+                atLimit={addressBookFull}
+              />
+            ) : null}
           </section>
           <section className="checkout-payment-notice" aria-labelledby="payment-heading">
             <h2 id="payment-heading">Payment</h2>

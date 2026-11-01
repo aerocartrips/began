@@ -66,7 +66,7 @@ export default function CustomerSupportPageClient() {
   const empty = conversations.status === "ready" && conversations.items.length === 0;
 
   return (
-    <main className="commerce-page content-width account-page support-page">
+    <div className="account-page support-page">
       <div className="commerce-heading">
         <div>
           <p className="eyebrow">Wholesale account</p>
@@ -142,6 +142,6 @@ export default function CustomerSupportPageClient() {
           </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }

@@ -111,7 +111,7 @@ export default function CustomerReviewsPageClient() {
   }
 
   return (
-    <main className="commerce-page content-width account-page">
+    <div className="account-page">
       <div className="commerce-heading">
         <div>
           <p className="eyebrow">Wholesale account</p>
@@ -212,6 +212,6 @@ export default function CustomerReviewsPageClient() {
           }}
         />
       ) : null}
-    </main>
+    </div>
   );
 }

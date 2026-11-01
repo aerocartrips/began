@@ -2,7 +2,8 @@ import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
 import { requireAuthUser } from "@/lib/auth/session";
-import { assertRateLimit, recordRateLimitHit } from "@/lib/security/rate-limit";
+import { checkRateLimit, recordRateLimitHit } from "@/lib/security/rate-limit";
+import { ApiError } from "@/lib/utils/api-error";
 import { SUPPORT_RATE_LIMITS } from "@/lib/constants/support";
 import { listCustomerMessages, sendCustomerMessage } from "@/lib/services/support-chat.service";
 
@@ -21,7 +22,12 @@ export const POST = withDatabase(async (request, context) => {
   const user = await requireAuthUser();
   const { conversationId } = await context.params;
   const rateKey = `support:message:${user._id}`;
-  await assertRateLimit(rateKey, SUPPORT_RATE_LIMITS.sendMessage, "You are sending messages too quickly. Please wait a moment.");
+  const limit = await checkRateLimit(rateKey, SUPPORT_RATE_LIMITS.sendMessage);
+  if (!limit.allowed) {
+    const error = new ApiError(429, "You are sending messages too quickly. Please wait a moment.");
+    error.retryAfter = limit.retryAfter;
+    throw error;
+  }
 
   const payload = await parseJsonBody(request, 24 * 1024);
   const result = await sendCustomerMessage(user, conversationId, payload);

@@ -3,7 +3,8 @@ import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
 import { requireAuthUser } from "@/lib/auth/session";
-import { assertRateLimit, recordRateLimitHit } from "@/lib/security/rate-limit";
+import { checkRateLimit, recordRateLimitHit } from "@/lib/security/rate-limit";
+import { ApiError } from "@/lib/utils/api-error";
 import { SUPPORT_RATE_LIMITS } from "@/lib/constants/support";
 import { logger } from "@/lib/utils/logger";
 import { notifyContactMessage } from "@/lib/services/email.service";
@@ -19,11 +20,12 @@ export const GET = withDatabase(async (request) => {
 export const POST = withDatabase(async (request) => {
   const user = await requireAuthUser();
   const rateKey = `support:create:${user._id}`;
-  await assertRateLimit(
-    rateKey,
-    SUPPORT_RATE_LIMITS.createConversation,
-    "You have started several conversations recently. Please continue an existing one or try again later.",
-  );
+  const limit = await checkRateLimit(rateKey, SUPPORT_RATE_LIMITS.createConversation);
+  if (!limit.allowed) {
+    const error = new ApiError(429, "You have started several conversations recently. Please continue an existing one or try again later.");
+    error.retryAfter = limit.retryAfter;
+    throw error;
+  }
 
   const payload = await parseJsonBody(request, 16 * 1024);
   const { conversation, created } = await createCustomerConversation(user, payload);

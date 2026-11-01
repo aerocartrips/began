@@ -6,11 +6,16 @@ type CheckoutAddress = {
   phone: string;
   addressLine1: string;
   addressLine2?: string;
+  landmark?: string;
   city: string;
   state: string;
   pincode: string;
   country: string;
+  gstin?: string;
 };
+
+/** A saved address (resolved server-side against the customer's address book) or a one-off address. */
+type AddressSelection = { addressId: string } | { address: CheckoutAddress };
 
 type ApiEnvelope<T> = {
   success: boolean;
@@ -38,15 +43,22 @@ function mapSelectedAttributes(item: CartLine) {
   return attributes;
 }
 
-function buildOrderPayload(items: CartLine[], address: CheckoutAddress) {
+function addressFields(kind: "shipping" | "billing", selection: AddressSelection) {
+  return "addressId" in selection
+    ? { [`${kind}AddressId`]: selection.addressId }
+    : { [`${kind}Address`]: selection.address };
+}
+
+/** Billing is omitted when it matches shipping; the server then bills the shipping address. */
+function buildOrderPayload(items: CartLine[], shipping: AddressSelection, billing: AddressSelection | null) {
   return {
     items: items.map((item) => ({
       productId: item.product.id,
       quantity: item.quantity,
       selectedAttributes: mapSelectedAttributes(item),
     })),
-    shippingAddress: address,
-    billingAddress: address,
+    ...addressFields("shipping", shipping),
+    ...(billing ? addressFields("billing", billing) : {}),
     paymentMethod: "razorpay",
   };
 }
@@ -62,12 +74,12 @@ export async function fetchCurrentCustomer() {
   return payload.success ? payload.data : null;
 }
 
-export async function createPaymentOrder(items: CartLine[], address: CheckoutAddress) {
+export async function createPaymentOrder(items: CartLine[], shipping: AddressSelection, billing: AddressSelection | null) {
   const response = await fetch("/api/v1/payments/create-order", {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(buildOrderPayload(items, address)),
+    body: JSON.stringify(buildOrderPayload(items, shipping, billing)),
   });
   const payload = (await response.json()) as ApiEnvelope<CreatePaymentOrderData>;
   return { response, payload };
@@ -91,4 +103,4 @@ export async function verifyPayment(response: RazorpaySuccessResponse) {
   return { response: result, payload };
 }
 
-export type { CheckoutAddress, CreatePaymentOrderData };
+export type { AddressSelection, CheckoutAddress, CreatePaymentOrderData };

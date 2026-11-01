@@ -11,9 +11,9 @@ export default function AccountSupportPage() {
   return (
     <Suspense
       fallback={
-        <main className="commerce-page content-width account-page support-page">
+        <div className="account-page support-page">
           <ConversationListSkeleton />
-        </main>
+        </div>
       }
     >
       <CustomerSupportPageClient />
