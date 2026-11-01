@@ -4,6 +4,7 @@ import { useState } from "react";
 import AddToCartButton from "@/components/marketplace/add-to-cart-button";
 import BuyNowButton from "@/components/marketplace/buy-now-button";
 import QuantitySelector from "@/components/ui/quantity-selector";
+import StockAlertButton from "@/features/notifications/components/stock-alert-button";
 import type { Product } from "@/features/products/types/product";
 
 type ProductPurchasePanelProps = {
@@ -54,6 +55,7 @@ export default function ProductPurchasePanel({ product }: ProductPurchasePanelPr
         />
       </div>
       {!available && <p className="purchase-error" role="status">Currently unavailable</p>}
+      {!available && <StockAlertButton productId={product.id} />}
       <div className="product-purchase-actions">
         <AddToCartButton
           productId={product.id}

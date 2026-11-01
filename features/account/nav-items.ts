@@ -1,4 +1,5 @@
 import {
+  Bell,
   LayoutDashboard,
   MapPin,
   MessageSquare,
@@ -17,6 +18,7 @@ export const ACCOUNT_NAV_ITEMS = [
   { href: "/account/orders", label: "My orders", icon: Package },
   { href: "/account/reviews", label: "Reviews", icon: Star },
   { href: "/account/support", label: "Support", icon: MessageSquare },
+  { href: "/account/notifications", label: "Notifications", icon: Bell },
   { href: "/account/security", label: "Security", icon: ShieldCheck },
   { href: "/account/preferences", label: "Preferences", icon: SlidersHorizontal },
   { href: "/account/settings", label: "Account settings", icon: Settings },

@@ -8,7 +8,7 @@ import type { NotificationPreferences } from "@/features/account/types";
 
 export const metadata = {
   title: "Preferences | Norosilk",
-  description: "Choose which emails you receive from Norosilk.",
+  description: "Choose which emails and notifications you receive from Norosilk.",
 };
 
 async function PreferencesContent() {

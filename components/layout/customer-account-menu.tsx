@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, LayoutDashboard, LogOut, MapPin, MessageSquare, Package, Star, User } from "lucide-react";
+import { Bell, ChevronDown, LayoutDashboard, LogOut, MapPin, MessageSquare, Package, Star, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { apiRequest } from "@/lib/api/api-client";
+import NotificationBell from "@/features/notifications/components/notification-bell";
 
 type PublicUser = {
   _id: string;
@@ -73,44 +74,50 @@ export default function CustomerAccountMenu() {
   }
 
   return (
-    <div className="account-menu" ref={rootRef}>
-      <button
-        type="button"
-        className="account-menu-trigger"
-        aria-expanded={open}
-        aria-haspopup="menu"
-        onClick={() => setOpen((value) => !value)}
-      >
-        <span className="account-menu-avatar" aria-hidden="true">{(user.name || user.email).charAt(0).toUpperCase()}</span>
-        <span>{user.name.split(/\s+/)[0] || "Account"}</span>
-        <ChevronDown size={13} aria-hidden="true" />
-      </button>
-      {open ? (
-        <div className="account-menu-panel" role="menu">
-          <div className="account-menu-identity">
-            <strong>{user.name}</strong>
-            <span>{user.email}</span>
+    <>
+      <NotificationBell scope="customer" />
+      <div className="account-menu" ref={rootRef}>
+        <button
+          type="button"
+          className="account-menu-trigger"
+          aria-expanded={open}
+          aria-haspopup="menu"
+          onClick={() => setOpen((value) => !value)}
+        >
+          <span className="account-menu-avatar" aria-hidden="true">{(user.name || user.email).charAt(0).toUpperCase()}</span>
+          <span>{user.name.split(/\s+/)[0] || "Account"}</span>
+          <ChevronDown size={13} aria-hidden="true" />
+        </button>
+        {open ? (
+          <div className="account-menu-panel" role="menu">
+            <div className="account-menu-identity">
+              <strong>{user.name}</strong>
+              <span>{user.email}</span>
+            </div>
+            <Link href="/account" role="menuitem" onClick={() => setOpen(false)}>
+              <LayoutDashboard size={15} aria-hidden="true" /> My account
+            </Link>
+            <Link href="/account/orders" role="menuitem" onClick={() => setOpen(false)}>
+              <Package size={15} aria-hidden="true" /> My orders
+            </Link>
+            <Link href="/account/addresses" role="menuitem" onClick={() => setOpen(false)}>
+              <MapPin size={15} aria-hidden="true" /> My addresses
+            </Link>
+            <Link href="/account/reviews" role="menuitem" onClick={() => setOpen(false)}>
+              <Star size={15} aria-hidden="true" /> My reviews
+            </Link>
+            <Link href="/account/support" role="menuitem" onClick={() => setOpen(false)}>
+              <MessageSquare size={15} aria-hidden="true" /> Support
+            </Link>
+            <Link href="/account/notifications" role="menuitem" onClick={() => setOpen(false)}>
+              <Bell size={15} aria-hidden="true" /> Notifications
+            </Link>
+            <button type="button" role="menuitem" className="account-menu-logout" onClick={() => void logout()}>
+              <LogOut size={15} aria-hidden="true" /> Sign out
+            </button>
           </div>
-          <Link href="/account" role="menuitem" onClick={() => setOpen(false)}>
-            <LayoutDashboard size={15} aria-hidden="true" /> My account
-          </Link>
-          <Link href="/account/orders" role="menuitem" onClick={() => setOpen(false)}>
-            <Package size={15} aria-hidden="true" /> My orders
-          </Link>
-          <Link href="/account/addresses" role="menuitem" onClick={() => setOpen(false)}>
-            <MapPin size={15} aria-hidden="true" /> My addresses
-          </Link>
-          <Link href="/account/reviews" role="menuitem" onClick={() => setOpen(false)}>
-            <Star size={15} aria-hidden="true" /> My reviews
-          </Link>
-          <Link href="/account/support" role="menuitem" onClick={() => setOpen(false)}>
-            <MessageSquare size={15} aria-hidden="true" /> Support
-          </Link>
-          <button type="button" role="menuitem" className="account-menu-logout" onClick={() => void logout()}>
-            <LogOut size={15} aria-hidden="true" /> Sign out
-          </button>
-        </div>
-      ) : null}
-    </div>
+        ) : null}
+      </div>
+    </>
   );
 }

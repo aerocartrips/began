@@ -1,5 +1,6 @@
 import { LogOut, Menu } from "lucide-react";
 import AdminNavigation from "@/components/admin/admin-navigation";
+import NotificationBell from "@/features/notifications/components/notification-bell";
 import { logoutAdmin } from "@/lib/admin/actions";
 
 type AdminHeaderProps = {
@@ -17,6 +18,7 @@ export default function AdminHeader({ email }: AdminHeaderProps) {
         <AdminNavigation variant="mobile" />
       </details>
       <div className="admin-header-spacer" />
+      <NotificationBell scope="admin" />
       <span className="admin-account-avatar" aria-hidden="true">{email.charAt(0).toUpperCase()}</span>
       <span className="admin-account-email">{email}</span>
       <form action={logoutAdmin}>

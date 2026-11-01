@@ -53,6 +53,7 @@ export type NotificationPreferences = {
   orderUpdates: boolean;
   shippingUpdates: boolean;
   promotional: boolean;
+  backInStock: boolean;
   promotionalConsentAt: string | null;
 };
 
