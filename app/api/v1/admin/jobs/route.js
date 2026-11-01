@@ -1,10 +1,10 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { successResponse } from "@/lib/utils/api-response";
-import { requireCommerceAdmin } from "@/lib/middleware/admin-api";
+import { requireAdminAccess } from "@/lib/auth/admin-access";
 import { getJobRuns, PAYMENT_EXPIRY_JOB_NAME } from "@/lib/jobs/payment-expiry.job";
 
 export const GET = withDatabase(async () => {
-  await requireCommerceAdmin();
+  await requireAdminAccess();
   const runs = await getJobRuns(PAYMENT_EXPIRY_JOB_NAME, 30);
   return successResponse(
     {

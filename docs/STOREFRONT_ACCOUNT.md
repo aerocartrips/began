@@ -2,7 +2,7 @@
 
 ## Account navigation
 
-- Header account menu (`CustomerAccountMenu`) — sign in / register or dropdown with My Orders, My Reviews, logout.
+- Header account menu (`CustomerAccountMenu`) — sign in / register or dropdown with My Orders, My Reviews, Support, logout.
 - Footer **Account** and **Support** columns link to `/account/orders`, `/account/reviews`, `/shipping`, `/returns`, and `/contact`.
 
 ## Pages
@@ -12,6 +12,7 @@
 | `/account/orders` | Order list, filters, load more, reviews on delivered orders, invoice download |
 | `/account/orders/[orderId]` | Timeline, tracking, cancel/return, per-product reviews, invoice |
 | `/account/reviews` | Customer review history with filters and edit/delete |
+| `/account/support` | Support chat with the Norosilk team (see `SUPPORT_MESSAGES.md`) |
 | `/shipping` | Shipping information |
 | `/returns` | Returns & refund policy overview |
 

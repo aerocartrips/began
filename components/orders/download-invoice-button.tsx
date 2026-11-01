@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
-import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import { FileDown } from "lucide-react";
+import LoadingButton from "@/components/ui/buttons/loading-button";
+import { useFeedback } from "@/components/feedback/feedback-provider";
 
 type DownloadInvoiceButtonProps = {
   orderId: string;
   disabled?: boolean;
+  size?: "md" | "sm";
 };
 
-export default function DownloadInvoiceButton({ orderId, disabled }: DownloadInvoiceButtonProps) {
+export default function DownloadInvoiceButton({ orderId, disabled, size = "sm" }: DownloadInvoiceButtonProps) {
   const feedback = useFeedback();
   const [loading, setLoading] = useState(false);
 
@@ -42,7 +44,16 @@ export default function DownloadInvoiceButton({ orderId, disabled }: DownloadInv
   }
 
   return (
-    <LoadingButton type="button" variant="secondary" loading={loading} disabled={disabled} onClick={() => void download()}>
+    <LoadingButton
+      type="button"
+      variant="secondary"
+      size={size}
+      icon={<FileDown size={14} aria-hidden="true" />}
+      loading={loading}
+      loadingText="Preparing…"
+      disabled={disabled}
+      onClick={() => void download()}
+    >
       Download invoice
     </LoadingButton>
   );

@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut, User } from "lucide-react";
+import { ChevronDown, LogOut, MessageSquare, Package, Star, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { apiRequest } from "@/lib/api/api-client";
-import Button from "@/components/ui/button";
 
 type PublicUser = {
   _id: string;
@@ -41,8 +40,15 @@ export default function CustomerAccountMenu() {
     function onPointerDown(event: MouseEvent) {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
     document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, []);
 
   async function logout() {
@@ -59,10 +65,10 @@ export default function CustomerAccountMenu() {
 
   if (!user) {
     return (
-      <div className="account-menu-guest">
-        <Link className="text-button" href="/account/login">Sign in</Link>
-        <Button href="/account/register" variant="secondary">Create account</Button>
-      </div>
+      <Link className="account-menu-trigger" href="/account/login">
+        <User size={15} aria-hidden="true" />
+        <span>Sign in</span>
+      </Link>
     );
   }
 
@@ -75,17 +81,27 @@ export default function CustomerAccountMenu() {
         aria-haspopup="menu"
         onClick={() => setOpen((value) => !value)}
       >
-        <User size={18} aria-hidden="true" />
+        <span className="account-menu-avatar" aria-hidden="true">{(user.name || user.email).charAt(0).toUpperCase()}</span>
         <span>{user.name.split(/\s+/)[0] || "Account"}</span>
+        <ChevronDown size={13} aria-hidden="true" />
       </button>
       {open ? (
         <div className="account-menu-panel" role="menu">
-          <p className="account-menu-label">{user.email}</p>
-          <Link href="/account/orders" role="menuitem" onClick={() => setOpen(false)}>My orders</Link>
-          <Link href="/account/reviews" role="menuitem" onClick={() => setOpen(false)}>My reviews</Link>
-          <Link href="/account/orders" role="menuitem" onClick={() => setOpen(false)}>My account</Link>
-          <button type="button" role="menuitem" onClick={() => void logout()}>
-            <LogOut size={15} aria-hidden="true" /> Logout
+          <div className="account-menu-identity">
+            <strong>{user.name}</strong>
+            <span>{user.email}</span>
+          </div>
+          <Link href="/account/orders" role="menuitem" onClick={() => setOpen(false)}>
+            <Package size={15} aria-hidden="true" /> My orders
+          </Link>
+          <Link href="/account/reviews" role="menuitem" onClick={() => setOpen(false)}>
+            <Star size={15} aria-hidden="true" /> My reviews
+          </Link>
+          <Link href="/account/support" role="menuitem" onClick={() => setOpen(false)}>
+            <MessageSquare size={15} aria-hidden="true" /> Support
+          </Link>
+          <button type="button" role="menuitem" className="account-menu-logout" onClick={() => void logout()}>
+            <LogOut size={15} aria-hidden="true" /> Sign out
           </button>
         </div>
       ) : null}

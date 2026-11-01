@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
+import { Search } from "lucide-react";
 import AdminPageHeading from "@/components/admin/admin-page-heading";
-import EmptyState from "@/components/ui/empty-state";
-import ErrorCard from "@/components/ui/feedback/ErrorCard";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
-import TableSkeleton from "@/components/ui/loaders/TableSkeleton";
-import { useApiRequest } from "@/hooks/useApiRequest";
+import AdminStatusChip from "@/components/admin/admin-status-chip";
+import AdminSummaryGrid from "@/components/admin/admin-summary-grid";
+import ErrorCard from "@/components/ui/feedback/error-card";
+import LoadingButton from "@/components/ui/buttons/loading-button";
+import TableSkeleton from "@/components/ui/loaders/table-skeleton";
+import { useApiRequest } from "@/hooks/use-api-request";
+import { formatDate, formatNumber, formatRupees } from "@/lib/format";
 
 type CustomerRow = {
   _id: string;
@@ -48,80 +51,108 @@ export default function AdminCustomersClient() {
   const customers = listRequest.data ?? [];
   const summary = summaryRequest.data;
 
+  function applySearch(event: FormEvent) {
+    event.preventDefault();
+    if (search === appliedSearch) void listRequest.refetch();
+    else setAppliedSearch(search);
+  }
+
   return (
-    <div className="admin-page">
+    <>
       <AdminPageHeading eyebrow="People" title="Customers" description="Wholesale accounts, order history, and revenue." />
 
       {summary ? (
-        <div className="orders-summary-grid admin-orders-summary">
-          <article><strong>{summary.totalCustomers}</strong><span>Total customers</span></article>
-          <article><strong>{summary.activeCustomers}</strong><span>Active</span></article>
-          <article><strong>{summary.newCustomers30d}</strong><span>New (30d)</span></article>
-          <article><strong>{summary.customersWithOrders}</strong><span>With orders</span></article>
-          <article><strong>{summary.totalOrders}</strong><span>Total orders</span></article>
-          <article><strong>₹{summary.totalRevenue.toFixed(0)}</strong><span>Revenue</span></article>
-        </div>
+        <AdminSummaryGrid
+          label="Customer summary"
+          items={[
+            { label: "Total customers", value: formatNumber(summary.totalCustomers) },
+            { label: "Active", value: formatNumber(summary.activeCustomers) },
+            { label: "New (30 days)", value: formatNumber(summary.newCustomers30d) },
+            { label: "With orders", value: formatNumber(summary.customersWithOrders) },
+            { label: "Total orders", value: formatNumber(summary.totalOrders) },
+            { label: "Revenue", value: formatRupees(summary.totalRevenue, { compact: true }) },
+          ]}
+        />
       ) : null}
 
-      <div className="orders-toolbar">
-        <label>
-          Search
-          <input value={search} onChange={(event) => setSearch(event.currentTarget.value)} placeholder="Name, email, phone, company" />
+      <form className="admin-toolbar" onSubmit={applySearch} role="search">
+        <label className="admin-toolbar__search">
+          <span className="sr-only">Search customers</span>
+          <Search size={14} aria-hidden="true" />
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.currentTarget.value)}
+            placeholder="Search name, email, phone, company…"
+          />
         </label>
         <label>
-          Orders
+          <span className="sr-only">Order history</span>
           <select value={hasOrders} onChange={(event) => setHasOrders(event.currentTarget.value)}>
-            <option value="">All</option>
+            <option value="">All customers</option>
             <option value="true">With orders</option>
             <option value="false">Without orders</option>
           </select>
         </label>
-        <LoadingButton type="button" variant="secondary" loading={listRequest.loading} onClick={() => setAppliedSearch(search)}>
+        <LoadingButton type="submit" variant="secondary" loading={listRequest.loading}>
           Apply
         </LoadingButton>
-      </div>
+      </form>
 
-      {listRequest.loading && customers.length === 0 ? <TableSkeleton rows={8} /> : null}
       {listRequest.error ? (
-        <ErrorCard title="Unable to load customers" description={listRequest.error} action={<LoadingButton type="button" onClick={() => void listRequest.refetch()}>Try again</LoadingButton>} />
-      ) : null}
-      {!listRequest.loading && customers.length === 0 ? (
-        <EmptyState title="No customers found" description="Customers appear after registration or checkout." />
-      ) : null}
-
-      {!listRequest.loading && customers.length > 0 ? (
+        <ErrorCard
+          title="Unable to load customers"
+          description={listRequest.error}
+          action={<LoadingButton type="button" onClick={() => void listRequest.refetch()}>Try again</LoadingButton>}
+        />
+      ) : listRequest.loading && customers.length === 0 ? (
+        <TableSkeleton rows={8} />
+      ) : customers.length === 0 ? (
+        <div className="admin-empty-results" role="status">
+          No customers match these filters. Customers appear after registration or checkout.
+        </div>
+      ) : (
         <div className="admin-table-wrap">
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Customer</th>
-                <th>Company</th>
-                <th>Orders</th>
-                <th>Revenue</th>
-                <th>Last order</th>
-                <th>Status</th>
-                <th />
+                <th scope="col">Customer</th>
+                <th scope="col">Company</th>
+                <th scope="col" className="is-numeric">Orders</th>
+                <th scope="col" className="is-numeric">Revenue</th>
+                <th scope="col">Last order</th>
+                <th scope="col">Joined</th>
+                <th scope="col">Status</th>
+                <th scope="col"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
               {customers.map((customer) => (
                 <tr key={customer._id}>
                   <td>
-                    <strong>{customer.name}</strong>
-                    <small>{customer.email}</small>
+                    <span className="admin-person-cell">
+                      <span className="admin-avatar" aria-hidden="true">{customer.name.charAt(0).toUpperCase()}</span>
+                      <span className="admin-cell-stack">
+                        <strong>{customer.name}</strong>
+                        <small>{customer.email}</small>
+                      </span>
+                    </span>
                   </td>
-                  <td>{customer.companyName || "—"}</td>
-                  <td>{customer.totalOrders ?? 0}</td>
-                  <td>₹{(customer.totalRevenue ?? 0).toFixed(2)}</td>
-                  <td>{customer.lastOrderAt ? new Date(customer.lastOrderAt).toLocaleDateString() : "—"}</td>
-                  <td>{customer.isActive ? "Active" : "Suspended"}</td>
-                  <td><Link className="admin-text-link" href={`/admin/customers/${customer._id}`}>Open</Link></td>
+                  <td>{customer.companyName || <span className="admin-muted-text">—</span>}</td>
+                  <td className="is-numeric">{formatNumber(customer.totalOrders ?? 0)}</td>
+                  <td className="is-numeric"><strong>{formatRupees(customer.totalRevenue ?? 0)}</strong></td>
+                  <td>{formatDate(customer.lastOrderAt)}</td>
+                  <td>{formatDate(customer.createdAt)}</td>
+                  <td><AdminStatusChip status={customer.isActive ? "active" : "suspended"} /></td>
+                  <td className="is-action">
+                    <Link className="admin-text-link" href={`/admin/customers/${customer._id}`}>View</Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      ) : null}
-    </div>
+      )}
+    </>
   );
 }

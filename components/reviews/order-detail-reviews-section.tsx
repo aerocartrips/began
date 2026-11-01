@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import OrderProductReviewAction from "@/components/reviews/OrderProductReviewAction";
+import OrderProductReviewAction from "@/components/reviews/order-product-review-action";
 import { fetchOrderReviewContext } from "@/features/reviews/review-api";
 import type { OrderReviewContextMap } from "@/features/reviews/types";
 
@@ -27,9 +27,9 @@ export default function OrderDetailReviewsSection({ orderId, orderStatus }: Orde
   if (orderStatus !== "delivered" || !context) return null;
 
   return (
-    <section className="orders-action-panel">
+    <section className="account-panel">
       <h2>Review your products</h2>
-      <p className="orders-page-lead">Share verified purchase feedback for each delivered line item.</p>
+      <p className="account-muted">Share verified purchase feedback for each delivered product.</p>
       <div className="orders-card-reviews">
         {Object.values(context).map((item) => (
           <OrderProductReviewAction

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import SuccessCard from "@/components/ui/feedback/SuccessCard";
+import SuccessCard from "@/components/ui/feedback/success-card";
 import Button from "@/components/ui/button";
 
 function ConfirmationContent() {

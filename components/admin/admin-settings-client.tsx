@@ -1,63 +1,110 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
+import AdminCard from "@/components/admin/admin-card";
 import AdminPageHeading from "@/components/admin/admin-page-heading";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
-import ErrorCard from "@/components/ui/feedback/ErrorCard";
-import TableSkeleton from "@/components/ui/loaders/TableSkeleton";
-import { useApiRequest } from "@/hooks/useApiRequest";
-import { useFeedback } from "@/components/feedback/FeedbackProvider";
-import { useAsyncAction } from "@/hooks/useAsyncAction";
+import AdminStatusChip from "@/components/admin/admin-status-chip";
+import LoadingButton from "@/components/ui/buttons/loading-button";
+import ErrorCard from "@/components/ui/feedback/error-card";
+import TableSkeleton from "@/components/ui/loaders/table-skeleton";
+import { useApiRequest } from "@/hooks/use-api-request";
+import { useFeedback } from "@/components/feedback/feedback-provider";
+import { useAsyncAction } from "@/hooks/use-async-action";
 import { apiRequest } from "@/lib/api/api-client";
+import { formatDateTime } from "@/lib/format";
 
-type SettingsDoc = {
-  general: Record<string, string>;
-  business: Record<string, string | number>;
-  orders: Record<string, number>;
-  shipping: Record<string, string | number>;
-  version: number;
-};
+type SettingsSection = "general" | "business" | "orders" | "shipping";
+type Tab = SettingsSection | "integrations";
+type SettingsValue = string | number;
+
+type SettingsDoc = Record<SettingsSection, Record<string, SettingsValue>> & { version: number };
 
 type HealthResponse = {
   checkedAt: string;
-  integrations: {
-    id: string;
-    label: string;
-    configured: boolean;
-    status: string;
-    lastError?: string;
-  }[];
+  integrations: { id: string; label: string; configured: boolean; status: string; lastError?: string }[];
+};
+
+type FieldConfig = {
+  name: string;
+  label: string;
+  type?: "text" | "email" | "tel" | "number" | "textarea";
+  step?: string;
+  fallback?: SettingsValue;
+  hint?: string;
+  wide?: boolean;
+  transform?: (value: string) => string;
+};
+
+const upper = (value: string) => value.toUpperCase();
+
+const TABS: { id: Tab; label: string; description: string }[] = [
+  { id: "general", label: "General", description: "Storefront identity and support contact details." },
+  { id: "business", label: "Business", description: "Legal entity details printed on invoices." },
+  { id: "orders", label: "Orders", description: "Payment reservation, cancellation, and return windows." },
+  { id: "shipping", label: "Shipping", description: "Pickup location and default parcel details for courier booking." },
+  { id: "integrations", label: "Integrations", description: "Connection health for third-party services." },
+];
+
+const FIELDS: Record<SettingsSection, FieldConfig[]> = {
+  general: [
+    { name: "storeName", label: "Store name" },
+    { name: "supportEmail", label: "Support email", type: "email" },
+    { name: "supportPhone", label: "Support phone", type: "tel" },
+    { name: "timeZone", label: "Time zone", hint: "IANA name, e.g. Asia/Kolkata" },
+    { name: "defaultCurrency", label: "Currency", fallback: "INR", transform: upper, hint: "ISO 4217 code" },
+    { name: "businessAddress", label: "Business address", type: "textarea", wide: true },
+  ],
+  business: [
+    { name: "legalName", label: "Legal name" },
+    { name: "gstin", label: "GSTIN", transform: upper },
+    { name: "invoicePrefix", label: "Invoice prefix", fallback: "INV" },
+    { name: "registeredAddress", label: "Registered address", type: "textarea", wide: true },
+  ],
+  orders: [
+    { name: "paymentReservationMinutes", label: "Payment reservation", type: "number", fallback: 30, hint: "Minutes stock is held for unpaid orders" },
+    { name: "cancellationWindowHours", label: "Cancellation window", type: "number", fallback: 48, hint: "Hours after placing an order" },
+    { name: "returnWindowDays", label: "Return window", type: "number", fallback: 7, hint: "Days after delivery" },
+  ],
+  shipping: [
+    { name: "pickupLocationName", label: "Pickup location" },
+    { name: "pickupPincode", label: "Pickup pincode" },
+    { name: "defaultWeightKg", label: "Default weight (kg)", type: "number", step: "0.1", fallback: 1 },
+    { name: "defaultBoxCount", label: "Default box count", type: "number", fallback: 1 },
+    { name: "freightMode", label: "Freight mode", fallback: "prepaid" },
+  ],
 };
 
 export default function AdminSettingsClient() {
   const feedback = useFeedback();
   const settingsRequest = useApiRequest<SettingsDoc>("/api/v1/admin/settings");
   const healthRequest = useApiRequest<HealthResponse>("/api/v1/admin/settings/health");
-  const [tab, setTab] = useState<"general" | "business" | "orders" | "shipping" | "integrations">("general");
-  const [draft, setDraft] = useState<Partial<SettingsDoc> | null>(null);
+  const [tab, setTab] = useState<Tab>("general");
+  const [draft, setDraft] = useState<Partial<Record<SettingsSection, Record<string, SettingsValue>>> | null>(null);
 
   const settings = settingsRequest.data;
   const merged = useMemo(() => {
     if (!settings) return null;
-    return {
-      general: { ...settings.general, ...draft?.general },
-      business: { ...settings.business, ...draft?.business },
-      orders: { ...settings.orders, ...draft?.orders },
-      shipping: { ...settings.shipping, ...draft?.shipping },
-    };
+    const sections = Object.keys(FIELDS) as SettingsSection[];
+    return Object.fromEntries(
+      sections.map((section) => [section, { ...settings[section], ...draft?.[section] }]),
+    ) as Record<SettingsSection, Record<string, SettingsValue>>;
   }, [settings, draft]);
 
   const { run: save, loading: saving } = useAsyncAction(async () => {
     if (!draft) return null;
-    await apiRequest("/api/v1/admin/settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(draft),
-    });
-    feedback.success("Settings saved", "Store configuration updated.");
-    setDraft(null);
-    await settingsRequest.refetch();
+    try {
+      await apiRequest("/api/v1/admin/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(draft),
+      });
+      feedback.success("Settings saved", "Store configuration updated.");
+      setDraft(null);
+      await settingsRequest.refetch();
+    } catch (saveError) {
+      feedback.error("Could not save settings", saveError instanceof Error ? saveError.message : "Try again.");
+    }
     return null;
   });
 
@@ -72,92 +119,108 @@ export default function AdminSettingsClient() {
     );
   }
 
-  function patchSection(section: keyof SettingsDoc, field: string, value: string | number) {
-    setDraft((current) => ({
-      ...current,
-      [section]: { ...(current?.[section] as Record<string, string | number>), [field]: value },
-    }));
+  function patchField(section: SettingsSection, field: string, value: SettingsValue) {
+    setDraft((current) => ({ ...current, [section]: { ...current?.[section], [field]: value } }));
   }
 
+  const activeTab = TABS.find((item) => item.id === tab) ?? TABS[0];
+
   return (
-    <div className="admin-page">
+    <>
       <AdminPageHeading
         eyebrow="Configuration"
         title="Store settings"
-        description={`Version ${settings.version}. Changes apply to new operations only.`}
+        description={`Version ${settings.version} · Changes apply to new operations only.`}
         action={
-          <LoadingButton type="button" loading={saving} disabled={!draft} onClick={() => void save()}>
-            Save changes
-          </LoadingButton>
+          <div className="admin-heading-actions">
+            {draft ? (
+              <LoadingButton type="button" variant="secondary" disabled={saving} onClick={() => setDraft(null)}>
+                Discard
+              </LoadingButton>
+            ) : null}
+            <LoadingButton type="button" loading={saving} loadingText="Saving…" disabled={!draft} onClick={() => void save()}>
+              Save changes
+            </LoadingButton>
+          </div>
         }
       />
 
-      <div className="admin-product-filters">
-        {(["general", "business", "orders", "shipping", "integrations"] as const).map((key) => (
-          <LoadingButton
-            key={key}
+      <div className="admin-tabs" role="tablist" aria-label="Settings sections">
+        {TABS.map((item) => (
+          <button
+            key={item.id}
             type="button"
-            variant={tab === key ? "primary" : "secondary"}
-            onClick={() => setTab(key)}
+            role="tab"
+            id={`settings-tab-${item.id}`}
+            aria-selected={tab === item.id}
+            aria-controls="settings-panel"
+            className={tab === item.id ? "is-active" : undefined}
+            onClick={() => setTab(item.id)}
           >
-            {key}
-          </LoadingButton>
+            {item.label}
+          </button>
         ))}
       </div>
 
-      {tab === "general" ? (
-        <section className="admin-order-status-form">
-          <label>Store name<input value={merged.general.storeName ?? ""} onChange={(e) => patchSection("general", "storeName", e.target.value)} /></label>
-          <label>Support email<input value={merged.general.supportEmail ?? ""} onChange={(e) => patchSection("general", "supportEmail", e.target.value)} /></label>
-          <label>Support phone<input value={merged.general.supportPhone ?? ""} onChange={(e) => patchSection("general", "supportPhone", e.target.value)} /></label>
-          <label>Business address<textarea value={merged.general.businessAddress ?? ""} onChange={(e) => patchSection("general", "businessAddress", e.target.value)} rows={3} /></label>
-          <label>Currency<input value={merged.general.defaultCurrency ?? "INR"} onChange={(e) => patchSection("general", "defaultCurrency", e.target.value.toUpperCase())} /></label>
-          <label>Time zone<input value={merged.general.timeZone ?? ""} onChange={(e) => patchSection("general", "timeZone", e.target.value)} /></label>
-        </section>
-      ) : null}
-
-      {tab === "business" ? (
-        <section className="admin-order-status-form">
-          <label>Legal name<input value={String(merged.business.legalName ?? "")} onChange={(e) => patchSection("business", "legalName", e.target.value)} /></label>
-          <label>GSTIN<input value={String(merged.business.gstin ?? "")} onChange={(e) => patchSection("business", "gstin", e.target.value.toUpperCase())} /></label>
-          <label>Registered address<textarea value={String(merged.business.registeredAddress ?? "")} onChange={(e) => patchSection("business", "registeredAddress", e.target.value)} rows={3} /></label>
-          <label>Invoice prefix<input value={String(merged.business.invoicePrefix ?? "INV")} onChange={(e) => patchSection("business", "invoicePrefix", e.target.value)} /></label>
-        </section>
-      ) : null}
-
-      {tab === "orders" ? (
-        <section className="admin-order-status-form">
-          <label>Payment reservation (minutes)<input type="number" value={merged.orders.paymentReservationMinutes ?? 30} onChange={(e) => patchSection("orders", "paymentReservationMinutes", Number(e.target.value))} /></label>
-          <label>Cancellation window (hours)<input type="number" value={merged.orders.cancellationWindowHours ?? 48} onChange={(e) => patchSection("orders", "cancellationWindowHours", Number(e.target.value))} /></label>
-          <label>Return window (days)<input type="number" value={merged.orders.returnWindowDays ?? 7} onChange={(e) => patchSection("orders", "returnWindowDays", Number(e.target.value))} /></label>
-        </section>
-      ) : null}
-
-      {tab === "shipping" ? (
-        <section className="admin-order-status-form">
-          <label>Pickup location<input value={String(merged.shipping.pickupLocationName ?? "")} onChange={(e) => patchSection("shipping", "pickupLocationName", e.target.value)} /></label>
-          <label>Pickup pincode<input value={String(merged.shipping.pickupPincode ?? "")} onChange={(e) => patchSection("shipping", "pickupPincode", e.target.value)} /></label>
-          <label>Default weight (kg)<input type="number" step="0.1" value={merged.shipping.defaultWeightKg ?? 1} onChange={(e) => patchSection("shipping", "defaultWeightKg", Number(e.target.value))} /></label>
-          <label>Default box count<input type="number" value={merged.shipping.defaultBoxCount ?? 1} onChange={(e) => patchSection("shipping", "defaultBoxCount", Number(e.target.value))} /></label>
-          <label>Freight mode<input value={String(merged.shipping.freightMode ?? "prepaid")} onChange={(e) => patchSection("shipping", "freightMode", e.target.value)} /></label>
-        </section>
-      ) : null}
-
-      {tab === "integrations" ? (
-        <section className="admin-integration-grid">
-          {(healthRequest.data?.integrations ?? []).map((row) => (
-            <article key={row.id} className="admin-card">
-              <h3>{row.label}</h3>
-              <p>{row.configured ? "Configured" : "Not configured"}</p>
-              <span className={`admin-status-chip ${row.status === "ok" || row.status === "configured" ? "" : "is-draft"}`}>
-                {row.status}
-              </span>
-              {row.lastError ? <small>{row.lastError}</small> : null}
-            </article>
-          ))}
-          <p className="admin-storage-note">Secrets stay in deployment environment variables only.</p>
-        </section>
-      ) : null}
-    </div>
+      <div id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${tab}`}>
+        {tab === "integrations" ? (
+          <AdminCard
+            title="Integrations"
+            description={
+              healthRequest.data?.checkedAt ? `Last checked ${formatDateTime(healthRequest.data.checkedAt)}` : activeTab.description
+            }
+            action={
+              <LoadingButton type="button" variant="secondary" loading={healthRequest.loading} onClick={() => void healthRequest.refetch()}>
+                Re-check
+              </LoadingButton>
+            }
+          >
+            {healthRequest.error ? <p className="admin-form-error">{healthRequest.error}</p> : null}
+            <div className="admin-integration-grid">
+              {(healthRequest.data?.integrations ?? []).map((row) => (
+                <article key={row.id} className="admin-integration-card">
+                  <div>
+                    <h3>{row.label}</h3>
+                    <p>{row.configured ? "Credentials configured" : "Not configured"}</p>
+                    {row.lastError ? <small>{row.lastError}</small> : null}
+                  </div>
+                  <AdminStatusChip status={row.status} tone={row.configured ? undefined : "danger"} />
+                </article>
+              ))}
+            </div>
+            <p className="admin-card__footnote">
+              <ShieldCheck size={13} aria-hidden="true" /> Secrets stay in deployment environment variables and are never shown here.
+            </p>
+          </AdminCard>
+        ) : (
+          <AdminCard title={activeTab.label} description={activeTab.description}>
+            <div className="admin-form-grid">
+              {FIELDS[tab].map((field) => {
+                const raw = merged[tab][field.name] ?? field.fallback ?? "";
+                const onChange = (value: string) =>
+                  patchField(tab, field.name, field.type === "number" ? Number(value) : field.transform ? field.transform(value) : value);
+                return (
+                  <label key={field.name} className={`admin-field${field.wide ? " admin-field-wide" : ""}`}>
+                    {field.label}
+                    {field.type === "textarea" ? (
+                      <textarea value={String(raw)} rows={3} onChange={(event) => onChange(event.currentTarget.value)} />
+                    ) : (
+                      <input
+                        type={field.type ?? "text"}
+                        step={field.step}
+                        min={field.type === "number" ? 0 : undefined}
+                        value={String(raw)}
+                        onChange={(event) => onChange(event.currentTarget.value)}
+                      />
+                    )}
+                    {field.hint ? <small className="admin-field-hint">{field.hint}</small> : null}
+                  </label>
+                );
+              })}
+            </div>
+          </AdminCard>
+        )}
+      </div>
+    </>
   );
 }

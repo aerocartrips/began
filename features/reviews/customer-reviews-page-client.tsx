@@ -1,22 +1,22 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Star } from "lucide-react";
 import EmptyState from "@/components/ui/empty-state";
-import ErrorCard from "@/components/ui/feedback/ErrorCard";
+import ErrorCard from "@/components/ui/feedback/error-card";
 import Button from "@/components/ui/button";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
-import ReviewCard from "@/components/reviews/ReviewCard";
-import ReviewStatusBadge from "@/components/reviews/ReviewStatusBadge";
-import ReviewModal from "@/components/reviews/ReviewModal";
-import { ReviewListSkeleton } from "@/components/reviews/ReviewSkeleton";
+import LoadingButton from "@/components/ui/buttons/loading-button";
+import ReviewCard from "@/components/reviews/review-card";
+import ReviewStatusBadge from "@/components/reviews/review-status-badge";
+import ReviewModal from "@/components/reviews/review-modal";
+import { ReviewListSkeleton } from "@/components/reviews/review-skeleton";
 import { apiRequest } from "@/lib/api/api-client";
 import { deleteReview } from "@/features/reviews/review-api";
 import type { PublicReview } from "@/features/reviews/types";
 import { fetchCurrentCustomer } from "@/features/checkout/submit-checkout-order";
-import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import { useFeedback } from "@/components/feedback/feedback-provider";
 
 const FILTERS = [
   { id: "", label: "All reviews" },
@@ -111,26 +111,26 @@ export default function CustomerReviewsPageClient() {
   }
 
   return (
-    <main className="commerce-page content-width orders-page">
+    <main className="commerce-page content-width account-page">
       <div className="commerce-heading">
         <div>
           <p className="eyebrow">Wholesale account</p>
           <h1>My Reviews</h1>
-          <p className="orders-page-lead">Track moderation status and update verified purchase feedback.</p>
+          <p className="account-lead">Track moderation status and update your verified purchase feedback.</p>
         </div>
-        {total ? <p className="orders-count">{total} reviews</p> : null}
+        {total ? <p className="orders-count">{total} {total === 1 ? "review" : "reviews"}</p> : null}
       </div>
 
-      <div className="orders-toolbar">
-        <label>
-          Filter
+      <div className="account-filters account-filters--compact">
+        <label className="account-field">
+          Status
           <select value={moderationStatus} onChange={(event) => setModerationStatus(event.currentTarget.value)}>
             {FILTERS.map((filter) => (
               <option key={filter.id || "all"} value={filter.id}>{filter.label}</option>
             ))}
           </select>
         </label>
-        <label>
+        <label className="account-field">
           Sort
           <select value={sort} onChange={(event) => setSort(event.currentTarget.value)}>
             {SORTS.map((option) => (
@@ -142,39 +142,54 @@ export default function CustomerReviewsPageClient() {
 
       {loading && reviews.length === 0 ? <ReviewListSkeleton /> : null}
       {error ? (
-        <ErrorCard title="Unable to load reviews" description={error} action={<LoadingButton type="button" onClick={() => void load(1, false)}>Try again</LoadingButton>} />
+        <ErrorCard title="Unable to load reviews" description={error} action={<LoadingButton type="button" size="sm" onClick={() => void load(1, false)}>Try again</LoadingButton>} />
       ) : null}
       {!loading && !error && reviews.length === 0 ? (
-        <EmptyState title="No reviews yet" description="After delivery, rate products from My Orders." action={<Button href="/products">Shop products</Button>} />
+        <EmptyState
+          className="account-empty"
+          icon={<Star size={20} />}
+          title="No reviews yet"
+          description="Once an order is delivered, you can rate each product from My Orders."
+          action={<Button href="/account/orders" size="sm">Go to my orders</Button>}
+        />
       ) : null}
 
       <div className="customer-review-list">
         {reviews.map((review) => (
           <article className="customer-review-card" key={review._id}>
-            <div className="customer-review-card-head">
-              {review.productSlug ? (
-                <Link href={`/products/${review.productSlug}`}>
-                  <strong>{review.productName ?? "Product"}</strong>
-                </Link>
-              ) : (
-                <strong>{review.productName ?? "Product"}</strong>
-              )}
+            <header className="customer-review-card-head">
+              <div>
+                {review.productSlug ? (
+                  <Link className="customer-review-product" href={`/products/${review.productSlug}`}>
+                    {review.productName ?? "Product"}
+                  </Link>
+                ) : (
+                  <span className="customer-review-product">{review.productName ?? "Product"}</span>
+                )}
+                {review.orderNumber ? <small>Order {review.orderNumber}</small> : null}
+              </div>
               <ReviewStatusBadge status={review.moderationStatus ?? "pending"} />
-            </div>
+            </header>
             <ReviewCard review={{ ...review, authorName: "You", verifiedPurchase: true }} showModeration={false} />
-            <div className="customer-review-actions">
-              {review.productSlug ? <Button href={`/products/${review.productSlug}`} variant="secondary">View product</Button> : null}
-              <LoadingButton type="button" variant="secondary" onClick={() => setEditReview(review)}>Edit review</LoadingButton>
-              <LoadingButton type="button" variant="secondary" onClick={() => void removeReview(review._id)}>Delete</LoadingButton>
-            </div>
+            <footer className="customer-review-actions">
+              {review.productSlug ? (
+                <Button href={`/products/${review.productSlug}`} variant="secondary" size="sm">View product</Button>
+              ) : null}
+              <Button type="button" variant="secondary" size="sm" onClick={() => setEditReview(review)}>Edit review</Button>
+              <button type="button" className="text-button text-button--danger" onClick={() => void removeReview(review._id)}>
+                Delete
+              </button>
+            </footer>
           </article>
         ))}
       </div>
 
       {hasMore ? (
-        <LoadingButton type="button" className="orders-load-more" loading={loading} onClick={() => setPage((value) => value + 1)}>
-          Load more
-        </LoadingButton>
+        <div className="account-load-more">
+          <LoadingButton type="button" variant="secondary" size="sm" loading={loading} onClick={() => setPage((value) => value + 1)}>
+            Load more reviews
+          </LoadingButton>
+        </div>
       ) : null}
 
       {editReview ? (

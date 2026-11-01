@@ -9,17 +9,11 @@ import {
   getAdminSession,
   verifyAdminCredentials,
 } from "@/lib/admin/auth";
-import {
-  clearLoginFailures,
-  getLoginRateLimit,
-  recordLoginFailure,
-} from "@/lib/admin/login-rate-limit";
+import { getClientIpFromHeaders } from "@/lib/security/client-ip";
+import { checkRateLimit, clearRateLimit, recordRateLimitHit } from "@/lib/security/rate-limit";
 import type { AdminLoginState } from "@/features/auth/types/admin-login";
 
-function getClientAddress(headerValue: string | null) {
-  const candidate = headerValue?.split(",")[0]?.trim() ?? "unknown";
-  return /^[\da-fA-F.:]{1,64}$/.test(candidate) ? candidate : "unknown";
-}
+const LOGIN_RATE_LIMIT = { limit: 5, windowMs: 15 * 60 * 1000 };
 
 export async function loginAdmin(
   _previousState: AdminLoginState,
@@ -41,9 +35,11 @@ export async function loginAdmin(
 
   const email = emailValue.trim().toLowerCase();
   const requestHeaders = await headers();
-  const address = getClientAddress(requestHeaders.get("x-real-ip"));
-  const rateLimitKeys = [`ip:${address}`, `email:${email}`];
-  const rateLimits = rateLimitKeys.map(getLoginRateLimit);
+  const address = getClientIpFromHeaders(requestHeaders);
+  const rateLimitKeys = [`admin-login:ip:${address}`, `admin-login:email:${email}`];
+  const rateLimits = await Promise.all(
+    rateLimitKeys.map((key) => checkRateLimit(key, LOGIN_RATE_LIMIT)),
+  );
   const blocked = rateLimits.some((rateLimit) => !rateLimit.allowed);
   if (blocked) {
     return { error: "Unable to sign in right now. Please wait and try again." };
@@ -57,11 +53,11 @@ export async function loginAdmin(
   }
 
   if (!validCredentials) {
-    rateLimitKeys.forEach(recordLoginFailure);
+    await Promise.all(rateLimitKeys.map((key) => recordRateLimitHit(key, LOGIN_RATE_LIMIT)));
     return { error: "Unable to sign in with those credentials." };
   }
 
-  rateLimitKeys.forEach(clearLoginFailures);
+  await Promise.all(rateLimitKeys.map((key) => clearRateLimit(key)));
   let token: string;
   try {
     token = await createAdminSessionToken(email);

@@ -19,9 +19,9 @@ const montserrat = Montserrat({
 });
 
 export const metadata = {
-  title: "NeoVastra | Global Saree Marketplace",
+  title: "Norosilk | Global Saree Marketplace",
   description:
-    "Discover heritage sarees and connect directly with verified weavers through NeoVastra's global B2B marketplace.",
+    "Discover heritage sarees and connect directly with verified weavers through Norosilk's global B2B marketplace.",
 };
 
 const staticCatalogProducts = getStaticStorefrontCatalogProducts() as Product[];

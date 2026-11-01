@@ -15,6 +15,7 @@ export const footerColumns = {
   account: [
     { label: "My Orders", href: "/account/orders" },
     { label: "My Reviews", href: "/account/reviews" },
+    { label: "Support Messages", href: "/account/support" },
     { label: "Sign In", href: "/account/login" },
     { label: "Create Account", href: "/account/register" },
   ],

@@ -1,6 +1,6 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { successResponse } from "@/lib/utils/api-response";
-import { requireCommerceAdmin } from "@/lib/middleware/admin-api";
+import { requireAdminAccess } from "@/lib/auth/admin-access";
 import {
   getServiceRequestSummary,
   listServiceRequests,
@@ -8,7 +8,7 @@ import {
 } from "@/lib/services/service-request.service";
 
 export const GET = withDatabase(async (request) => {
-  await requireCommerceAdmin();
+  await requireAdminAccess();
   await migrateLegacyServiceRequestsFromOrders();
   const searchParams = new URL(request.url).searchParams;
   if (searchParams.get("summary") === "1") {

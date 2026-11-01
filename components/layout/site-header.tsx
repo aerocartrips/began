@@ -27,7 +27,7 @@ export default function SiteHeader() {
             ))}
             <Link href="/account/orders">My orders</Link>
             <Link href="/account/reviews">My reviews</Link>
-            <Link href="/account/login">Sign in</Link>
+            <Link className="mobile-menu-portal" href="/#enterprise">Portal access</Link>
           </div>
         </details>
       </div>

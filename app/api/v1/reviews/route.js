@@ -1,7 +1,7 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
-import { requireAuthUser } from "@/lib/middleware/auth";
+import { requireAuthUser } from "@/lib/auth/session";
 import { createOrUpdateCustomerReview, toCustomerReview } from "@/lib/services/review.service";
 
 export const POST = withDatabase(async (request) => {

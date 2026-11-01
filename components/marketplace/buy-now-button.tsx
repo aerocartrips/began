@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
+import LoadingButton from "@/components/ui/buttons/loading-button";
 import { useCart } from "@/features/cart/cart-provider";
 import type { SelectedOptions } from "@/features/cart/types/cart";
 

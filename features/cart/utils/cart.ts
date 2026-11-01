@@ -7,8 +7,8 @@ function resolveProduct(productId: string): Product | undefined {
   return getCatalogProductById(productId) ?? getStaticProductById(productId);
 }
 
-export const CART_STORAGE_KEY = "neovastra:cart:v1";
-export const BUY_NOW_STORAGE_KEY = "neovastra:buy-now:v1";
+export const CART_STORAGE_KEY = "norosilk:cart:v1";
+export const BUY_NOW_STORAGE_KEY = "norosilk:buy-now:v1";
 
 export function getCartItemKey(item: StoredCartItem) {
   const options = Object.entries(item.selectedOptions).sort(([left], [right]) =>

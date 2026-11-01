@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { clientErrorFromResponse, normalizeClientApiError } from "@/lib/api/api-error";
 import { messageForHttpStatus, messageForNetworkError } from "@/lib/utils/error-message";
-import { createAsyncActionGuard } from "@/hooks/useAsyncAction";
+import { createAsyncActionGuard } from "@/hooks/use-async-action";
 
 describe("error-message", () => {
   it("maps auth and validation statuses", () => {

@@ -1,7 +1,7 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
-import { requireCommerceAdmin } from "@/lib/middleware/admin-api";
+import { requireAdminAccess } from "@/lib/auth/admin-access";
 import {
   deleteProduct,
   getProduct,
@@ -15,7 +15,7 @@ export const GET = withDatabase(async (_request, context) => {
 });
 
 export const PATCH = withDatabase(async (request, context) => {
-  await requireCommerceAdmin();
+  await requireAdminAccess();
   const { productId } = await context.params;
   const payload = await parseJsonBody(request, 64 * 1024);
   const product = await updateProduct(productId, payload);
@@ -23,7 +23,7 @@ export const PATCH = withDatabase(async (request, context) => {
 });
 
 export const DELETE = withDatabase(async (_request, context) => {
-  await requireCommerceAdmin();
+  await requireAdminAccess();
   const { productId } = await context.params;
   const product = await deleteProduct(productId);
   return successResponse(product, "Product deactivated successfully.");

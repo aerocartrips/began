@@ -1,7 +1,7 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
-import { requireAdminUser } from "@/lib/middleware/auth";
+import { requireAdminUser } from "@/lib/auth/admin-access";
 import {
   deleteCategory,
   getCategoryById,

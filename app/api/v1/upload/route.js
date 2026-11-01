@@ -1,16 +1,17 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { successResponse } from "@/lib/utils/api-response";
-import { requireImageAdmin } from "@/lib/middleware/admin-api";
-import { checkRateLimit, getClientIp, recordRateLimitHit } from "@/lib/middleware/rate-limit";
+import { requireAdminAccess } from "@/lib/auth/admin-access";
+import { getClientIp } from "@/lib/security/client-ip";
+import { checkRateLimit, recordRateLimitHit } from "@/lib/security/rate-limit";
 import { extractUploadFiles } from "@/lib/validators/upload.validator";
 import { uploadImagesFromRequest } from "@/lib/services/upload.service";
 import { ApiError } from "@/lib/utils/api-error";
 
 export const POST = withDatabase(async (request) => {
-  await requireImageAdmin();
+  await requireAdminAccess();
 
   const ip = getClientIp(request);
-  const limit = checkRateLimit(`upload:${ip}`);
+  const limit = await checkRateLimit(`upload:${ip}`);
   if (!limit.allowed) {
     throw new ApiError(429, "Too many upload attempts. Please wait before trying again.");
   }
@@ -31,7 +32,7 @@ export const POST = withDatabase(async (request) => {
     filenamePrefix: typeof filenamePrefix === "string" ? filenamePrefix : undefined,
   });
 
-  recordRateLimitHit(`upload:${ip}`);
+  await recordRateLimitHit(`upload:${ip}`);
 
   return successResponse(
     {

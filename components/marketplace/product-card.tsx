@@ -1,6 +1,6 @@
 import Link from "next/link";
 import AddToCartButton from "@/components/marketplace/add-to-cart-button";import Badge from "@/components/ui/badge";
-import ProductImage from "@/components/images/ProductImage";
+import ProductImage from "@/components/images/product-image";
 import type { Product } from "@/features/products/types/product";
 import { formatCurrency } from "@/lib/format-currency";
 

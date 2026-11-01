@@ -1,67 +1,78 @@
-# NeoVastra
+# Norosilk
 
-NeoVastra is a Next.js App Router storefront prototype for wholesale saree batches.
+Norosilk is a wholesale saree storefront and admin dashboard built with the Next.js App Router (Next.js 16, React 19), MongoDB/Mongoose, Razorpay payments, Cloudinary images, and Delhivery shipping.
 
-## Development
+## Getting started
 
 ```bash
+cp .env.example .env.local   # then fill in the values you need
+npm install
 npm run dev
-npm run lint
-npm run typecheck
-npm run build
 ```
 
-## Routes
+Requires Node.js 20.19 or newer (see `.nvmrc`).
 
-- `/` - brand landing page
-- `/products` - product catalog
-- `/products/[slug]` - product details and purchase actions
-- `/cart` - persisted guest cart
-- `/checkout` - cart checkout review
-- `/checkout?intent=buy-now` - checkout for the selected item only
-- `/contact` - contact details, map, and inquiry form
-- `/admin/login` - administrator sign-in
-- `/admin` - protected store overview
-- `/admin/orders`, `/admin/products`, `/admin/payments`, `/admin/messages`, `/admin/customers`, `/admin/settings` - protected admin sections
+| Script | Purpose |
+| --- | --- |
+| `npm run dev` | Development server |
+| `npm run build` / `npm start` | Production build and server |
+| `npm run check` | Lint, typecheck, and unit tests (what CI runs, plus `build`) |
+| `npm run test:integration` | MongoDB integration tests (needs `MONGODB_URI_TEST`) |
+| `npm run format` | Format the codebase with Prettier |
+| `npm run seed:catalog` | Seed the product catalog |
+| `npm run import:legacy-contacts` | One-off import of the retired `.data/contact-messages.json` store into the support inbox |
 
-## Architecture
+Server configuration is validated at startup (`lib/env.js`, called from `instrumentation.ts`). Missing core secrets or half-configured integrations stop a production server from booting; in development they are logged as warnings.
 
-- `app/` owns routes, metadata, loading boundaries, and the root layout.
-- `components/layout/` contains the global site shell.
-- `components/ui/` contains reusable interface primitives.
-- `components/marketplace/` contains reusable product and purchase UI.
-- `features/cart/` owns cart types, reducer, persistence, provider, and cart views.
-- `features/checkout/` owns checkout presentation and purchase-intent selection.
-- `features/products/` owns the product model; `data/products.ts` is the current static catalog.
+Without `MONGODB_URI` the storefront falls back to the static demo catalog in `data/products.ts`; orders, accounts, payments, and the admin dashboard need MongoDB.
 
-The guest cart stores product IDs, quantities, and selected option IDs in `localStorage`; current names and prices are derived from the catalog. Buy Now uses a separate `sessionStorage` intent and does not add the product to or check out unrelated cart items.
+## Project layout
 
-## Checkout Integration Boundary
+- `app/` — routes. `(storefront)` is the public shop, `admin/(protected)` the dashboard, `api/v1` the JSON API.
+- `components/` — UI shared across routes; `components/ui` holds primitives.
+- `features/` — client-side domain modules (cart, checkout, orders, products, reviews).
+- `hooks/` — shared React hooks.
+- `lib/` — server code:
+  - `auth/` — customer JWT sessions (`session.js`) and admin guards (`admin-access.js`)
+  - `admin/` — dashboard admin sign-in (separate signed cookie)
+  - `services/` — business logic; `repositories/` — query helpers; `db/models/` — Mongoose models
+  - `validators/` — Zod schemas; `security/` — rate limiting and client IP; `utils/` — shared helpers
+- `docs/` — feature and API documentation.
 
-There is no order API, inventory service, customer authentication system, or payment provider in this project. Checkout currently validates browser form fields and clearly reports that it did not submit an order or collect payment. Shipping and taxes are supplier-confirmed and are not fabricated in totals. Do not treat client-side cart prices or inventory as authoritative.
+File names are kebab-case, except Mongoose models (`lib/db/models/PascalCase.js`).
 
-Before accepting orders, implement a server-side order endpoint that re-reads product prices and stock, validates variants and quantities, calculates shipping/tax, and uses an idempotency key. Integrate a payment provider through its secure server flow, verify provider callbacks, and only then clear/reconcile the cart and show an order confirmation.
+## API conventions
 
-## Admin Access
+All endpoints live under `/api/v1` and are wrapped in `withApiHandler` / `withDatabase`, which return a consistent shape:
 
-Copy `.env.example` to `.env.local`. Generate a bcrypt hash using the masked prompt (the password is not echoed or written to shell history):
-
-```bash
-node scripts/hash-admin-password.mjs
+```json
+{ "success": true, "message": "…", "data": {}, "meta": {} }
+{ "success": false, "message": "…", "errors": [{ "field": "email", "message": "…" }], "requestId": "…" }
 ```
 
-Generate a signing secret locally:
+Throw `ApiError(status, message, errors)` from services. Mongoose `CastError`, `ValidationError`, and duplicate-key errors are mapped to 400/422/409 automatically; anything else becomes a logged 500 with a `requestId` (also sent as the `x-request-id` header) to correlate with server logs.
 
-```bash
-node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"
-```
+Every admin route handler must call `requireAdminAccess()` (or `requireAdminUser()`) itself — layout protection alone is not enough.
 
-For local development, copy `.env.example` to `.env.local` and set `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and a unique `AUTH_SECRET` of at least 32 bytes, then restart the Next.js server. Plaintext passwords are accepted only outside production. Production requires `ADMIN_PASSWORD_HASH`; generate it with the script above (12-character minimum, bcrypt cost 12), and do not configure `ADMIN_PASSWORD`. Admin sessions are signed, expire after eight hours, and use an HttpOnly, SameSite=Strict cookie (Secure in production). Login errors are generic.
+## Admin access
 
-Login throttling is in-memory and per-process, suitable only for a single-instance prototype. It uses `X-Real-IP` for the address bucket, so production ingress must overwrite that header and the application origin must not be directly exposed; use a shared rate-limit store before deploying multiple instances. Product create/edit/delete works in browser memory and is reset on refresh; image selections are local previews only. No database, order/payment service, or image storage is configured for catalog or checkout.
+Two sign-in paths exist:
+
+1. **Database admins (recommended):** `node scripts/create-admin-user.mjs <email> <password> [name]`.
+2. **Environment bootstrap:** `ADMIN_EMAIL` plus `ADMIN_PASSWORD_HASH` (generate with `node scripts/hash-admin-password.mjs`; bcrypt cost ≥ 12). `ADMIN_PASSWORD` (plaintext) is accepted only outside production.
+
+`AUTH_SECRET` signs the dashboard session (eight hours, HttpOnly, SameSite=Strict, Secure in production).
+
+## Rate limiting
+
+Login, registration, contact, upload, and payment endpoints are rate limited per client IP. Buckets are stored in MongoDB (`ratelimits` collection with a TTL index) so limits hold across server instances, falling back to process memory when the database is unavailable. The client IP comes from `X-Real-IP` / `X-Forwarded-For`, so the hosting proxy must overwrite those headers.
 
 ## Contact inquiries
 
-The `/contact` form posts to `POST /api/contact`, validates on the client and server, applies a honeypot and per-IP rate limit, and persists messages to a JSON file (default `.data/contact-messages.json`, override with `CONTACT_MESSAGES_FILE`). Submissions appear in `/admin/messages`. Set `NEXT_PUBLIC_BUSINESS_EMAIL`, `NEXT_PUBLIC_BUSINESS_PHONE`, `NEXT_PUBLIC_BUSINESS_ADDRESS`, and `NEXT_PUBLIC_BUSINESS_HOURS` in `.env.local` to publish contact cards and the embedded map; leave them empty to show setup placeholders instead of invented details. Email notifications are not configured; add a provider server-side after persistence if needed.
+The `/contact` form posts to `POST /api/v1/contact`. Submissions are validated with Zod (including a honeypot field), rate limited, and stored as support conversations in MongoDB; they appear in `/admin/messages`. If `RESEND_API_KEY` and `NOTIFY_EMAIL_TO` are set, a notification email is sent after the response.
 
-The admin session is separate from customer authentication. Every admin page checks the signed session on the server. Any future admin Server Action, Route Handler, or mutation must repeat the authorization check inside the operation; layout protection alone is not sufficient.
+Set `NEXT_PUBLIC_BUSINESS_EMAIL`, `NEXT_PUBLIC_BUSINESS_PHONE`, `NEXT_PUBLIC_BUSINESS_ADDRESS`, and `NEXT_PUBLIC_BUSINESS_HOURS` to publish contact cards and the embedded map; leave them empty to show setup placeholders.
+
+## Security headers
+
+`next.config.mjs` sets a Content-Security-Policy, HSTS, `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy` on every response. When adding a new third-party script, image host, or iframe, add its origin to the CSP there.

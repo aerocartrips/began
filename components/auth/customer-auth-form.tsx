@@ -3,8 +3,8 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import ErrorCard from "@/components/ui/feedback/ErrorCard";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
+import ErrorCard from "@/components/ui/feedback/error-card";
+import LoadingButton from "@/components/ui/buttons/loading-button";
 
 type AuthMode = "login" | "register";
 

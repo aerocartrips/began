@@ -2,12 +2,12 @@
 
 import type { ReactNode } from "react";
 import Button from "@/components/ui/button";
-import ErrorCard from "@/components/ui/feedback/ErrorCard";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
-import PendingCard from "@/components/ui/feedback/PendingCard";
-import SuccessCard from "@/components/ui/feedback/SuccessCard";
-import WarningCard from "@/components/ui/feedback/WarningCard";
-import Spinner from "@/components/ui/loaders/Spinner";
+import ErrorCard from "@/components/ui/feedback/error-card";
+import LoadingButton from "@/components/ui/buttons/loading-button";
+import PendingCard from "@/components/ui/feedback/pending-card";
+import SuccessCard from "@/components/ui/feedback/success-card";
+import WarningCard from "@/components/ui/feedback/warning-card";
+import Spinner from "@/components/ui/loaders/spinner";
 
 export type PaymentUiPhase =
   | "idle"

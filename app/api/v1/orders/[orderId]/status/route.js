@@ -1,14 +1,14 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
-import { requireCommerceAdmin } from "@/lib/middleware/admin-api";
+import { requireAdminAccess } from "@/lib/auth/admin-access";
 import { updateOrderStatus } from "@/lib/services/order.service";
 import { updateOrderStatusSchema } from "@/lib/validators/order.validator";
 import { formatZodErrors } from "@/lib/validators/auth.validator";
 import { ApiError } from "@/lib/utils/api-error";
 
 export const PATCH = withDatabase(async (request, context) => {
-  const adminAccess = await requireCommerceAdmin();
+  const adminAccess = await requireAdminAccess();
   const adminUser =
     adminAccess.source === "api"
       ? adminAccess.user

@@ -7,8 +7,8 @@ type BrandLinkProps = {
 
 export default function BrandLink({ href = "/", className = "wordmark" }: BrandLinkProps) {
   return (
-    <Link className={className} href={href} aria-label="NeoVastra home">
-      NEOVASTRA
+    <Link className={className} href={href} aria-label="Norosilk home">
+      NOROSILK
     </Link>
   );
 }

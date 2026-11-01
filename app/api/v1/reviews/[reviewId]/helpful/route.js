@@ -1,6 +1,6 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { successResponse } from "@/lib/utils/api-response";
-import { requireAuthUser } from "@/lib/middleware/auth";
+import { requireAuthUser } from "@/lib/auth/session";
 import { markReviewHelpful, removeReviewHelpfulVote } from "@/lib/services/review-helpful.service";
 
 export const POST = withDatabase(async (_request, context) => {

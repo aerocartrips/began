@@ -1,12 +1,12 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
-import { requireFinanceAdmin } from "@/lib/middleware/admin-api";
+import { requireAdminAccess } from "@/lib/auth/admin-access";
 import { createAdminRefund } from "@/lib/services/refund.service";
 import { ApiError } from "@/lib/utils/api-error";
 
 export const POST = withDatabase(async (request) => {
-  const adminAccess = await requireFinanceAdmin();
+  const adminAccess = await requireAdminAccess();
   const adminUser =
     adminAccess.source === "api"
       ? adminAccess.user

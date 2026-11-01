@@ -4,20 +4,22 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import { ArrowRight, Package } from "lucide-react";
+import { useFeedback } from "@/components/feedback/feedback-provider";
 import EmptyState from "@/components/ui/empty-state";
-import ErrorCard from "@/components/ui/feedback/ErrorCard";
+import ErrorCard from "@/components/ui/feedback/error-card";
 import Button from "@/components/ui/button";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
+import LoadingButton from "@/components/ui/buttons/loading-button";
 import DownloadInvoiceButton from "@/components/orders/download-invoice-button";
-import { OrderListSkeleton } from "@/components/ui/loaders/OrderListSkeleton";
-import OrderProductReviewAction from "@/components/reviews/OrderProductReviewAction";
+import { OrderListSkeleton } from "@/components/ui/loaders/order-list-skeleton";
+import OrderProductReviewAction from "@/components/reviews/order-product-review-action";
 import { fetchCustomerOrders, fetchOrderSummary } from "@/features/orders/order-api";
 import OrderStatusBadge from "@/features/orders/order-status-badge";
 import type { OrderListItem, OrderSummaryStats } from "@/features/orders/types";
 import { fetchOrderReviewContext } from "@/features/reviews/review-api";
 import type { OrderReviewContextMap } from "@/features/reviews/types";
 import { fetchCurrentCustomer } from "@/features/checkout/submit-checkout-order";
+import { formatDate, formatRupees } from "@/lib/format";
 
 const FILTER_OPTIONS = [
   { id: "all", label: "All orders" },
@@ -136,95 +138,115 @@ export default function CustomerOrdersPageClient() {
   }
 
   return (
-    <main className="commerce-page content-width orders-page">
+    <main className="commerce-page content-width account-page">
       <div className="commerce-heading">
         <div>
           <p className="eyebrow">Wholesale account</p>
           <h1>My Orders</h1>
-          <p className="orders-page-lead">Track and manage your wholesale orders.</p>
+          <p className="account-lead">Track, manage, and review your wholesale orders.</p>
         </div>
-        {summary ? <p className="orders-count">{summary.total} total orders</p> : null}
+        <Button href="/products" variant="secondary" size="sm">Browse catalog</Button>
       </div>
 
       {summary ? (
-        <div className="orders-summary-grid">
+        <div className="account-stats" aria-label="Order summary">
           <article><strong>{summary.total}</strong><span>Total orders</span></article>
-          <article><strong>{summary.pendingPayment}</strong><span>Pending</span></article>
+          <article><strong>{summary.pendingPayment}</strong><span>Pending payment</span></article>
           <article><strong>{summary.processing}</strong><span>Processing</span></article>
           <article><strong>{summary.shipped}</strong><span>Shipped</span></article>
           <article><strong>{summary.delivered}</strong><span>Delivered</span></article>
         </div>
       ) : null}
 
-      <div className="orders-toolbar">
-        <label>
-          <span className="sr-only">Search orders</span>
-          <input value={q} onChange={(event) => setQ(event.currentTarget.value)} placeholder="Search order number or product" />
+      <form
+        className="account-filters"
+        role="search"
+        onSubmit={(event) => {
+          event.preventDefault();
+          applyFilters();
+        }}
+      >
+        <label className="account-field account-field--search">
+          Search
+          <input type="search" value={q} onChange={(event) => setQ(event.currentTarget.value)} placeholder="Order number or product" />
         </label>
-        <label>
-          <span className="sr-only">Filter orders</span>
+        <label className="account-field">
+          Status
           <select value={bucket} onChange={(event) => setBucket(event.currentTarget.value)}>
             {FILTER_OPTIONS.map((option) => (
               <option key={option.id} value={option.id}>{option.label}</option>
             ))}
           </select>
         </label>
-        <label>
-          <span className="sr-only">Sort orders</span>
+        <label className="account-field">
+          Sort
           <select value={sort} onChange={(event) => setSort(event.currentTarget.value as "asc" | "desc")}>
             <option value="desc">Newest first</option>
             <option value="asc">Oldest first</option>
           </select>
         </label>
-        <label>
+        <label className="account-field">
           From
-          <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.currentTarget.value)} />
+          <input type="date" value={dateFrom} max={dateTo || undefined} onChange={(event) => setDateFrom(event.currentTarget.value)} />
         </label>
-        <label>
+        <label className="account-field">
           To
-          <input type="date" value={dateTo} onChange={(event) => setDateTo(event.currentTarget.value)} />
+          <input type="date" value={dateTo} min={dateFrom || undefined} onChange={(event) => setDateTo(event.currentTarget.value)} />
         </label>
-        <LoadingButton type="button" variant="secondary" loading={loading} onClick={applyFilters}>
-          Apply filters
+        <LoadingButton type="submit" size="sm" loading={loading && orders.length > 0}>
+          Apply
         </LoadingButton>
-      </div>
+      </form>
 
       {loading && orders.length === 0 ? <OrderListSkeleton /> : null}
       {error ? (
-        <ErrorCard title="Unable to load orders" description={error} action={<LoadingButton type="button" onClick={() => void loadPage(1, false)}>Try again</LoadingButton>} />
+        <ErrorCard title="Unable to load orders" description={error} action={<LoadingButton type="button" size="sm" onClick={() => void loadPage(1, false)}>Try again</LoadingButton>} />
       ) : null}
       {!loading && !error && orders.length === 0 ? (
-        <EmptyState title="No orders found" description="Try another filter or place your first wholesale order from the catalog." action={<Button href="/products">Browse catalog</Button>} />
+        <EmptyState
+          className="account-empty"
+          icon={<Package size={20} />}
+          title="No orders found"
+          description="Try a different filter, or place your first wholesale order from the catalog."
+          action={<Button href="/products" size="sm">Browse catalog</Button>}
+        />
       ) : null}
 
       <div className="orders-list">
         {orders.map((order) => {
           const firstItem = order.items[0];
           const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
+          const extraLines = order.items.length - 1;
           const canDownloadInvoice = order.paymentStatus !== "pending";
           return (
             <article className="orders-card" key={order._id}>
-              <div className="orders-card-head">
+              <header className="orders-card-head">
                 <div>
-                  <strong>{order.orderNumber}</strong>
-                  <small>{new Date(order.createdAt).toLocaleString()}</small>
+                  <Link className="orders-card-number" href={`/account/orders/${order._id}`}>{order.orderNumber}</Link>
+                  <small>Placed {formatDate(order.createdAt)}</small>
                 </div>
                 <div className="orders-card-badges">
-                  <OrderStatusBadge kind="payment" status={order.paymentStatus} />
                   <OrderStatusBadge kind="order" status={order.orderStatus} />
+                  <OrderStatusBadge kind="payment" status={order.paymentStatus} />
                 </div>
-              </div>
+              </header>
               <div className="orders-card-body">
                 <div className="orders-card-thumb">
                   {firstItem?.imageUrl ? (
                     <Image src={firstItem.imageUrl} alt="" fill sizes="88px" className="cover-image" />
                   ) : null}
                 </div>
-                <div>
-                  <p>{firstItem?.productName ?? "Wholesale order"}</p>
-                  <small>{order.items.length} line item(s) · {itemCount} units</small>
-                  <strong>₹{order.totalAmount.toFixed(2)}</strong>
-                  {order.shipment?.awb ? <small>AWB {order.shipment.awb}</small> : null}
+                <div className="orders-card-info">
+                  <h2>{firstItem?.productName ?? "Wholesale order"}</h2>
+                  <p>
+                    {extraLines > 0 ? `+ ${extraLines} more ${extraLines === 1 ? "product" : "products"} · ` : ""}
+                    {itemCount} units
+                  </p>
+                  {order.shipment?.awb ? <p className="orders-card-awb">AWB {order.shipment.awb}</p> : null}
+                </div>
+                <div className="orders-card-total">
+                  <span>Order total</span>
+                  <strong>{formatRupees(order.totalAmount)}</strong>
                 </div>
               </div>
               {order.orderStatus === "delivered" && reviewContext[order._id] ? (
@@ -239,22 +261,26 @@ export default function CustomerOrdersPageClient() {
                   ))}
                 </div>
               ) : null}
-              <div className="orders-card-actions">
-                <Button href={`/account/orders/${order._id}`} variant="secondary">View details</Button>
+              <footer className="orders-card-actions">
+                <Button href={`/account/orders/${order._id}`} size="sm" icon={<ArrowRight size={14} aria-hidden="true" />}>
+                  View details
+                </Button>
                 {order.shipment?.awb ? (
-                  <Button href={`/account/orders/${order._id}#tracking`} variant="secondary">Track order</Button>
+                  <Button href={`/account/orders/${order._id}#tracking`} variant="secondary" size="sm">Track shipment</Button>
                 ) : null}
                 {canDownloadInvoice ? <DownloadInvoiceButton orderId={order._id} /> : null}
-              </div>
+              </footer>
             </article>
           );
         })}
       </div>
 
       {hasMore ? (
-        <LoadingButton type="button" className="orders-load-more" loading={loading} onClick={() => setPage((value) => value + 1)}>
-          Load more
-        </LoadingButton>
+        <div className="account-load-more">
+          <LoadingButton type="button" variant="secondary" size="sm" loading={loading} onClick={() => setPage((value) => value + 1)}>
+            Load more orders
+          </LoadingButton>
+        </div>
       ) : null}
     </main>
   );

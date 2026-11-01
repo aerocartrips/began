@@ -1,7 +1,7 @@
 import CustomerReviewsPageClient from "@/features/reviews/customer-reviews-page-client";
 
 export const metadata = {
-  title: "My Reviews | NeoVastra",
+  title: "My Reviews | Norosilk",
   description: "Manage your verified purchase product reviews.",
 };
 

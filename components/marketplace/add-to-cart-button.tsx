@@ -3,8 +3,8 @@
 import { useId, useState } from "react";
 import type { ButtonHTMLAttributes } from "react";
 import { ShoppingCart } from "lucide-react";
-import { useOptionalFeedback } from "@/components/feedback/FeedbackProvider";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
+import { useOptionalFeedback } from "@/components/feedback/feedback-provider";
+import LoadingButton from "@/components/ui/buttons/loading-button";
 import { useCart } from "@/features/cart/cart-provider";
 import type { SelectedOptions } from "@/features/cart/types/cart";
 

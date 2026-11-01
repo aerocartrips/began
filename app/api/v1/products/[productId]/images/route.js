@@ -1,7 +1,7 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
-import { requireImageAdmin } from "@/lib/middleware/admin-api";
+import { requireAdminAccess } from "@/lib/auth/admin-access";
 import { extractUploadFiles } from "@/lib/validators/upload.validator";
 import {
   attachProductImages,
@@ -10,7 +10,7 @@ import {
 import { ApiError } from "@/lib/utils/api-error";
 
 export const POST = withDatabase(async (request, context) => {
-  await requireImageAdmin();
+  await requireAdminAccess();
   const { productId } = await context.params;
   const formData = await request.formData();
   const extracted = extractUploadFiles(formData);
@@ -38,7 +38,7 @@ export const POST = withDatabase(async (request, context) => {
 });
 
 export const PATCH = withDatabase(async (request, context) => {
-  await requireImageAdmin();
+  await requireAdminAccess();
   const { productId } = await context.params;
   const payload = await parseJsonBody(request);
   const product = await updateAttachedProductImages(productId, payload);

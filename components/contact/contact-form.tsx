@@ -3,15 +3,24 @@
 import { useId, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, Check } from "lucide-react";
 import Button from "@/components/ui/button";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
+import LoadingButton from "@/components/ui/buttons/loading-button";
 import type { ContactFieldErrors } from "@/features/messages/types/contact-message";
 
 type ContactResponse = {
   success?: boolean;
-  messageId?: string;
-  error?: string;
-  errors?: ContactFieldErrors;
+  message?: string;
+  data?: { messageId?: string };
+  errors?: { field: string; message: string }[];
 };
+
+function toFieldErrors(errors: ContactResponse["errors"]): ContactFieldErrors {
+  const fieldErrors: ContactFieldErrors = {};
+  for (const error of errors ?? []) {
+    const field = error.field as keyof ContactFieldErrors;
+    fieldErrors[field] ??= error.message;
+  }
+  return fieldErrors;
+}
 
 export default function ContactForm() {
   const formId = useId();
@@ -31,19 +40,19 @@ export default function ContactForm() {
     const data = new FormData(event.currentTarget);
     const payload = Object.fromEntries(data.entries());
     try {
-      const response = await fetch("/api/contact", {
+      const response = await fetch("/api/v1/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const result = await response.json() as ContactResponse;
-      if (response.ok && result.success && result.messageId) {
+      if (response.ok && result.success && result.data?.messageId) {
         setSubmitted(true);
         formRef.current?.reset();
-      } else if (result.errors) {
-        setErrors(result.errors);
+      } else if (result.errors?.length) {
+        setErrors(toFieldErrors(result.errors));
       } else {
-        setRequestError(result.error ?? "We could not save your message. Please try again later.");
+        setRequestError(result.message ?? "We could not save your message. Please try again later.");
       }
     } catch {
       setRequestError("We could not reach the message service. Your message has not been submitted.");

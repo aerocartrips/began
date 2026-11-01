@@ -1,7 +1,8 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { successResponse } from "@/lib/utils/api-response";
-import { requireAuthUser } from "@/lib/middleware/auth";
-import { checkRateLimit, getClientIp, recordRateLimitHit } from "@/lib/middleware/rate-limit";
+import { requireAuthUser } from "@/lib/auth/session";
+import { getClientIp } from "@/lib/security/client-ip";
+import { checkRateLimit, recordRateLimitHit } from "@/lib/security/rate-limit";
 import { extractUploadFiles } from "@/lib/validators/upload.validator";
 import { removeReviewImage, toCustomerReview, uploadReviewImages } from "@/lib/services/review.service";
 import { ApiError } from "@/lib/utils/api-error";
@@ -11,7 +12,7 @@ export const POST = withDatabase(async (request, context) => {
   const { reviewId } = await context.params;
 
   const ip = getClientIp(request);
-  const limit = checkRateLimit(`reviews:upload:${ip}`);
+  const limit = await checkRateLimit(`reviews:upload:${ip}`);
   if (!limit.allowed) {
     throw new ApiError(429, "Too many upload attempts. Please wait before trying again.");
   }
@@ -23,7 +24,7 @@ export const POST = withDatabase(async (request, context) => {
   }
 
   const result = await uploadReviewImages(reviewId, user, extracted.files);
-  recordRateLimitHit(`reviews:upload:${ip}`);
+  await recordRateLimitHit(`reviews:upload:${ip}`);
 
   return successResponse(
     {

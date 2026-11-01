@@ -8,8 +8,8 @@ import BusinessLocationMap from "@/components/contact/business-location-map";
 import { siteContact } from "@/lib/site-content";
 
 export const metadata: Metadata = {
-  title: "Contact NeoVastra | Saree and Wholesale Support",
-  description: "Contact NeoVastra about saree details, wholesale batches, and supplier inquiries.",
+  title: "Contact Norosilk | Saree and Wholesale Support",
+  description: "Contact Norosilk about saree details, wholesale batches, and supplier inquiries.",
 };
 
 export default function ContactPage() {

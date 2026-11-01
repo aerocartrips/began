@@ -2,10 +2,10 @@
 
 import Button from "@/components/ui/button";
 import EmptyState from "@/components/ui/empty-state";
-import ErrorCard from "@/components/ui/feedback/ErrorCard";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
+import ErrorCard from "@/components/ui/feedback/error-card";
+import LoadingButton from "@/components/ui/buttons/loading-button";
 import ProductForm from "@/components/admin/product-form";
-import { useApiRequest } from "@/hooks/useApiRequest";
+import { useApiRequest } from "@/hooks/use-api-request";
 import {
   mapMongoProductToAdminForm,
   type MongoProductRecord,

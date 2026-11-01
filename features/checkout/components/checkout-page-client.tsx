@@ -5,12 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import PaymentFeedback, { type PaymentUiPhase } from "@/components/checkout/payment-feedback";
-import { useOptionalFeedback } from "@/components/feedback/FeedbackProvider";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
+import { useOptionalFeedback } from "@/components/feedback/feedback-provider";
+import LoadingButton from "@/components/ui/buttons/loading-button";
 import Button from "@/components/ui/button";
-import CheckoutSkeleton from "@/components/ui/loaders/CheckoutSkeleton";
-import ErrorCard from "@/components/ui/feedback/ErrorCard";
-import WarningCard from "@/components/ui/feedback/WarningCard";
+import CheckoutSkeleton from "@/components/ui/loaders/checkout-skeleton";
+import ErrorCard from "@/components/ui/feedback/error-card";
+import WarningCard from "@/components/ui/feedback/warning-card";
 import CartSummary from "@/features/cart/components/cart-summary";
 import { useCart } from "@/features/cart/cart-provider";
 import EmptyState from "@/components/ui/empty-state";
@@ -23,7 +23,7 @@ import {
   verifyPayment,
   type CheckoutAddress,
 } from "@/features/checkout/submit-checkout-order";
-import { usePaymentStatusPoll } from "@/hooks/usePaymentStatusPoll";
+import { usePaymentStatusPoll } from "@/hooks/use-payment-status-poll";
 
 type CheckoutPageClientProps = {
   buyNow: boolean;

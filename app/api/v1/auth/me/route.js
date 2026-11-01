@@ -1,7 +1,7 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { successResponse } from "@/lib/utils/api-response";
 import { getCurrentUser } from "@/lib/services/auth.service";
-import { requireAuthUser } from "@/lib/middleware/auth";
+import { requireAuthUser } from "@/lib/auth/session";
 
 export const GET = withDatabase(async () => {
   const user = await requireAuthUser();

@@ -1,36 +1,69 @@
 import Link from "next/link";
+import { connection } from "next/server";
 import StatCard from "@/components/admin/stat-card";
-import { products } from "@/data/products";
+import { connectDB, isDatabaseConfigured } from "@/lib/db/connect";
+import { getAdminDashboardStats, LOW_STOCK_THRESHOLD } from "@/lib/services/dashboard.service";
+import { logger } from "@/lib/utils/logger";
 
-export default function AdminOverviewPage() {
+const rupees = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  maximumFractionDigits: 0,
+});
+
+const numbers = new Intl.NumberFormat("en-IN");
+
+async function loadStats() {
+  if (!isDatabaseConfigured()) return null;
+  await connection();
+  try {
+    await connectDB();
+    return await getAdminDashboardStats();
+  } catch (error) {
+    logger.error("Admin dashboard stats failed", { error });
+    return null;
+  }
+}
+
+export default async function AdminOverviewPage() {
+  const stats = await loadStats();
+
   return (
     <>
       <header className="admin-page-heading">
         <div>
           <p className="admin-eyebrow">Store overview</p>
           <h1>Overview</h1>
-          <p>Business data is shown only when connected to its source.</p>
+          <p>Live figures from the store database.</p>
         </div>
       </header>
-      <section className="admin-stat-grid" aria-label="Store statistics">
-        <StatCard label="Products" value={String(products.length)} detail="From the current static catalog" />
-        <StatCard label="Orders" value="Not connected" detail="No order database configured" state="unavailable" />
-        <StatCard label="Paid revenue" value="Not connected" detail="No verified payment records" state="unavailable" />
-        <StatCard label="Failed payments" value="Not connected" detail="No payment provider configured" state="unavailable" />
-        <StatCard label="Customer messages" value="Not connected" detail="No message storage configured" state="unavailable" />
-        <StatCard label="Inventory alerts" value="Unavailable" detail="No stock threshold is configured" state="unavailable" />
-      </section>
-      <section className="admin-panel admin-source-panel">
-        <div>
-          <p className="admin-eyebrow">Current data boundary</p>
-          <h2>This storefront has no order or customer backend yet</h2>
-          <p>
-            Product management is read-only while the catalog lives in source code. Orders, payments,
-            customer messages, and analytics will appear here after their services are connected.
-          </p>
-        </div>
-        <Link className="admin-text-link" href="/admin/products">Review catalog</Link>
-      </section>
+      {stats ? (
+        <section className="admin-stat-grid" aria-label="Store statistics">
+          <StatCard
+            label="Products"
+            value={numbers.format(stats.activeProducts)}
+            detail={`Active of ${numbers.format(stats.totalProducts)} in catalog`}
+          />
+          <StatCard label="Orders" value={numbers.format(stats.orders)} detail="All orders placed" />
+          <StatCard label="Paid revenue" value={rupees.format(stats.paidRevenue)} detail="Orders with verified payment" />
+          <StatCard label="Failed payments" value={numbers.format(stats.failedPayments)} detail="Payment attempts that failed" />
+          <StatCard label="Customer messages" value={numbers.format(stats.openConversations)} detail="Open support conversations" />
+          <StatCard
+            label="Inventory alerts"
+            value={numbers.format(stats.lowStock)}
+            detail={`Active products with ${LOW_STOCK_THRESHOLD} or fewer in stock`}
+          />
+        </section>
+      ) : (
+        <section className="admin-panel admin-source-panel">
+          <div>
+            <p className="admin-eyebrow">Database unavailable</p>
+            <h2>Store figures could not be loaded</h2>
+            <p>Configure MONGODB_URI and confirm the database is reachable to see orders, payments, and inventory.</p>
+          </div>
+          <Link className="admin-text-link" href="/admin/settings">Check integrations</Link>
+        </section>
+      )}
     </>
   );
 }

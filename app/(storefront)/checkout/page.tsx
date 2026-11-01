@@ -4,7 +4,7 @@ import CheckoutPageClient from "@/features/checkout/components/checkout-page-cli
 import EmptyState from "@/components/ui/empty-state";
 
 export const metadata: Metadata = {
-  title: "Checkout | NeoVastra",
+  title: "Checkout | Norosilk",
   description: "Review your wholesale order and shipping details.",
 };
 

@@ -2,6 +2,9 @@
   "name": "norosilk",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,7 +14,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run tests/integration",
-    "seed:catalog": "node scripts/seed-storefront-catalog.mjs"
+    "seed:catalog": "node scripts/seed-storefront-catalog.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run lint && npm run typecheck && npm run test",
+    "import:legacy-contacts": "node --env-file=.env scripts/import-legacy-contact-messages.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -32,6 +39,8 @@
     "@types/react": "^19.3.0",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
+    "mongodb-memory-server": "^11.3.0",
+    "prettier": "3.9.10",
     "tailwindcss": "^4",
     "typescript": "^6.0.3",
     "vitest": "^3.2.4"

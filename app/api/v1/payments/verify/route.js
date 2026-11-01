@@ -1,7 +1,7 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
-import { requireAuthUser } from "@/lib/middleware/auth";
+import { requireAuthUser } from "@/lib/auth/session";
 import { verifyPaymentSchema } from "@/lib/validators/payment.validator";
 import { formatZodErrors } from "@/lib/validators/auth.validator";
 import { reconcileCapturedPayment } from "@/lib/services/payment-verification.service";

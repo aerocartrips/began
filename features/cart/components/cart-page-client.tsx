@@ -3,8 +3,8 @@
 import CartItem from "@/features/cart/components/cart-item";
 import CartSummary from "@/features/cart/components/cart-summary";
 import { useCart } from "@/features/cart/cart-provider";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
-import CartSkeleton from "@/components/ui/loaders/CartSkeleton";
+import LoadingButton from "@/components/ui/buttons/loading-button";
+import CartSkeleton from "@/components/ui/loaders/cart-skeleton";
 import EmptyState from "@/components/ui/empty-state";
 import Button from "@/components/ui/button";
 import { ShoppingBag } from "lucide-react";

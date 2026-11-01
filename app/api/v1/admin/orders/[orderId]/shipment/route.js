@@ -1,6 +1,6 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { successResponse } from "@/lib/utils/api-response";
-import { requireCommerceAdmin } from "@/lib/middleware/admin-api";
+import { requireAdminAccess } from "@/lib/auth/admin-access";
 import {
   createOrderShipmentBooking,
   generateOrderShipmentManifest,
@@ -10,7 +10,7 @@ import { getOrderTracking } from "@/lib/services/order-actions.service";
 import { orderRepository } from "@/lib/repositories/order.repository";
 
 export const POST = withDatabase(async (request, context) => {
-  const admin = await requireCommerceAdmin();
+  const admin = await requireAdminAccess();
   const { orderId } = await context.params;
   const action = new URL(request.url).searchParams.get("action") || "book";
 

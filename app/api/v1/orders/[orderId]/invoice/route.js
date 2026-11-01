@@ -1,6 +1,6 @@
 import { withDatabase } from "@/lib/api/with-database";
-import { getAuthUser } from "@/lib/middleware/auth";
-import { resolveAdminAccess } from "@/lib/middleware/admin-access";
+import { getAuthUser } from "@/lib/auth/session";
+import { resolveAdminAccess } from "@/lib/auth/admin-access";
 import { ROLES } from "@/lib/constants/roles";
 import { getOrCreateOrderInvoice } from "@/lib/invoices/invoice.service";
 import { ApiError } from "@/lib/utils/api-error";

@@ -1,7 +1,7 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { successResponse } from "@/lib/utils/api-response";
-import { getAuthUser } from "@/lib/middleware/auth";
-import { requireCommerceAdmin } from "@/lib/middleware/admin-api";
+import { getAuthUser } from "@/lib/auth/session";
+import { requireAdminAccess } from "@/lib/auth/admin-access";
 import { ROLES } from "@/lib/constants/roles";
 import { getOrderForUser } from "@/lib/services/order.service";
 import {
@@ -19,7 +19,7 @@ export const GET = withDatabase(async (request, context) => {
   if (sessionUser) {
     isAdmin = sessionUser.role === ROLES.ADMIN;
   } else {
-    await requireCommerceAdmin();
+    await requireAdminAccess();
     isAdmin = true;
     user = null;
   }

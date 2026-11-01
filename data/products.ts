@@ -2,7 +2,7 @@ import type { Product } from "@/features/products/types/product";
 
 export const products = [
   {
-    id: "neov-aurora-silk-44",
+    id: "norosilk-aurora-silk-44",
     slug: "aurora-silk-44",
     sku: "NV-AUR-044",
     title: "Aurora Silk #44",
@@ -17,7 +17,7 @@ export const products = [
     inventory: 1200,
     status: "published",
     featured: true,
-    seoTitle: "Aurora Silk Saree #44 | NeoVastra",
+    seoTitle: "Aurora Silk Saree #44 | Norosilk",
     seoDescription: "Emerald-and-gold Kanchipuram tech-handloom silk saree.",
     saree: {
       fabric: "Pure silk",
@@ -37,7 +37,7 @@ export const products = [
     options: [],
   },
   {
-    id: "neov-nebula-zari-12",
+    id: "norosilk-nebula-zari-12",
     slug: "nebula-zari-12",
     sku: "NV-NEB-012",
     title: "Nebula Zari #12",
@@ -52,7 +52,7 @@ export const products = [
     inventory: 450,
     status: "published",
     featured: true,
-    seoTitle: "Nebula Zari Saree #12 | NeoVastra",
+    seoTitle: "Nebula Zari Saree #12 | Norosilk",
     seoDescription: "Silver and pastel-pink Banarasi saree with zari work.",
     saree: {
       fabric: "Silk blend",
@@ -72,7 +72,7 @@ export const products = [
     options: [],
   },
   {
-    id: "neov-void-organza-09",
+    id: "norosilk-void-organza-09",
     slug: "void-organza-09",
     sku: "NV-VOI-009",
     title: "Void Organza #09",
@@ -87,7 +87,7 @@ export const products = [
     inventory: 800,
     status: "published",
     featured: false,
-    seoTitle: "Void Organza Saree #09 | NeoVastra",
+    seoTitle: "Void Organza Saree #09 | Norosilk",
     seoDescription: "Black Jaipur organza saree with metallic embroidery.",
     saree: {
       fabric: "Organza",

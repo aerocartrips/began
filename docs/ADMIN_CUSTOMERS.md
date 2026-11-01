@@ -2,7 +2,7 @@
 
 - **UI:** `/admin/customers`, `/admin/customers/[customerId]`
 - **API:** `GET /api/v1/customers`, `GET /api/v1/customers/summary`, `GET/PATCH /api/v1/customers/[customerId]`
-- **Auth:** `requireCommerceAdmin`
+- **Auth:** `requireAdminAccess`
 - **Data:** MongoDB `User` (role `customer`) with order aggregates from `Order`
 
 ## Capabilities

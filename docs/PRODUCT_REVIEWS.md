@@ -61,7 +61,7 @@ Cancelled, pending, processing, packed, shipped, and out-for-delivery orders are
 |--------|------|---------|
 | GET | `/api/v1/products/[productId]/reviews` | Approved reviews + summary (paginated, sort/filter) |
 
-### Admin (`requireCommerceAdmin`)
+### Admin (`requireAdminAccess`)
 
 | Method | Path | Purpose |
 |--------|------|---------|

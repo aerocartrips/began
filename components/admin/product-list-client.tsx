@@ -4,12 +4,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import AdminPageHeading from "@/components/admin/admin-page-heading";
+import AdminStatusChip from "@/components/admin/admin-status-chip";
 import Button from "@/components/ui/button";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
-import ErrorCard from "@/components/ui/feedback/ErrorCard";
-import TableSkeleton from "@/components/ui/loaders/TableSkeleton";
-import { useApiRequest } from "@/hooks/useApiRequest";
-import { useAsyncAction } from "@/hooks/useAsyncAction";
+import LoadingButton from "@/components/ui/buttons/loading-button";
+import ErrorCard from "@/components/ui/feedback/error-card";
+import TableSkeleton from "@/components/ui/loaders/table-skeleton";
+import { useApiRequest } from "@/hooks/use-api-request";
+import { useAsyncAction } from "@/hooks/use-async-action";
 import { apiRequest } from "@/lib/api/api-client";
 import { formatCurrency } from "@/lib/format-currency";
 import {
@@ -93,9 +94,9 @@ export default function AdminProductListClient() {
               <tr>
                 <th scope="col">Saree</th>
                 <th scope="col">SKU</th>
-                <th scope="col">Price</th>
-                <th scope="col">MOQ</th>
-                <th scope="col">Stock</th>
+                <th scope="col" className="is-numeric">Price</th>
+                <th scope="col" className="is-numeric">MOQ</th>
+                <th scope="col" className="is-numeric">Stock</th>
                 <th scope="col">Status</th>
                 <th scope="col">Actions</th>
               </tr>
@@ -119,13 +120,11 @@ export default function AdminProductListClient() {
                   <td>
                     <code>{product.sku}</code>
                   </td>
-                  <td>{formatCurrency(product.priceCents, product.currency)}</td>
-                  <td>{product.minimumOrderQuantity}</td>
-                  <td>{product.inventory.toLocaleString("en-US")}</td>
+                  <td className="is-numeric">{formatCurrency(product.priceCents, product.currency)}</td>
+                  <td className="is-numeric">{product.minimumOrderQuantity}</td>
+                  <td className="is-numeric">{product.inventory.toLocaleString("en-US")}</td>
                   <td>
-                    <span className={`admin-status-chip ${product.status === "draft" ? "is-draft" : ""}`}>
-                      {product.status}
-                    </span>
+                    <AdminStatusChip status={product.status} />
                   </td>
                   <td>
                     <div className="admin-product-actions">

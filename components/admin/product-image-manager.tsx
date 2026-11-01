@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import ImageUploader from "@/components/images/ImageUploader";
+import ImageUploader from "@/components/images/image-uploader";
 import type { ProductImage } from "@/features/products/types/product";
 
 type ProductImageManagerProps = {

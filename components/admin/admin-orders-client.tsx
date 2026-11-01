@@ -1,120 +1,180 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import { useMemo, useState, type FormEvent } from "react";
+import { Search } from "lucide-react";
 import AdminPageHeading from "@/components/admin/admin-page-heading";
-import EmptyState from "@/components/ui/empty-state";
-import ErrorCard from "@/components/ui/feedback/ErrorCard";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
-import TableSkeleton from "@/components/ui/loaders/TableSkeleton";
-import OrderStatusBadge from "@/features/orders/order-status-badge";
-import { useApiRequest } from "@/hooks/useApiRequest";
+import AdminStatusChip from "@/components/admin/admin-status-chip";
+import AdminSummaryGrid from "@/components/admin/admin-summary-grid";
+import ErrorCard from "@/components/ui/feedback/error-card";
+import LoadingButton from "@/components/ui/buttons/loading-button";
+import TableSkeleton from "@/components/ui/loaders/table-skeleton";
+import { useApiRequest } from "@/hooks/use-api-request";
+import { formatDateTime, formatNumber, formatRupees } from "@/lib/format";
 import type { OrderListItem, OrderSummaryStats } from "@/features/orders/types";
 
+const STATUS_OPTIONS = [
+  ["all", "All statuses"],
+  ["pending_payment", "Pending payment"],
+  ["confirmed", "Confirmed"],
+  ["processing", "Processing"],
+  ["packed", "Packed"],
+  ["shipped", "Shipped"],
+  ["delivered", "Delivered"],
+  ["cancelled", "Cancelled"],
+] as const;
+
+const PAYMENT_OPTIONS = [
+  ["", "All payments"],
+  ["pending", "Pending"],
+  ["paid", "Paid"],
+  ["failed", "Failed"],
+  ["refunded", "Refunded"],
+] as const;
+
 export default function AdminOrdersClient() {
-  const feedback = useFeedback();
-  const [q, setQ] = useState("");
+  const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [bucket, setBucket] = useState("all");
   const [paymentStatus, setPaymentStatus] = useState("");
-  const query = useMemo(() => {
+
+  const endpoint = useMemo(() => {
     const params = new URLSearchParams({ limit: "25", page: "1" });
-    if (q.trim()) params.set("q", q.trim());
+    if (appliedSearch.trim()) params.set("q", appliedSearch.trim());
     if (bucket !== "all") params.set("bucket", bucket);
     if (paymentStatus) params.set("paymentStatus", paymentStatus);
     return `/api/v1/orders?${params.toString()}`;
-  }, [bucket, paymentStatus, q]);
+  }, [appliedSearch, bucket, paymentStatus]);
 
   const summaryRequest = useApiRequest<OrderSummaryStats>("/api/v1/orders/summary");
-  const listRequest = useApiRequest<OrderListItem[]>(query, {}, { immediate: true });
+  const listRequest = useApiRequest<OrderListItem[]>(endpoint);
   const orders = listRequest.data ?? [];
   const summary = summaryRequest.data;
+
+  function applySearch(event: FormEvent) {
+    event.preventDefault();
+    if (search === appliedSearch) void listRequest.refetch();
+    else setAppliedSearch(search);
+  }
 
   return (
     <>
       <AdminPageHeading
         eyebrow="Commerce"
         title="Orders"
-        description="Search, review, and fulfill wholesale customer orders."
+        description="Search, review, and fulfil wholesale customer orders."
         action={
-          <LoadingButton type="button" variant="secondary" loading={listRequest.loading} onClick={() => void listRequest.refetch()}>
+          <LoadingButton
+            type="button"
+            variant="secondary"
+            loading={listRequest.loading}
+            onClick={() => {
+              void listRequest.refetch();
+              void summaryRequest.refetch();
+            }}
+          >
             Refresh
           </LoadingButton>
         }
       />
+
       {summary ? (
-        <div className="orders-summary-grid admin-orders-summary">
-          <article><strong>{summary.total}</strong><span>Total</span></article>
-          <article><strong>{summary.pendingPayment}</strong><span>Pending payment</span></article>
-          <article><strong>{summary.paid}</strong><span>Paid</span></article>
-          <article><strong>{summary.processing}</strong><span>Processing</span></article>
-          <article><strong>{summary.shipped}</strong><span>Shipped</span></article>
-          <article><strong>{summary.delivered}</strong><span>Delivered</span></article>
-          <article><strong>{summary.cancelled}</strong><span>Cancelled</span></article>
-        </div>
+        <AdminSummaryGrid
+          label="Order summary"
+          items={[
+            { label: "Total orders", value: formatNumber(summary.total) },
+            { label: "Pending payment", value: formatNumber(summary.pendingPayment) },
+            { label: "Paid", value: formatNumber(summary.paid) },
+            { label: "Processing", value: formatNumber(summary.processing) },
+            { label: "Shipped", value: formatNumber(summary.shipped) },
+            { label: "Delivered", value: formatNumber(summary.delivered) },
+            { label: "Cancelled", value: formatNumber(summary.cancelled) },
+          ]}
+        />
       ) : null}
-      <div className="orders-toolbar">
-        <input value={q} onChange={(event) => setQ(event.currentTarget.value)} placeholder="Search order or product" />
-        <select value={bucket} onChange={(event) => setBucket(event.currentTarget.value)}>
-          <option value="all">All statuses</option>
-          <option value="pending_payment">Pending payment</option>
-          <option value="confirmed">Confirmed</option>
-          <option value="processing">Processing</option>
-          <option value="packed">Packed</option>
-          <option value="shipped">Shipped</option>
-          <option value="delivered">Delivered</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-        <select value={paymentStatus} onChange={(event) => setPaymentStatus(event.currentTarget.value)}>
-          <option value="">All payments</option>
-          <option value="pending">Pending</option>
-          <option value="paid">Paid</option>
-          <option value="failed">Failed</option>
-          <option value="refunded">Refunded</option>
-        </select>
-        <LoadingButton type="button" onClick={() => { void listRequest.refetch(); feedback.info("Filters applied", "Order list refreshed."); }}>
+
+      <form className="admin-toolbar" onSubmit={applySearch} role="search">
+        <label className="admin-toolbar__search">
+          <span className="sr-only">Search orders</span>
+          <Search size={14} aria-hidden="true" />
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.currentTarget.value)}
+            placeholder="Search order number or product…"
+          />
+        </label>
+        <label>
+          <span className="sr-only">Order status</span>
+          <select value={bucket} onChange={(event) => setBucket(event.currentTarget.value)}>
+            {STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </label>
+        <label>
+          <span className="sr-only">Payment status</span>
+          <select value={paymentStatus} onChange={(event) => setPaymentStatus(event.currentTarget.value)}>
+            {PAYMENT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </label>
+        <LoadingButton type="submit" variant="secondary" loading={listRequest.loading}>
           Apply
         </LoadingButton>
-      </div>
-      {listRequest.loading ? <TableSkeleton rows={8} /> : null}
+      </form>
+
       {listRequest.error ? (
-        <ErrorCard title="Unable to load orders" description={listRequest.error} action={<LoadingButton type="button" onClick={() => void listRequest.refetch()}>Try again</LoadingButton>} />
-      ) : null}
-      {!listRequest.loading && orders.length === 0 ? (
-        <EmptyState title="No orders found" description="Orders appear here after customers checkout." />
-      ) : null}
-      {!listRequest.loading && orders.length > 0 ? (
+        <ErrorCard
+          title="Unable to load orders"
+          description={listRequest.error}
+          action={<LoadingButton type="button" onClick={() => void listRequest.refetch()}>Try again</LoadingButton>}
+        />
+      ) : listRequest.loading && orders.length === 0 ? (
+        <TableSkeleton rows={8} />
+      ) : orders.length === 0 ? (
+        <div className="admin-empty-results" role="status">
+          No orders match these filters. Orders appear here after customers check out.
+        </div>
+      ) : (
         <div className="admin-table-wrap">
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Order</th>
-                <th>Date</th>
-                <th>Items</th>
-                <th>Total</th>
-                <th>Payment</th>
-                <th>Status</th>
-                <th>AWB</th>
-                <th />
+                <th scope="col">Order</th>
+                <th scope="col">Placed</th>
+                <th scope="col">Items</th>
+                <th scope="col" className="is-numeric">Total</th>
+                <th scope="col">Payment</th>
+                <th scope="col">Fulfilment</th>
+                <th scope="col">AWB</th>
+                <th scope="col"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
-              {orders.map((order) => (
-                <tr key={order._id}>
-                  <td>{order.orderNumber}</td>
-                  <td>{new Date(order.createdAt).toLocaleString()}</td>
-                  <td>{order.items.length}</td>
-                  <td>₹{order.totalAmount.toFixed(2)}</td>
-                  <td><OrderStatusBadge kind="payment" status={order.paymentStatus} /></td>
-                  <td><OrderStatusBadge kind="order" status={order.orderStatus} /></td>
-                  <td>{order.shipment?.awb ?? "—"}</td>
-                  <td><Link className="admin-text-link" href={`/admin/orders/${order._id}`}>Open</Link></td>
-                </tr>
-              ))}
+              {orders.map((order) => {
+                const units = order.items.reduce((sum, item) => sum + item.quantity, 0);
+                return (
+                  <tr key={order._id}>
+                    <td>
+                      <span className="admin-cell-stack">
+                        <strong>{order.orderNumber}</strong>
+                        <small>{order.items[0]?.productName ?? "—"}</small>
+                      </span>
+                    </td>
+                    <td>{formatDateTime(order.createdAt)}</td>
+                    <td>{order.items.length} {order.items.length === 1 ? "line" : "lines"} · {formatNumber(units)} units</td>
+                    <td className="is-numeric"><strong>{formatRupees(order.totalAmount)}</strong></td>
+                    <td><AdminStatusChip status={order.paymentStatus} /></td>
+                    <td><AdminStatusChip status={order.orderStatus} /></td>
+                    <td>{order.shipment?.awb ? <code>{order.shipment.awb}</code> : <span className="admin-muted-text">—</span>}</td>
+                    <td className="is-action">
+                      <Link className="admin-text-link" href={`/admin/orders/${order._id}`}>View</Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
-      ) : null}
+      )}
     </>
   );
 }

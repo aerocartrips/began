@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SignJWT, jwtVerify } from "jose";
 
-export const ADMIN_SESSION_COOKIE = "neov-admin-session";
+export const ADMIN_SESSION_COOKIE = "norosilk-admin-session";
 const SESSION_LIFETIME_SECONDS = 60 * 60 * 8;
 
 export type AdminSession = {
@@ -52,8 +52,8 @@ export async function createAdminSessionToken(email: string) {
   const now = Math.floor(Date.now() / 1000);
   return new SignJWT({ role: "admin", email })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-    .setIssuer("neovastra-admin")
-    .setAudience("neovastra-admin-dashboard")
+    .setIssuer("norosilk-admin")
+    .setAudience("norosilk-admin-dashboard")
     .setSubject("admin")
     .setIssuedAt(now)
     .setExpirationTime(now + SESSION_LIFETIME_SECONDS)
@@ -67,8 +67,8 @@ export async function getAdminSession(): Promise<AdminSession | null> {
   try {
     const { payload } = await jwtVerify(token, getSigningKey(), {
       algorithms: ["HS256"],
-      issuer: "neovastra-admin",
-      audience: "neovastra-admin-dashboard",
+      issuer: "norosilk-admin",
+      audience: "norosilk-admin-dashboard",
       maxTokenAge: SESSION_LIFETIME_SECONDS,
     });
     if (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
+import LoadingButton from "@/components/ui/buttons/loading-button";
 import { loginAdmin } from "@/lib/admin/actions";
 import { initialAdminLoginState } from "@/features/auth/types/admin-login";
 

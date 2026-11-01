@@ -1,11 +1,11 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
-import { requireCommerceAdmin } from "@/lib/middleware/admin-api";
+import { requireAdminAccess } from "@/lib/auth/admin-access";
 import { getCustomerDetail, getCustomerById, updateCustomer } from "@/lib/services/customer.service";
 
 export const GET = withDatabase(async (request, context) => {
-  await requireCommerceAdmin();
+  await requireAdminAccess();
   const { customerId } = await context.params;
   const detail = new URL(request.url).searchParams.get("detail") === "1";
   if (detail) {
@@ -17,7 +17,7 @@ export const GET = withDatabase(async (request, context) => {
 });
 
 export const PATCH = withDatabase(async (request, context) => {
-  await requireCommerceAdmin();
+  await requireAdminAccess();
   const { customerId } = await context.params;
   const payload = await parseJsonBody(request);
   const customer = await updateCustomer(customerId, payload);

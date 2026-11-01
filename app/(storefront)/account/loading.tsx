@@ -1,5 +1,5 @@
-import { ProfileSkeleton } from "@/components/ui/loaders/OrderListSkeleton";
-import PageLoader from "@/components/ui/loaders/PageLoader";
+import { ProfileSkeleton } from "@/components/ui/loaders/order-list-skeleton";
+import PageLoader from "@/components/ui/loaders/page-loader";
 
 export default function AccountLoading() {
   return (

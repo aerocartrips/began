@@ -1,5 +1,6 @@
 import { formatOrderStatus } from "@/features/orders/order-status-badge";
 import { ORDER_STATUS } from "@/lib/constants/order-status";
+import { formatDateTime } from "@/lib/format";
 
 const FULFILLMENT_STEPS = [
   ORDER_STATUS.PENDING_PAYMENT,
@@ -63,7 +64,7 @@ export default function OrderTimeline({ orderStatus, paymentStatus, history }: T
           <li key={step} className={`is-${state}`}>
             <strong>{formatOrderStatus(step)}</strong>
             {entry?.createdAt ? (
-              <small>{new Date(entry.createdAt).toLocaleString()}</small>
+              <small>{formatDateTime(entry.createdAt)}</small>
             ) : null}
             {entry?.customerVisibleRemark || entry?.remarks ? (
               <p>{entry.customerVisibleRemark || entry.remarks}</p>

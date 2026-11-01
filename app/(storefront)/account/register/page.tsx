@@ -1,7 +1,7 @@
 import CustomerAuthForm from "@/components/auth/customer-auth-form";
 import Link from "next/link";
 import { Suspense } from "react";
-import { ProfileSkeleton } from "@/components/ui/loaders/OrderListSkeleton";
+import { ProfileSkeleton } from "@/components/ui/loaders/order-list-skeleton";
 
 export const metadata = {
   title: "Register | Norosilk",

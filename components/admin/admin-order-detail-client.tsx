@@ -1,55 +1,74 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import { ArrowLeft } from "lucide-react";
+import { useFeedback } from "@/components/feedback/feedback-provider";
+import AdminCard, { AdminDetailList } from "@/components/admin/admin-card";
 import AdminPageHeading from "@/components/admin/admin-page-heading";
-import ErrorCard from "@/components/ui/feedback/ErrorCard";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
+import AdminStatusChip from "@/components/admin/admin-status-chip";
+import ErrorCard from "@/components/ui/feedback/error-card";
+import LoadingButton from "@/components/ui/buttons/loading-button";
 import DownloadInvoiceButton from "@/components/orders/download-invoice-button";
-import { OrderDetailSkeleton } from "@/components/ui/loaders/OrderListSkeleton";
-import OrderStatusBadge from "@/features/orders/order-status-badge";
+import { OrderDetailSkeleton } from "@/components/ui/loaders/order-list-skeleton";
 import OrderTimeline from "@/features/orders/order-timeline";
-import { useApiRequest } from "@/hooks/useApiRequest";
-import { useAsyncAction } from "@/hooks/useAsyncAction";
+import { useApiRequest } from "@/hooks/use-api-request";
+import { useAsyncAction } from "@/hooks/use-async-action";
 import { apiRequest } from "@/lib/api/api-client";
+import { formatDateTime, formatNumber, formatRupees, humanizeStatus } from "@/lib/format";
 import type { OrderDetail, OrderPaymentInfo } from "@/features/orders/types";
 
-type AdminOrderDetailClientProps = { orderId: string };
+const ORDER_STATUSES = [
+  "confirmed",
+  "processing",
+  "packed",
+  "shipped",
+  "out_for_delivery",
+  "delivered",
+  "cancelled",
+  "return_requested",
+  "returned",
+];
 
-export default function AdminOrderDetailClient({ orderId }: AdminOrderDetailClientProps) {
+const PAYMENT_STATUSES = ["pending", "paid", "failed", "refunded", "partially_refunded"];
+
+type ShipmentAction = "create" | "manifest" | "refresh-tracking";
+
+const SHIPMENT_ACTIONS: Record<ShipmentAction, { label: string; query: string; done: string }> = {
+  create: { label: "Create shipment", query: "", done: "Booking request submitted." },
+  manifest: { label: "Generate manifest", query: "?action=manifest", done: "Manifest request submitted." },
+  "refresh-tracking": { label: "Refresh tracking", query: "?action=refresh-tracking", done: "Tracking refreshed." },
+};
+
+export default function AdminOrderDetailClient({ orderId }: { orderId: string }) {
   const feedback = useFeedback();
   const endpoint = useMemo(() => `/api/v1/orders/${encodeURIComponent(orderId)}`, [orderId]);
   const { loading, error, data, refetch } = useApiRequest<{ order: OrderDetail; payment: OrderPaymentInfo | null }>(endpoint);
   const order = data?.order;
   const payment = data?.payment;
-  const [orderStatus, setOrderStatus] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState("");
-  const [internalNotes, setInternalNotes] = useState("");
-  const [customerVisibleRemark, setCustomerVisibleRemark] = useState("");
-  const [shipmentAwb, setShipmentAwb] = useState("");
-  const [remarks, setRemarks] = useState("");
+  const [pendingShipmentAction, setPendingShipmentAction] = useState<ShipmentAction | null>(null);
 
-  const { run: save, loading: saving } = useAsyncAction(async () => {
-    if (!order) return null;
-    await apiRequest(`${endpoint}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        orderStatus: orderStatus || undefined,
-        paymentStatus: paymentStatus || undefined,
-        internalNotes,
-        customerVisibleRemark,
-        shipmentAwb: shipmentAwb || undefined,
-        remarks,
-      }),
-    });
-    feedback.success("Order updated", `Saved changes for ${order.orderNumber}.`);
-    await refetch();
+  const { run: runShipmentAction } = useAsyncAction(async (action: ShipmentAction) => {
+    setPendingShipmentAction(action);
+    try {
+      await apiRequest(`/api/v1/admin/orders/${encodeURIComponent(orderId)}/shipment${SHIPMENT_ACTIONS[action].query}`, {
+        method: "POST",
+      });
+      feedback.success(SHIPMENT_ACTIONS[action].label, SHIPMENT_ACTIONS[action].done);
+      await refetch();
+    } catch (shipmentError) {
+      feedback.error(
+        `${SHIPMENT_ACTIONS[action].label} failed`,
+        shipmentError instanceof Error ? shipmentError.message : "Try again in a moment.",
+      );
+    } finally {
+      setPendingShipmentAction(null);
+    }
     return null;
   });
 
-  if (loading && !order) return <OrderDetailSkeleton />;
+  if (loading && !order) return <OrderDetailSkeleton inline />;
   if (error || !order) {
     return (
       <ErrorCard
@@ -60,92 +79,238 @@ export default function AdminOrderDetailClient({ orderId }: AdminOrderDetailClie
     );
   }
 
+  const units = order.items.reduce((sum, item) => sum + item.quantity, 0);
+  const address = order.shippingAddress ?? {};
+  const history = (order.statusHistory ?? []).slice().reverse();
+
   return (
     <>
       <AdminPageHeading
         eyebrow="Order record"
         title={order.orderNumber}
-        description={`Placed ${new Date(order.createdAt).toLocaleString()}`}
-        action={<Link className="admin-text-link" href="/admin/orders">Back to orders</Link>}
+        description={`Placed ${formatDateTime(order.createdAt)} · ${order.items.length} ${order.items.length === 1 ? "line" : "lines"} · ${formatNumber(units)} units`}
+        action={
+          <Link className="admin-back-link" href="/admin/orders">
+            <ArrowLeft size={14} aria-hidden="true" /> All orders
+          </Link>
+        }
       />
-      <div className="orders-detail-badges">
-        <OrderStatusBadge kind="order" status={order.orderStatus} />
-        <OrderStatusBadge kind="payment" status={order.paymentStatus} />
+
+      <div className="admin-detail-layout">
+        <div className="admin-detail-main">
+          <AdminCard title="Line items">
+            <div className="admin-table-wrap is-flush">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Product</th>
+                    <th scope="col" className="is-numeric">Qty</th>
+                    <th scope="col" className="is-numeric">Unit price</th>
+                    <th scope="col" className="is-numeric">Line total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.items.map((item) => (
+                    <tr key={`${item.sku}-${item.productName}`}>
+                      <td>
+                        <div className="admin-product-cell">
+                          {item.imageUrl ? <Image src={item.imageUrl} alt="" width={40} height={48} unoptimized /> : null}
+                          <span>
+                            <strong>{item.productName}</strong>
+                            <small>SKU {item.sku}</small>
+                          </span>
+                        </div>
+                      </td>
+                      <td className="is-numeric">{formatNumber(item.quantity)}</td>
+                      <td className="is-numeric">{formatRupees(item.unitPrice)}</td>
+                      <td className="is-numeric"><strong>{formatRupees(item.lineTotal)}</strong></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </AdminCard>
+
+          <AdminCard title="Fulfilment progress">
+            <OrderTimeline orderStatus={order.orderStatus} paymentStatus={order.paymentStatus} history={order.statusHistory} />
+          </AdminCard>
+
+          <OrderUpdateForm
+            key={`${order.orderStatus}-${order.paymentStatus}-${order.statusHistory?.length ?? 0}`}
+            order={order}
+            endpoint={endpoint}
+            onSaved={refetch}
+          />
+
+          <AdminCard title="Status history" description="Most recent first.">
+            {history.length === 0 ? (
+              <p className="admin-muted-text">No status changes recorded yet.</p>
+            ) : (
+              <ol className="admin-history">
+                {history.map((entry, index) => (
+                  <li key={`${entry.createdAt}-${index}`}>
+                    <div>
+                      <strong>{humanizeStatus(entry.newOrderStatus ?? entry.newPaymentStatus)}</strong>
+                      <time>{formatDateTime(entry.createdAt, "")}</time>
+                    </div>
+                    {entry.customerVisibleRemark || entry.remarks ? <p>{entry.customerVisibleRemark || entry.remarks}</p> : null}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </AdminCard>
+        </div>
+
+        <aside className="admin-detail-aside">
+          <AdminCard
+            title="Summary"
+            action={order.paymentStatus !== "pending" ? <DownloadInvoiceButton orderId={order._id} size="sm" /> : null}
+          >
+            <div className="admin-chip-row">
+              <AdminStatusChip status={order.orderStatus} />
+              <AdminStatusChip status={order.paymentStatus} label={`Payment ${humanizeStatus(order.paymentStatus).toLowerCase()}`} />
+            </div>
+            <dl className="admin-totals">
+              <div><dt>Subtotal</dt><dd>{formatRupees(order.subtotal)}</dd></div>
+              <div><dt>Discount</dt><dd>−{formatRupees(order.discount)}</dd></div>
+              <div><dt>Shipping</dt><dd>{formatRupees(order.shippingCharges)}</dd></div>
+              <div><dt>Tax</dt><dd>{formatRupees(order.tax)}</dd></div>
+              <div className="is-total"><dt>Total</dt><dd>{formatRupees(order.totalAmount)}</dd></div>
+            </dl>
+          </AdminCard>
+
+          <AdminCard title="Ship to">
+            <address className="admin-address">
+              <strong>{address.fullName || "—"}</strong>
+              {address.companyName ? <span>{address.companyName}</span> : null}
+              {address.addressLine1 ? <span>{address.addressLine1}</span> : null}
+              {address.addressLine2 ? <span>{address.addressLine2}</span> : null}
+              <span>{[address.city, address.state, address.pincode].filter(Boolean).join(", ")}</span>
+              {address.phone ? <span>{address.phone}</span> : null}
+            </address>
+          </AdminCard>
+
+          <AdminCard title="Payment">
+            <AdminDetailList
+              items={[
+                { label: "Status", value: <AdminStatusChip status={payment?.status ?? order.paymentStatus} /> },
+                { label: "Method", value: humanizeStatus(order.paymentMethod ?? payment?.method) },
+                { label: "Razorpay ID", value: payment?.razorpayPaymentId ? <code>{payment.razorpayPaymentId}</code> : "Not captured yet" },
+                { label: "Captured", value: formatDateTime(payment?.capturedAt) },
+              ]}
+            />
+          </AdminCard>
+
+          <AdminCard title="Shipment">
+            <AdminDetailList
+              items={[
+                { label: "Booking", value: <AdminStatusChip status={order.shipment?.bookingStatus ?? "not_created"} /> },
+                { label: "AWB", value: order.shipment?.awb ? <code>{order.shipment.awb}</code> : null },
+                { label: "LR number", value: order.shipment?.lrNumber },
+                { label: "Manifest", value: humanizeStatus(order.shipment?.manifestStatus) },
+              ]}
+            />
+            <div className="admin-button-stack">
+              {(Object.keys(SHIPMENT_ACTIONS) as ShipmentAction[]).map((action) => (
+                <LoadingButton
+                  key={action}
+                  type="button"
+                  variant="secondary"
+                  loading={pendingShipmentAction === action}
+                  disabled={pendingShipmentAction !== null && pendingShipmentAction !== action}
+                  onClick={() => void runShipmentAction(action)}
+                >
+                  {SHIPMENT_ACTIONS[action].label}
+                </LoadingButton>
+              ))}
+            </div>
+          </AdminCard>
+        </aside>
       </div>
-      {order.paymentStatus !== "pending" ? (
-        <div className="orders-detail-actions">
-          <DownloadInvoiceButton orderId={order._id} />
-        </div>
-      ) : null}
-      <OrderTimeline orderStatus={order.orderStatus} paymentStatus={order.paymentStatus} history={order.statusHistory} />
-      <section className="admin-order-status-form">
-        <h2>Shipment</h2>
-        <p>Booking: {order.shipment?.bookingStatus ?? "not_created"}</p>
-        <p>AWB: {order.shipment?.awb || "—"}</p>
-        <p>LR: {order.shipment?.lrNumber || "—"}</p>
-        <p>Manifest: {order.shipment?.manifestStatus || "—"}</p>
-        <div className="orders-detail-actions">
-          <LoadingButton
-            type="button"
-            variant="secondary"
-            onClick={async () => {
-              await apiRequest(`/api/v1/admin/orders/${orderId}/shipment`, { method: "POST" });
-              feedback.success("Shipment", "Booking request submitted.");
-              await refetch();
-            }}
-          >
-            Create shipment
-          </LoadingButton>
-          <LoadingButton
-            type="button"
-            variant="secondary"
-            onClick={async () => {
-              await apiRequest(`/api/v1/admin/orders/${orderId}/shipment?action=manifest`, { method: "POST" });
-              feedback.success("Manifest", "Manifest request submitted.");
-              await refetch();
-            }}
-          >
-            Generate manifest
-          </LoadingButton>
-          <LoadingButton
-            type="button"
-            variant="secondary"
-            onClick={async () => {
-              await apiRequest(`/api/v1/admin/orders/${orderId}/shipment?action=refresh-tracking`, { method: "POST" });
-              feedback.success("Tracking", "Tracking refreshed.");
-              await refetch();
-            }}
-          >
-            Refresh tracking
-          </LoadingButton>
-        </div>
-      </section>
-      <section className="admin-order-status-form">
-        <label>Fulfillment status<select value={orderStatus || order.orderStatus} onChange={(e) => setOrderStatus(e.target.value)}><option value="confirmed">confirmed</option><option value="processing">processing</option><option value="packed">packed</option><option value="shipped">shipped</option><option value="out_for_delivery">out_for_delivery</option><option value="delivered">delivered</option><option value="cancelled">cancelled</option><option value="return_requested">return_requested</option><option value="returned">returned</option></select></label>
-        <label>Payment status<select value={paymentStatus || order.paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)}><option value="pending">pending</option><option value="paid">paid</option><option value="failed">failed</option><option value="refunded">refunded</option><option value="partially_refunded">partially_refunded</option></select></label>
-        <label>Shipment AWB<input value={shipmentAwb || order.shipment?.awb || ""} onChange={(e) => setShipmentAwb(e.target.value)} /></label>
-        <label>Internal notes<textarea value={internalNotes || order.internalNotes || ""} onChange={(e) => setInternalNotes(e.target.value)} rows={3} /></label>
-        <label>Customer-visible remark<textarea value={customerVisibleRemark || order.customerVisibleRemark || ""} onChange={(e) => setCustomerVisibleRemark(e.target.value)} rows={2} /></label>
-        <label>Admin remarks<textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={2} /></label>
-        <LoadingButton type="button" loading={saving} loadingText="Saving..." onClick={() => void save()}>Save changes</LoadingButton>
-      </section>
-      <section>
-        <h2>Payment</h2>
-        <p>{payment?.razorpayPaymentId ?? "No Razorpay payment ID yet"}</p>
-        <p>{payment?.status ?? order.paymentStatus}</p>
-      </section>
-      <section>
-        <h2>Status history</h2>
-        <ul className="admin-order-history">
-          {(order.statusHistory ?? []).slice().reverse().map((entry, index) => (
-            <li key={index}>
-              <strong>{entry.newOrderStatus ?? entry.newPaymentStatus}</strong>
-              <small>{entry.createdAt ? new Date(entry.createdAt).toLocaleString() : ""}</small>
-              <p>{entry.customerVisibleRemark || entry.remarks}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
     </>
+  );
+}
+
+type OrderUpdateFormProps = {
+  order: OrderDetail;
+  endpoint: string;
+  onSaved: () => Promise<unknown>;
+};
+
+function OrderUpdateForm({ order, endpoint, onSaved }: OrderUpdateFormProps) {
+  const feedback = useFeedback();
+  const [orderStatus, setOrderStatus] = useState(order.orderStatus);
+  const [paymentStatus, setPaymentStatus] = useState(order.paymentStatus);
+  const [shipmentAwb, setShipmentAwb] = useState(order.shipment?.awb ?? "");
+  const [internalNotes, setInternalNotes] = useState(order.internalNotes ?? "");
+  const [customerVisibleRemark, setCustomerVisibleRemark] = useState(order.customerVisibleRemark ?? "");
+  const [remarks, setRemarks] = useState("");
+
+  const { run: save, loading: saving } = useAsyncAction(async () => {
+    try {
+      await apiRequest(`${endpoint}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderStatus: orderStatus !== order.orderStatus ? orderStatus : undefined,
+          paymentStatus: paymentStatus !== order.paymentStatus ? paymentStatus : undefined,
+          internalNotes,
+          customerVisibleRemark,
+          shipmentAwb: shipmentAwb.trim() || undefined,
+          remarks,
+        }),
+      });
+      feedback.success("Order updated", `Saved changes for ${order.orderNumber}.`);
+      setRemarks("");
+      await onSaved();
+    } catch (saveError) {
+      feedback.error("Could not save order", saveError instanceof Error ? saveError.message : "Try again.");
+    }
+    return null;
+  });
+
+  return (
+    <AdminCard title="Update order" description="Status changes are recorded in the history and may notify the customer.">
+      <form
+        className="admin-form-grid"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void save();
+        }}
+      >
+        <label className="admin-field">
+          Fulfilment status
+          <select value={orderStatus} onChange={(event) => setOrderStatus(event.currentTarget.value)}>
+            {ORDER_STATUSES.includes(order.orderStatus) ? null : <option value={order.orderStatus}>{humanizeStatus(order.orderStatus)}</option>}
+            {ORDER_STATUSES.map((status) => <option key={status} value={status}>{humanizeStatus(status)}</option>)}
+          </select>
+        </label>
+        <label className="admin-field">
+          Payment status
+          <select value={paymentStatus} onChange={(event) => setPaymentStatus(event.currentTarget.value)}>
+            {PAYMENT_STATUSES.map((status) => <option key={status} value={status}>{humanizeStatus(status)}</option>)}
+          </select>
+        </label>
+        <label className="admin-field admin-field-wide">
+          Shipment AWB
+          <input value={shipmentAwb} onChange={(event) => setShipmentAwb(event.currentTarget.value)} placeholder="Assigned by courier" />
+        </label>
+        <label className="admin-field">
+          Internal notes
+          <textarea value={internalNotes} onChange={(event) => setInternalNotes(event.currentTarget.value)} rows={3} placeholder="Visible to admins only" />
+        </label>
+        <label className="admin-field">
+          Customer-visible remark
+          <textarea value={customerVisibleRemark} onChange={(event) => setCustomerVisibleRemark(event.currentTarget.value)} rows={3} placeholder="Shown on the customer's order page" />
+        </label>
+        <label className="admin-field admin-field-wide">
+          Change note
+          <input value={remarks} onChange={(event) => setRemarks(event.currentTarget.value)} placeholder="Optional note stored with this status change" />
+        </label>
+        <div className="admin-form-actions admin-field-wide">
+          <LoadingButton type="submit" loading={saving} loadingText="Saving…">Save changes</LoadingButton>
+        </div>
+      </form>
+    </AdminCard>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import ErrorCard from "@/components/ui/feedback/ErrorCard";
+import ErrorCard from "@/components/ui/feedback/error-card";
 import Button from "@/components/ui/button";
 
 export default function CartSectionError({ reset }: { error: Error; reset: () => void }) {

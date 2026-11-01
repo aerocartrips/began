@@ -164,15 +164,15 @@ export default function StorefrontSearch() {
                   <Image src={hit.imageUrl} alt="" fill sizes="48px" className="cover-image" />
                 ) : null}
               </span>
-              <span>
+              <span className="storefront-search-copy">
                 <strong>{hit.title}</strong>
                 <small>{hit.category} · {hit.sku}</small>
               </span>
-              <span>{formatCurrency(hit.priceCents, hit.currency as "USD")}</span>
+              <span className="storefront-search-price">{formatCurrency(hit.priceCents, hit.currency as "USD")}</span>
             </Link>
           ))}
           <button type="button" className="storefront-search-all" onClick={submitSearch}>
-            View all results for “{query.trim()}”
+            View all results for “{query.trim()}” →
           </button>
         </div>
       ) : null}

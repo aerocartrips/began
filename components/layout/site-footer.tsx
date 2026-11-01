@@ -31,7 +31,7 @@ export default function SiteFooter() {
         </div>
       </div>
       <div className="footer-bottom content-width">
-        <p>© 2070 NeoVastra Global Inc. All rights reserved.</p>
+        <p>© Norosilk. All rights reserved.</p>
         <div>
           {footerColumns.legal.map((link) => (
             <a href={link.href} key={link.label}>{link.label}</a>

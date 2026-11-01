@@ -1,25 +1,45 @@
 import Link from "next/link";
-import SectionHeading from "@/components/ui/section-heading";
+import { FileText, MapPin, Truck } from "lucide-react";
+import SupportInfoPage from "@/components/support/support-info-page";
 
 export const metadata = {
-  title: "Shipping Information | NeoVastra",
+  title: "Shipping Information | Norosilk",
   description: "Wholesale shipping and fulfillment information.",
 };
 
 export default function ShippingPage() {
   return (
-    <main className="commerce-page content-width">
-      <SectionHeading title="Shipping information" subtitle="Wholesale fulfillment for verified buyers" />
-      <div className="commerce-copy">
-        <p>
-          Shipping terms, export documentation, and batch dispatch schedules are confirmed with your account
-          manager after order placement. Track active orders from{" "}
-          <Link href="/account/orders">My Orders</Link>.
-        </p>
-        <p>
-          Need help before checkout? <Link href="/contact">Contact us</Link> with your destination market and MOQ requirements.
-        </p>
-      </div>
-    </main>
+    <SupportInfoPage
+      eyebrow="Wholesale fulfilment"
+      title="Shipping information"
+      description="How verified wholesale orders are dispatched, documented, and tracked."
+      ctaTitle="Planning a shipment?"
+      items={[
+        {
+          icon: FileText,
+          title: "Terms & documentation",
+          body: "Shipping terms, export documentation, and batch dispatch schedules are confirmed with your account manager after order placement.",
+        },
+        {
+          icon: Truck,
+          title: "Track your orders",
+          body: (
+            <>
+              Courier tracking appears on each order once an AWB is assigned. Follow active orders from{" "}
+              <Link href="/account/orders">My Orders</Link>.
+            </>
+          ),
+        },
+        {
+          icon: MapPin,
+          title: "Before checkout",
+          body: (
+            <>
+              <Link href="/contact">Contact us</Link> with your destination market and MOQ requirements and we will confirm options.
+            </>
+          ),
+        },
+      ]}
+    />
   );
 }

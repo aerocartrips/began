@@ -1,8 +1,8 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
-import { getAuthUser, requireAuthUser } from "@/lib/middleware/auth";
-import { requireCommerceAdmin } from "@/lib/middleware/admin-api";
+import { getAuthUser, requireAuthUser } from "@/lib/auth/session";
+import { requireAdminAccess } from "@/lib/auth/admin-access";
 import { ROLES } from "@/lib/constants/roles";
 import { createOrder, listOrders } from "@/lib/services/order.service";
 
@@ -16,7 +16,7 @@ export const GET = withDatabase(async (request) => {
     return successResponse(result.items, "Orders fetched successfully.", result.meta);
   }
 
-  await requireCommerceAdmin();
+  await requireAdminAccess();
   const result = await listOrders(null, searchParams, true);
   return successResponse(result.items, "Orders fetched successfully.", result.meta);
 });

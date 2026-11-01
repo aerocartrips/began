@@ -2,18 +2,18 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import { ArrowLeft, RefreshCw } from "lucide-react";
+import { useFeedback } from "@/components/feedback/feedback-provider";
 import Button from "@/components/ui/button";
-import ErrorCard from "@/components/ui/feedback/ErrorCard";
-import PendingCard from "@/components/ui/feedback/PendingCard";
-import WarningCard from "@/components/ui/feedback/WarningCard";
+import ErrorCard from "@/components/ui/feedback/error-card";
+import PendingCard from "@/components/ui/feedback/pending-card";
+import WarningCard from "@/components/ui/feedback/warning-card";
 import DownloadInvoiceButton from "@/components/orders/download-invoice-button";
 import OrderDetailReviewsSection from "@/components/reviews/order-detail-reviews-section";
-import SuccessCard from "@/components/ui/feedback/SuccessCard";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
-import { OrderDetailSkeleton } from "@/components/ui/loaders/OrderListSkeleton";
+import LoadingButton from "@/components/ui/buttons/loading-button";
+import { OrderDetailSkeleton } from "@/components/ui/loaders/order-list-skeleton";
 import {
   cancelOrder,
   fetchOrderDetail,
@@ -25,7 +25,8 @@ import OrderStatusBadge from "@/features/orders/order-status-badge";
 import OrderTimeline from "@/features/orders/order-timeline";
 import type { OrderDetail, OrderPaymentInfo } from "@/features/orders/types";
 import { fetchCurrentCustomer } from "@/features/checkout/submit-checkout-order";
-import { useAsyncAction } from "@/hooks/useAsyncAction";
+import { useAsyncAction } from "@/hooks/use-async-action";
+import { formatDate, formatDateTime, formatRupees, humanizeStatus } from "@/lib/format";
 
 export default function CustomerOrderDetailClient({ orderId }: { orderId: string }) {
   const router = useRouter();
@@ -40,7 +41,7 @@ export default function CustomerOrderDetailClient({ orderId }: { orderId: string
   const [returnReason, setReturnReason] = useState("");
   const [returnRemarks, setReturnRemarks] = useState("");
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -69,11 +70,11 @@ export default function CustomerOrderDetailClient({ orderId }: { orderId: string
     } finally {
       setLoading(false);
     }
-  }
+  }, [orderId, router]);
 
   useEffect(() => {
     void load(); // eslint-disable-line react-hooks/set-state-in-effect -- fetch order on mount
-  }, [orderId]);
+  }, [load]);
 
   const { run: runCancel, loading: cancelling } = useAsyncAction(async () => {
     if (!cancelReason.trim()) {
@@ -123,8 +124,12 @@ export default function CustomerOrderDetailClient({ orderId }: { orderId: string
   if (loading && !order) return <OrderDetailSkeleton />;
   if (error || !order) {
     return (
-      <main className="commerce-page content-width">
-        <ErrorCard title="Order unavailable" description={error || "This order could not be found."} action={<Button href="/account/orders">Back to orders</Button>} />
+      <main className="commerce-page content-width account-page">
+        <ErrorCard
+          title="Order unavailable"
+          description={error || "This order could not be found."}
+          action={<Button href="/account/orders" size="sm">Back to orders</Button>}
+        />
       </main>
     );
   }
@@ -132,158 +137,223 @@ export default function CustomerOrderDetailClient({ orderId }: { orderId: string
   const totalQty = order.items.reduce((sum, item) => sum + item.quantity, 0);
   const canCancel =
     order.orderStatus !== "cancelled" &&
-    !["shipped", "out_for_delivery", "delivered"].includes(order.orderStatus);
+    !["shipped", "out_for_delivery", "delivered", "return_requested", "returned"].includes(order.orderStatus);
   const canReturn = order.orderStatus === "delivered";
+  const address = order.shippingAddress ?? {};
+  const trackingEvents = Array.isArray(tracking?.events)
+    ? (tracking.events as { status?: string; location?: string; at?: string; remarks?: string }[])
+    : [];
 
   return (
-    <main className="commerce-page content-width orders-detail-page">
+    <main className="commerce-page content-width account-page">
+      <Link className="account-back-link" href="/account/orders">
+        <ArrowLeft size={14} aria-hidden="true" /> All orders
+      </Link>
       <div className="commerce-heading">
         <div>
           <p className="eyebrow">Order details</p>
           <h1>{order.orderNumber}</h1>
-          <p className="orders-page-lead">Placed {new Date(order.createdAt).toLocaleString()}</p>
+          <p className="account-lead">Placed {formatDateTime(order.createdAt)}</p>
         </div>
-        <Link className="text-button" href="/account/orders">Back to orders</Link>
-      </div>
-
-      <div className="orders-detail-actions">
-        {order.paymentStatus !== "pending" ? <DownloadInvoiceButton orderId={order._id} /> : null}
-      </div>
-
-      <div className="orders-detail-badges">
-        <OrderStatusBadge kind="order" status={order.orderStatus} />
-        <OrderStatusBadge kind="payment" status={order.paymentStatus} />
-      </div>
-
-      {order.orderStatus === "cancelled" && order.cancellationRefund?.status && order.cancellationRefund.status !== "none" ? (
-        <PendingCard
-          title="Refund status"
-          description={order.cancellationRefund.message || `Refund ${order.cancellationRefund.status.replaceAll("_", " ")}`}
-        />
-      ) : null}
-
-      {order.orderStatus === "cancelled" && order.cancellation?.reason ? (
-        <SuccessCard title="Order cancelled" description={order.cancellation.reason} />
-      ) : null}
-
-      {order.paymentStatus === "pending" ? (
-        <PendingCard
-          title="Payment pending"
-          description="This order is waiting for confirmed payment."
-          action={<LoadingButton type="button" variant="secondary" loading={refreshingPayment} onClick={() => void runRefreshPayment()}>Refresh payment status</LoadingButton>}
-        />
-      ) : null}
-
-      <section className="orders-detail-grid">
-        <div>
-          <h2>Order progress</h2>
-          <OrderTimeline orderStatus={order.orderStatus} paymentStatus={order.paymentStatus} history={order.statusHistory} />
+        <div className="account-heading-actions">
+          <div className="orders-card-badges">
+            <OrderStatusBadge kind="order" status={order.orderStatus} />
+            <OrderStatusBadge kind="payment" status={order.paymentStatus} />
+          </div>
+          {order.paymentStatus !== "pending" ? <DownloadInvoiceButton orderId={order._id} /> : null}
         </div>
-        <aside className="orders-detail-sidebar">
-          <h2>Price breakdown</h2>
-          <dl className="orders-price-breakdown">
-            <div><dt>Subtotal</dt><dd>₹{order.subtotal.toFixed(2)}</dd></div>
-            <div><dt>Discount</dt><dd>₹{order.discount.toFixed(2)}</dd></div>
-            <div><dt>Shipping</dt><dd>₹{order.shippingCharges.toFixed(2)}</dd></div>
-            <div><dt>Tax</dt><dd>₹{order.tax.toFixed(2)}</dd></div>
-            <div><dt>Total</dt><dd>₹{order.totalAmount.toFixed(2)}</dd></div>
-          </dl>
-          <p>{totalQty} units across {order.items.length} line item(s)</p>
+      </div>
+
+      <div className="account-notices">
+        {order.paymentStatus === "pending" ? (
+          <PendingCard
+            className="feedback-card--compact"
+            title="Payment pending"
+            description="This order is waiting for a confirmed payment. If you have already paid, refresh the status."
+            action={
+              <LoadingButton type="button" variant="secondary" size="sm" loading={refreshingPayment} onClick={() => void runRefreshPayment()}>
+                Refresh payment status
+              </LoadingButton>
+            }
+          />
+        ) : null}
+        {order.orderStatus === "cancelled" ? (
+          <WarningCard
+            className="feedback-card--compact"
+            title="Order cancelled"
+            description={order.cancellation?.reason ? `Reason: ${order.cancellation.reason}` : "This order was cancelled."}
+          />
+        ) : null}
+        {order.orderStatus === "cancelled" && order.cancellationRefund?.status && order.cancellationRefund.status !== "none" ? (
+          <PendingCard
+            className="feedback-card--compact"
+            title={`Refund ${humanizeStatus(order.cancellationRefund.status).toLowerCase()}`}
+            description={order.cancellationRefund.message || "Refund status updates automatically once our payment provider confirms it."}
+          />
+        ) : null}
+      </div>
+
+      <div className="account-detail-layout">
+        <div className="account-detail-main">
+          <section className="account-panel">
+            <h2>Order progress</h2>
+            <OrderTimeline orderStatus={order.orderStatus} paymentStatus={order.paymentStatus} history={order.statusHistory} />
+          </section>
+
+          <section className="account-panel">
+            <div className="account-panel-head">
+              <h2>Products</h2>
+              <span>{order.items.length} {order.items.length === 1 ? "line" : "lines"} · {totalQty} units</span>
+            </div>
+            <ul className="orders-line-items">
+              {order.items.map((item) => (
+                <li key={`${item.productName}-${item.sku}-${item.quantity}`}>
+                  <div className="orders-line-thumb">
+                    {item.imageUrl ? <Image src={item.imageUrl} alt="" fill sizes="64px" className="cover-image" /> : null}
+                  </div>
+                  <div className="orders-line-copy">
+                    <strong>{item.productName}</strong>
+                    <small>SKU {item.sku}</small>
+                    <small>{item.quantity} × {formatRupees(item.unitPrice)}</small>
+                  </div>
+                  <strong className="orders-line-total">{formatRupees(item.lineTotal)}</strong>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="account-panel" id="tracking">
+            <div className="account-panel-head">
+              <h2>Shipment tracking</h2>
+              {order.shipment?.awb ? (
+                <LoadingButton
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  icon={<RefreshCw size={13} aria-hidden="true" />}
+                  loading={trackingLoading}
+                  onClick={() => void runTracking()}
+                >
+                  Refresh
+                </LoadingButton>
+              ) : null}
+            </div>
+            {!order.shipment?.awb ? (
+              <p className="account-muted">
+                Courier tracking appears here once your shipment is booked and an AWB number is assigned.
+              </p>
+            ) : (
+              <>
+                <dl className="account-facts">
+                  <div><dt>Carrier</dt><dd>{order.shipment.carrier ?? "Delhivery"}</dd></div>
+                  <div><dt>AWB</dt><dd>{order.shipment.awb}</dd></div>
+                  {order.shipment.status ? <div><dt>Status</dt><dd>{humanizeStatus(order.shipment.status)}</dd></div> : null}
+                  {order.shipment.estimatedDelivery ? (
+                    <div><dt>Estimated delivery</dt><dd>{formatDate(order.shipment.estimatedDelivery)}</dd></div>
+                  ) : null}
+                </dl>
+                {trackingMessage ? (
+                  <WarningCard className="feedback-card--compact" title="Tracking unavailable" description={trackingMessage} />
+                ) : null}
+                {trackingEvents.length > 0 ? (
+                  <ol className="order-tracking-events">
+                    {trackingEvents.map((event, index) => (
+                      <li key={`${event.status}-${index}`}>
+                        <strong>{event.status}</strong>
+                        {event.location || event.remarks ? (
+                          <span>{[event.location, event.remarks].filter(Boolean).join(" · ")}</span>
+                        ) : null}
+                        {event.at ? <small>{formatDateTime(event.at)}</small> : null}
+                      </li>
+                    ))}
+                  </ol>
+                ) : !trackingMessage && !trackingLoading ? (
+                  <p className="account-muted">No courier scans yet. Use Refresh to fetch the latest events.</p>
+                ) : null}
+                {order.shipment.trackingFetchedAt ? (
+                  <p className="account-footnote">Last updated {formatDateTime(String(order.shipment.trackingFetchedAt))}</p>
+                ) : null}
+              </>
+            )}
+          </section>
+
+          <OrderDetailReviewsSection orderId={order._id} orderStatus={order.orderStatus} />
+
+          {canCancel ? (
+            <section className="account-panel">
+              <h2>Cancel order</h2>
+              <p className="account-muted">Paid orders are refunded to the original payment method once cancellation is confirmed.</p>
+              <label className="account-field">
+                Reason for cancelling
+                <textarea value={cancelReason} onChange={(event) => setCancelReason(event.currentTarget.value)} rows={3} maxLength={500} />
+              </label>
+              <div className="account-panel-actions">
+                <LoadingButton type="button" variant="destructive" size="sm" loading={cancelling} onClick={() => void runCancel()}>
+                  Cancel order
+                </LoadingButton>
+              </div>
+            </section>
+          ) : null}
+
+          {canReturn ? (
+            <section className="account-panel">
+              <h2>Request a return</h2>
+              <p className="account-muted">Our team reviews every return request and updates you on this page.</p>
+              <label className="account-field">
+                Reason for return
+                <textarea value={returnReason} onChange={(event) => setReturnReason(event.currentTarget.value)} rows={3} maxLength={500} />
+              </label>
+              <label className="account-field">
+                Additional remarks <small>(optional)</small>
+                <textarea value={returnRemarks} onChange={(event) => setReturnRemarks(event.currentTarget.value)} rows={2} maxLength={2000} />
+              </label>
+              <div className="account-panel-actions">
+                <LoadingButton type="button" size="sm" loading={returning} onClick={() => void runReturn()}>
+                  Submit return request
+                </LoadingButton>
+              </div>
+            </section>
+          ) : null}
+        </div>
+
+        <aside className="account-detail-aside">
+          <section className="account-panel">
+            <h2>Order summary</h2>
+            <dl className="orders-price-breakdown">
+              <div><dt>Subtotal</dt><dd>{formatRupees(order.subtotal)}</dd></div>
+              {order.discount ? <div><dt>Discount</dt><dd>−{formatRupees(order.discount)}</dd></div> : null}
+              <div><dt>Shipping</dt><dd>{order.shippingCharges ? formatRupees(order.shippingCharges) : "Free"}</dd></div>
+              <div><dt>Tax</dt><dd>{formatRupees(order.tax)}</dd></div>
+              <div className="is-total"><dt>Total</dt><dd>{formatRupees(order.totalAmount)}</dd></div>
+            </dl>
+          </section>
+
+          <section className="account-panel">
+            <h2>Delivery address</h2>
+            <address className="account-address">
+              <strong>{address.fullName}</strong>
+              {address.addressLine1 ? <span>{address.addressLine1}</span> : null}
+              {address.addressLine2 ? <span>{address.addressLine2}</span> : null}
+              <span>{[address.city, address.state, address.pincode].filter(Boolean).join(", ")}</span>
+              {address.phone ? <span>{address.phone}</span> : null}
+            </address>
+          </section>
+
+          <section className="account-panel">
+            <h2>Payment</h2>
+            <dl className="account-facts is-stacked">
+              <div><dt>Method</dt><dd>{humanizeStatus(order.paymentMethod ?? payment?.method)}</dd></div>
+              <div><dt>Status</dt><dd>{humanizeStatus(order.paymentStatus)}</dd></div>
+              {payment?.razorpayPaymentId ? <div><dt>Reference</dt><dd className="is-code">{payment.razorpayPaymentId}</dd></div> : null}
+              {payment?.capturedAt ? <div><dt>Paid on</dt><dd>{formatDateTime(payment.capturedAt)}</dd></div> : null}
+            </dl>
+          </section>
+
+          <p className="account-help">
+            Need help with this order? <Link href="/contact">Contact support</Link>
+          </p>
         </aside>
-      </section>
-
-      <section>
-        <h2>Products</h2>
-        <ul className="orders-line-items">
-          {order.items.map((item) => (
-            <li key={`${item.productName}-${item.sku}-${item.quantity}`}>
-              <div className="orders-card-thumb">
-                {item.imageUrl ? <Image src={item.imageUrl} alt="" fill sizes="72px" className="cover-image" /> : null}
-              </div>
-              <div>
-                <strong>{item.productName}</strong>
-                <small>SKU {item.sku}</small>
-                <p>{item.quantity} × ₹{item.unitPrice.toFixed(2)}</p>
-              </div>
-              <strong>₹{item.lineTotal.toFixed(2)}</strong>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="orders-detail-grid">
-        <div>
-          <h2>Delivery address</h2>
-          <p>{order.shippingAddress.fullName}</p>
-          <p>{order.shippingAddress.addressLine1}</p>
-          <p>{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.pincode}</p>
-          <p>{order.shippingAddress.phone}</p>
-        </div>
-        <div>
-          <h2>Payment</h2>
-          <p>Method: {order.paymentMethod ?? payment?.method ?? "—"}</p>
-          <p>Status: {order.paymentStatus}</p>
-          {payment?.razorpayPaymentId ? <p>Reference: {payment.razorpayPaymentId}</p> : null}
-          {payment?.capturedAt ? <p>Paid: {new Date(payment.capturedAt).toLocaleString()}</p> : null}
-        </div>
-      </section>
-
-      <section id="tracking">
-        <h2>Shipment tracking</h2>
-        {!order.shipment?.awb ? (
-          <PendingCard title="AWB not assigned" description="Courier tracking will appear here once your shipment is booked and an AWB is assigned." />
-        ) : (
-          <>
-            <p>
-              {order.shipment.carrier ?? "Delhivery"} · AWB <strong>{order.shipment.awb}</strong>
-            </p>
-            {order.shipment.status ? <p>Shipment status: {order.shipment.status}</p> : null}
-            {order.shipment.estimatedDelivery ? (
-              <p>Estimated delivery: {new Date(order.shipment.estimatedDelivery).toLocaleDateString()}</p>
-            ) : null}
-            {order.shipment.trackingFetchedAt ? (
-              <small>Last updated: {new Date(String(order.shipment.trackingFetchedAt)).toLocaleString()}</small>
-            ) : null}
-            <LoadingButton type="button" variant="secondary" loading={trackingLoading} onClick={() => void runTracking()}>
-              Refresh tracking
-            </LoadingButton>
-            {trackingMessage ? <WarningCard title="Tracking unavailable" description={trackingMessage} /> : null}
-            {Array.isArray(tracking?.events) && tracking.events.length > 0 ? (
-              <ol className="order-tracking-events">
-                {(tracking.events as { status?: string; location?: string; at?: string; remarks?: string }[]).map((event, index) => (
-                  <li key={`${event.status}-${index}`}>
-                    <strong>{event.status}</strong>
-                    {event.location ? <span>{event.location}</span> : null}
-                    {event.remarks ? <span>{event.remarks}</span> : null}
-                    {event.at ? <small>{new Date(event.at).toLocaleString()}</small> : null}
-                  </li>
-                ))}
-              </ol>
-            ) : !trackingMessage && !trackingLoading ? (
-              <PendingCard title="Tracking in progress" description="Refresh to load the latest courier scan events." />
-            ) : null}
-          </>
-        )}
-      </section>
-
-      <OrderDetailReviewsSection orderId={order._id} orderStatus={order.orderStatus} />
-
-      {canCancel ? (
-        <section className="orders-action-panel">
-          <h2>Cancel order</h2>
-          <textarea value={cancelReason} onChange={(event) => setCancelReason(event.currentTarget.value)} placeholder="Cancellation reason" rows={3} />
-          <LoadingButton type="button" variant="destructive" loading={cancelling} onClick={() => void runCancel()}>Cancel order</LoadingButton>
-        </section>
-      ) : null}
-
-      {canReturn ? (
-        <section className="orders-action-panel">
-          <h2>Request return</h2>
-          <textarea value={returnReason} onChange={(event) => setReturnReason(event.currentTarget.value)} placeholder="Return reason" rows={3} />
-          <textarea value={returnRemarks} onChange={(event) => setReturnRemarks(event.currentTarget.value)} placeholder="Optional remarks" rows={2} />
-          <LoadingButton type="button" loading={returning} onClick={() => void runReturn()}>Submit return request</LoadingButton>
-        </section>
-      ) : null}
+      </div>
     </main>
   );
 }

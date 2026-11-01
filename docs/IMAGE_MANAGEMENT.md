@@ -45,10 +45,10 @@ norosilk/blog
 
 ## Frontend components
 
-- `components/images/ProductImage.js`
-- `components/images/ProductGallery.js`
-- `components/images/ImageUploader.js`
-- `components/images/ImagePreview.js`
+- `components/images/product-image.tsx`
+- `components/images/product-gallery.tsx`
+- `components/images/image-uploader.tsx`
+- `components/images/image-preview.tsx`
 
 ## Safety rules
 

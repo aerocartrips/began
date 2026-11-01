@@ -249,4 +249,4 @@ See `.env.example` for MongoDB, JWT, tax/shipping, and Cloudinary settings.
 - Connect storefront product pages to `/api/v1/products` instead of static `data/products.ts`.
 - Replace guest checkout simulation with authenticated order placement.
 - Promote contact messages to MongoDB if unified inbox is required.
-- Replace in-memory rate limits with Redis for horizontal scaling.
+- Rate limits are stored in MongoDB (`lib/security/rate-limit.js`); move to Redis if request volume makes that a bottleneck.

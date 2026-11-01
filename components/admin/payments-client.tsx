@@ -1,12 +1,16 @@
 "use client";
 
-import EmptyState from "@/components/ui/empty-state";
-import ErrorCard from "@/components/ui/feedback/ErrorCard";
-import TableSkeleton from "@/components/ui/loaders/TableSkeleton";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
+import ErrorCard from "@/components/ui/feedback/error-card";
+import TableSkeleton from "@/components/ui/loaders/table-skeleton";
+import LoadingButton from "@/components/ui/buttons/loading-button";
 import PaymentRefundPanel from "@/components/admin/payment-refund-panel";
-import { useApiRequest } from "@/hooks/useApiRequest";
+import { useApiRequest } from "@/hooks/use-api-request";
 import AdminPageHeading from "@/components/admin/admin-page-heading";
+import AdminStatusChip from "@/components/admin/admin-status-chip";
+import { humanizeStatus } from "@/lib/format";
+
+const amountFormatter = (currency: string) =>
+  new Intl.NumberFormat("en-IN", { style: "currency", currency: currency || "INR", minimumFractionDigits: 2 });
 
 type PaymentRow = {
   _id: string;
@@ -37,7 +41,7 @@ export default function AdminPaymentsClient() {
           </LoadingButton>
         }
       />
-      {loading ? <TableSkeleton rows={8} /> : null}
+      {loading && payments.length === 0 ? <TableSkeleton rows={8} /> : null}
       {error ? (
         <ErrorCard
           title="Unable to load payments"
@@ -50,35 +54,46 @@ export default function AdminPaymentsClient() {
         />
       ) : null}
       {!loading && !error && payments.length === 0 ? (
-        <EmptyState
-          title="No payment records yet"
-          description="Captured and failed Razorpay payments will appear here after customers checkout."
-        />
+        <div className="admin-empty-results" role="status">
+          No payment records yet. Captured and failed Razorpay payments appear here after customers check out.
+        </div>
       ) : null}
-      {!loading && payments.length > 0 ? (
+      {payments.length > 0 ? (
         <div className="admin-table-wrap">
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Order</th>
-                <th>Customer</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Method</th>
-                <th>Razorpay IDs</th>
-                <th>Actions</th>
+                <th scope="col">Order</th>
+                <th scope="col">Customer</th>
+                <th scope="col" className="is-numeric">Amount</th>
+                <th scope="col">Status</th>
+                <th scope="col">Method</th>
+                <th scope="col">Razorpay ID</th>
+                <th scope="col">Actions</th>
               </tr>
             </thead>
             <tbody>
               {payments.map((payment) => (
                 <tr key={payment._id}>
-                  <td>{payment.order?.orderNumber ?? "—"}</td>
-                  <td>{payment.user?.email ?? payment.user?.name ?? "—"}</td>
-                  <td>{(payment.amount / 100).toFixed(2)} {payment.currency}</td>
-                  <td>{payment.status}</td>
-                  <td>{payment.method || "—"}</td>
+                  <td><strong>{payment.order?.orderNumber ?? "—"}</strong></td>
                   <td>
-                    <small>{payment.razorpayPaymentId || payment.razorpayOrderId || "—"}</small>
+                    <span className="admin-cell-stack">
+                      <strong>{payment.user?.name ?? "—"}</strong>
+                      {payment.user?.email ? <small>{payment.user.email}</small> : null}
+                    </span>
+                  </td>
+                  <td className="is-numeric">
+                    <strong>{amountFormatter(payment.currency).format(payment.amount / 100)}</strong>
+                    {payment.refundedAmount ? (
+                      <small className="admin-cell-note">
+                        Refunded {amountFormatter(payment.currency).format(payment.refundedAmount / 100)}
+                      </small>
+                    ) : null}
+                  </td>
+                  <td><AdminStatusChip status={payment.status} /></td>
+                  <td>{humanizeStatus(payment.method)}</td>
+                  <td>
+                    <code>{payment.razorpayPaymentId || payment.razorpayOrderId || "—"}</code>
                   </td>
                   <td>
                     <PaymentRefundPanel payment={payment} onCompleted={() => void refetch()} />

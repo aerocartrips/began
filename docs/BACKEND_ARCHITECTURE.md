@@ -38,7 +38,7 @@ Route Handler (app/api/v1)
 ## Persistence
 
 - Primary database: MongoDB Atlas via `MONGODB_URI`.
-- Contact form messages remain in the JSON file store (`.data/contact-messages.json`) used by `/api/contact`.
+- Contact form messages are stored as support conversations in MongoDB via `POST /api/v1/contact`.
 - Product images store metadata in MongoDB; binaries upload to Cloudinary when configured.
 
 ## Wholesale order rules
@@ -53,7 +53,7 @@ Route Handler (app/api/v1)
 - Passwords hashed with bcrypt (cost 12).
 - JWT secrets never exposed to the client.
 - Mongo filters sanitized against operator injection.
-- Login/register rate limiting (in-memory; replace with Redis for multi-instance production).
+- Rate limiting for login, register, contact, uploads, and payments (MongoDB-backed, shared across instances; in-memory fallback).
 - Errors return safe messages without stack traces.
 
 ## Frontend integration status

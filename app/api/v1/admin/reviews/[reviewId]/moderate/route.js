@@ -1,14 +1,16 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
-import { requireCommerceAdmin } from "@/lib/middleware/admin-api";
-import { getAuthUser } from "@/lib/middleware/auth";
+import { requireAdminAccess } from "@/lib/auth/admin-access";
+import { getAuthUser } from "@/lib/auth/session";
 import { ROLES } from "@/lib/constants/roles";
 import { moderateReview, toPublicReview } from "@/lib/services/review.service";
 import { ApiError } from "@/lib/utils/api-error";
+// Registers schemas used by populate() below.
+import "@/lib/db/models/User";
 
 export const PATCH = withDatabase(async (request, context) => {
-  await requireCommerceAdmin();
+  await requireAdminAccess();
   const apiUser = await getAuthUser();
   const adminUser =
     apiUser?.role === ROLES.ADMIN

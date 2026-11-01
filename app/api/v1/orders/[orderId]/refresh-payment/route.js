@@ -1,6 +1,6 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { successResponse } from "@/lib/utils/api-response";
-import { requireAuthUser } from "@/lib/middleware/auth";
+import { requireAuthUser } from "@/lib/auth/session";
 import { getOrderForUser } from "@/lib/services/order.service";
 import { refreshCustomerOrderPayment } from "@/lib/services/order-actions.service";
 

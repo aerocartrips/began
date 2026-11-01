@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/button";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
+import LoadingButton from "@/components/ui/buttons/loading-button";
 import AdminPageHeading from "@/components/admin/admin-page-heading";
 import ProductImageManager from "@/components/admin/product-image-manager";
 import EmptyState from "@/components/ui/empty-state";

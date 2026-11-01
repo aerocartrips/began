@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import CartPageClient from "@/features/cart/components/cart-page-client";
 
 export const metadata: Metadata = {
-  title: "Shopping Cart | NeoVastra",
-  description: "Review your NeoVastra wholesale product selection.",
+  title: "Shopping Cart | Norosilk",
+  description: "Review your Norosilk wholesale product selection.",
 };
 
 export default function CartPage() {

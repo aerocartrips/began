@@ -14,6 +14,8 @@ type LinkVariant = Exclude<ButtonVariant, "form">;
 
 type CommonProps = {
   className?: string;
+  /** "sm" is the compact size used inside cards, toolbars, and admin views. */
+  size?: "md" | "sm";
   children?: ReactNode;
   icon?: ReactNode;
 };
@@ -35,8 +37,8 @@ type ButtonProps = LinkButtonProps | NativeButtonProps;
 
 export default function Button(props: ButtonProps) {
   if (props.href !== undefined) {
-    const { href, variant = "primary", icon, className, children, ...linkProps } = props;
-    const classes = [variants[variant], className].filter(Boolean).join(" ");
+    const { href, variant = "primary", size = "md", icon, className, children, ...linkProps } = props;
+    const classes = [variants[variant], size === "sm" && "button-sm", className].filter(Boolean).join(" ");
 
     return (
       <Link className={classes} href={href} {...linkProps}>
@@ -47,13 +49,14 @@ export default function Button(props: ButtonProps) {
 
   const {
     variant = "primary",
+    size = "md",
     icon,
     className,
     children,
     type = "button",
     ...buttonProps
   } = props;
-  const classes = [variants[variant] ?? variants.primary, className]
+  const classes = [variants[variant] ?? variants.primary, size === "sm" && "button-sm", className]
     .filter(Boolean)
     .join(" ");
 

@@ -4,11 +4,11 @@ import Link from "next/link";
 import Badge from "@/components/ui/badge";
 import EmptyState from "@/components/ui/empty-state";
 import Button from "@/components/ui/button";
-import ProductGallery from "@/components/marketplace/product-gallery";
+import ProductGallery from "@/components/images/product-gallery";
 import ProductPurchasePanel from "@/components/marketplace/product-purchase-panel";
 import ProductCard from "@/components/marketplace/product-card";
-import ProductRatingInline from "@/components/reviews/ProductRatingInline";
-import ProductReviewsSection from "@/components/reviews/ProductReviewsSection";
+import ProductRatingInline from "@/components/reviews/product-rating-inline";
+import ProductReviewsSection from "@/components/reviews/product-reviews-section";
 import { useProductCatalog } from "@/features/products/product-catalog-provider";
 import { formatCurrency } from "@/lib/format-currency";
 

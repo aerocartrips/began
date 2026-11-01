@@ -1,4 +1,5 @@
 import Button from "@/components/ui/button";
+import { siteContact } from "@/lib/site-content";
 
 type EnterpriseSignupCardProps = {
   action?: string;
@@ -6,7 +7,7 @@ type EnterpriseSignupCardProps = {
 };
 
 export default function EnterpriseSignupCard({
-  action = "mailto:partnerships@neovastra.com",
+  action = siteContact.email ? `mailto:${siteContact.email}` : "/contact",
   id = "enterprise",
 }: EnterpriseSignupCardProps) {
   return (

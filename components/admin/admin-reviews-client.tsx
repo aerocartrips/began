@@ -2,18 +2,19 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
+import { Search } from "lucide-react";
 import AdminPageHeading from "@/components/admin/admin-page-heading";
-import EmptyState from "@/components/ui/empty-state";
-import ErrorCard from "@/components/ui/feedback/ErrorCard";
-import LoadingButton from "@/components/ui/buttons/LoadingButton";
-import TableSkeleton from "@/components/ui/loaders/TableSkeleton";
-import ReviewStatusBadge from "@/components/reviews/ReviewStatusBadge";
-import RatingStars from "@/components/reviews/RatingStars";
-import { useApiRequest } from "@/hooks/useApiRequest";
-import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import AdminStatusChip from "@/components/admin/admin-status-chip";
+import ErrorCard from "@/components/ui/feedback/error-card";
+import LoadingButton from "@/components/ui/buttons/loading-button";
+import TableSkeleton from "@/components/ui/loaders/table-skeleton";
+import RatingStars from "@/components/reviews/rating-stars";
+import { useApiRequest } from "@/hooks/use-api-request";
+import { useFeedback } from "@/components/feedback/feedback-provider";
 import { deleteReviewAdmin, moderateReviewAdmin } from "@/features/reviews/review-api";
 import type { PublicReview } from "@/features/reviews/types";
+import { formatDate } from "@/lib/format";
 
 const FILTERS = [
   { id: "", label: "All" },
@@ -22,25 +23,27 @@ const FILTERS = [
   { id: "rejected", label: "Rejected" },
 ];
 
+type BusyState = { id: string; action: "approved" | "rejected" | "delete" } | null;
+
 export default function AdminReviewsClient() {
   const feedback = useFeedback();
-  const [moderationStatus, setModerationStatus] = useState("");
-  const [q, setQ] = useState("");
-  const [busyId, setBusyId] = useState("");
+  const [moderationStatus, setModerationStatus] = useState("pending");
+  const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [busy, setBusy] = useState<BusyState>(null);
 
   const endpoint = useMemo(() => {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ limit: "30" });
     if (moderationStatus) params.set("moderationStatus", moderationStatus);
-    if (q.trim()) params.set("q", q.trim());
-    params.set("limit", "30");
+    if (appliedSearch.trim()) params.set("q", appliedSearch.trim());
     return `/api/v1/admin/reviews?${params.toString()}`;
-  }, [moderationStatus, q]);
+  }, [moderationStatus, appliedSearch]);
 
   const listRequest = useApiRequest<PublicReview[]>(endpoint);
   const reviews = listRequest.data ?? [];
 
   async function moderate(reviewId: string, status: "approved" | "rejected") {
-    setBusyId(reviewId);
+    setBusy({ id: reviewId, action: status });
     try {
       await moderateReviewAdmin(reviewId, status);
       feedback.success("Review updated", status === "approved" ? "Review is now public." : "Review rejected.");
@@ -48,13 +51,13 @@ export default function AdminReviewsClient() {
     } catch (error) {
       feedback.error("Moderation failed", error instanceof Error ? error.message : "Try again.");
     } finally {
-      setBusyId("");
+      setBusy(null);
     }
   }
 
   async function remove(reviewId: string) {
     if (!window.confirm("Delete this review permanently?")) return;
-    setBusyId(reviewId);
+    setBusy({ id: reviewId, action: "delete" });
     try {
       await deleteReviewAdmin(reviewId);
       feedback.success("Review deleted", "The review was removed.");
@@ -62,105 +65,146 @@ export default function AdminReviewsClient() {
     } catch (error) {
       feedback.error("Delete failed", error instanceof Error ? error.message : "Try again.");
     } finally {
-      setBusyId("");
+      setBusy(null);
     }
   }
 
+  function applySearch(event: FormEvent) {
+    event.preventDefault();
+    if (search === appliedSearch) void listRequest.refetch();
+    else setAppliedSearch(search);
+  }
+
   return (
-    <div className="admin-page">
+    <>
       <AdminPageHeading
         eyebrow="Catalog quality"
         title="Product reviews"
         description="Moderate verified purchase reviews before they appear on product pages."
       />
 
-      <div className="orders-toolbar">
-        <label>
-          Search
-          <input value={q} onChange={(event) => setQ(event.currentTarget.value)} placeholder="Product, customer, text" />
-        </label>
-        <label>
-          Status
-          <select value={moderationStatus} onChange={(event) => setModerationStatus(event.currentTarget.value)}>
-            {FILTERS.map((filter) => (
-              <option key={filter.id || "all"} value={filter.id}>
-                {filter.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <LoadingButton type="button" variant="secondary" loading={listRequest.loading} onClick={() => void listRequest.refetch()}>
-          Apply
-        </LoadingButton>
+      <div className="admin-tabs" role="tablist" aria-label="Moderation status">
+        {FILTERS.map((filter) => (
+          <button
+            key={filter.id || "all"}
+            type="button"
+            role="tab"
+            aria-selected={moderationStatus === filter.id}
+            className={moderationStatus === filter.id ? "is-active" : undefined}
+            onClick={() => setModerationStatus(filter.id)}
+          >
+            {filter.label}
+          </button>
+        ))}
       </div>
 
-      {listRequest.loading && reviews.length === 0 ? <TableSkeleton rows={6} /> : null}
+      <form className="admin-toolbar" onSubmit={applySearch} role="search">
+        <label className="admin-toolbar__search">
+          <span className="sr-only">Search reviews</span>
+          <Search size={14} aria-hidden="true" />
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.currentTarget.value)}
+            placeholder="Search product, customer, or review text…"
+          />
+        </label>
+        <LoadingButton type="submit" variant="secondary" loading={listRequest.loading}>
+          Apply
+        </LoadingButton>
+      </form>
+
       {listRequest.error ? (
         <ErrorCard
           title="Unable to load reviews"
           description={listRequest.error}
           action={<LoadingButton type="button" onClick={() => void listRequest.refetch()}>Try again</LoadingButton>}
         />
-      ) : null}
-      {!listRequest.loading && reviews.length === 0 ? (
-        <EmptyState title="No reviews found" description="Customer reviews appear here after submission." />
-      ) : null}
+      ) : listRequest.loading && reviews.length === 0 ? (
+        <TableSkeleton rows={6} />
+      ) : reviews.length === 0 ? (
+        <div className="admin-empty-results" role="status">
+          {moderationStatus === "pending" ? "No reviews are waiting for moderation." : "No reviews match these filters."}
+        </div>
+      ) : (
+        <div className="admin-review-list">
+          {reviews.map((review) => {
+            const status = review.moderationStatus ?? "pending";
+            const isBusy = busy?.id === review._id;
+            return (
+              <article className="admin-review-card" key={review._id}>
+                <header className="admin-review-card__head">
+                  <div className="admin-cell-stack">
+                    <strong>{review.productName ?? "Product"}</strong>
+                    <small>
+                      {review.customerName}
+                      {review.customerEmail ? ` · ${review.customerEmail}` : ""}
+                      {review.createdAt ? ` · ${formatDate(review.createdAt)}` : ""}
+                    </small>
+                  </div>
+                  <AdminStatusChip status={status} />
+                </header>
 
-      <div className="admin-review-list">
-        {reviews.map((review) => (
-          <article className="admin-review-card" key={review._id}>
-            <header>
-              <div>
-                <strong>{review.productName ?? "Product"}</strong>
-                <small>{review.customerName} · {review.customerEmail}</small>
-                {review.orderNumber ? (
-                  <Link className="admin-text-link" href={`/admin/orders/${review.orderId}`}>
-                    Order {review.orderNumber}
-                  </Link>
-                ) : null}
-              </div>
-              <ReviewStatusBadge status={review.moderationStatus ?? "pending"} />
-            </header>
-            <RatingStars value={review.rating} size="sm" />
-            {review.title ? <h3>{review.title}</h3> : null}
-            <p>{review.comment}</p>
-            {review.images?.length ? (
-              <div className="admin-review-photos">
-                {review.images.map((image) => (
-                  <a key={image._id} href={image.url} target="_blank" rel="noreferrer">
-                    <Image src={image.thumbnailUrl || image.url} alt="" width={72} height={96} />
-                  </a>
-                ))}
-              </div>
-            ) : null}
-            <div className="admin-review-actions">
-              <LoadingButton
-                type="button"
-                loading={busyId === review._id}
-                onClick={() => void moderate(review._id, "approved")}
-              >
-                Approve
-              </LoadingButton>
-              <LoadingButton
-                type="button"
-                variant="secondary"
-                loading={busyId === review._id}
-                onClick={() => void moderate(review._id, "rejected")}
-              >
-                Reject
-              </LoadingButton>
-              <LoadingButton
-                type="button"
-                variant="secondary"
-                loading={busyId === review._id}
-                onClick={() => void remove(review._id)}
-              >
-                Delete
-              </LoadingButton>
-            </div>
-          </article>
-        ))}
-      </div>
-    </div>
+                <div className="admin-review-card__body">
+                  <RatingStars value={review.rating} size="sm" />
+                  {review.title ? <h3>{review.title}</h3> : null}
+                  <p>{review.comment}</p>
+                  {review.images?.length ? (
+                    <div className="admin-review-photos">
+                      {review.images.map((image) => (
+                        <a key={image._id} href={image.url} target="_blank" rel="noreferrer">
+                          <Image src={image.thumbnailUrl || image.url} alt="Review photo" width={56} height={72} unoptimized />
+                        </a>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+
+                <footer className="admin-review-card__foot">
+                  {review.orderNumber ? (
+                    <Link className="admin-text-link" href={`/admin/orders/${review.orderId}`}>
+                      Order {review.orderNumber}
+                    </Link>
+                  ) : <span />}
+                  <div className="admin-review-actions">
+                    <LoadingButton
+                      type="button"
+                      variant="destructive"
+                      className="is-quiet"
+                      loading={isBusy && busy?.action === "delete"}
+                      disabled={isBusy}
+                      onClick={() => void remove(review._id)}
+                    >
+                      Delete
+                    </LoadingButton>
+                    {status !== "rejected" ? (
+                      <LoadingButton
+                        type="button"
+                        variant="secondary"
+                        loading={isBusy && busy?.action === "rejected"}
+                        disabled={isBusy}
+                        onClick={() => void moderate(review._id, "rejected")}
+                      >
+                        Reject
+                      </LoadingButton>
+                    ) : null}
+                    {status !== "approved" ? (
+                      <LoadingButton
+                        type="button"
+                        loading={isBusy && busy?.action === "approved"}
+                        disabled={isBusy}
+                        onClick={() => void moderate(review._id, "approved")}
+                      >
+                        Approve
+                      </LoadingButton>
+                    ) : null}
+                  </div>
+                </footer>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </>
   );
 }

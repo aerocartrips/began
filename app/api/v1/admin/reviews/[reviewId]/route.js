@@ -1,10 +1,10 @@
 import { withDatabase } from "@/lib/api/with-database";
 import { successResponse } from "@/lib/utils/api-response";
-import { requireCommerceAdmin } from "@/lib/middleware/admin-api";
+import { requireAdminAccess } from "@/lib/auth/admin-access";
 import { deleteAdminReview } from "@/lib/services/review.service";
 
 export const DELETE = withDatabase(async (_request, context) => {
-  await requireCommerceAdmin();
+  await requireAdminAccess();
   const { reviewId } = await context.params;
   await deleteAdminReview(reviewId);
   return successResponse(null, "Review deleted.");
