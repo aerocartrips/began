@@ -1,3 +1,4 @@
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { withDatabase } from "@/lib/api/with-database";
 import { successResponse } from "@/lib/utils/api-response";
 import { requireAdminAccess } from "@/lib/auth/admin-access";
@@ -8,7 +9,7 @@ import { uploadImagesFromRequest } from "@/lib/services/upload.service";
 import { ApiError } from "@/lib/utils/api-error";
 
 export const POST = withDatabase(async (request) => {
-  await requireAdminAccess();
+  await requireAdminAccess(PERMISSIONS.CATALOG_MANAGE);
 
   const ip = getClientIp(request);
   const limit = await checkRateLimit(`upload:${ip}`);

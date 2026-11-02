@@ -4,6 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CreditCard,
+  FileText,
+  FolderTree,
+  Newspaper,
+  Tags,
+  UserCog,
   LayoutDashboard,
   Mail,
   Package,
@@ -15,33 +20,40 @@ import {
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { useAdminPermissions } from "@/components/admin/admin-session-provider";
 
-type NavItem = { label: string; href: string; icon: LucideIcon };
+type NavItem = { label: string; href: string; icon: LucideIcon; permission: string };
 
 const navigationGroups: { label: string; items: NavItem[] }[] = [
   {
     label: "Commerce",
     items: [
-      { label: "Overview", href: "/admin", icon: LayoutDashboard },
-      { label: "Orders", href: "/admin/orders", icon: ShoppingBag },
-      { label: "Payments", href: "/admin/payments", icon: CreditCard },
-      { label: "Customers", href: "/admin/customers", icon: Users },
+      { label: "Overview", href: "/admin", icon: LayoutDashboard, permission: PERMISSIONS.DASHBOARD_VIEW },
+      { label: "Orders", href: "/admin/orders", icon: ShoppingBag, permission: PERMISSIONS.ORDERS_MANAGE },
+      { label: "Payments", href: "/admin/payments", icon: CreditCard, permission: PERMISSIONS.PAYMENTS_REFUND },
+      { label: "Quotes", href: "/admin/quotes", icon: FileText, permission: PERMISSIONS.QUOTES_MANAGE },
+      { label: "Customers", href: "/admin/customers", icon: Users, permission: PERMISSIONS.CUSTOMERS_MANAGE },
     ],
   },
   {
     label: "Catalog",
     items: [
-      { label: "Products", href: "/admin/products", icon: Package },
-      { label: "Reviews", href: "/admin/reviews", icon: Star },
+      { label: "Products", href: "/admin/products", icon: Package, permission: PERMISSIONS.CATALOG_MANAGE },
+      { label: "Categories", href: "/admin/categories", icon: FolderTree, permission: PERMISSIONS.CATALOG_MANAGE },
+      { label: "Attributes", href: "/admin/attributes", icon: Tags, permission: PERMISSIONS.CATALOG_MANAGE },
+      { label: "Reviews", href: "/admin/reviews", icon: Star, permission: PERMISSIONS.REVIEWS_MODERATE },
     ],
   },
   {
     label: "Operations",
     items: [
-      { label: "Returns", href: "/admin/returns", icon: RefreshCw },
-      { label: "Messages", href: "/admin/messages", icon: Mail },
-      { label: "Jobs", href: "/admin/jobs", icon: Timer },
-      { label: "Store settings", href: "/admin/settings", icon: Settings },
+      { label: "Returns", href: "/admin/returns", icon: RefreshCw, permission: PERMISSIONS.RETURNS_MANAGE },
+      { label: "Messages", href: "/admin/messages", icon: Mail, permission: PERMISSIONS.SUPPORT_MANAGE },
+      { label: "Jobs", href: "/admin/jobs", icon: Timer, permission: PERMISSIONS.JOBS_RUN },
+      { label: "Pages", href: "/admin/content", icon: Newspaper, permission: PERMISSIONS.SETTINGS_MANAGE },
+      { label: "Staff & roles", href: "/admin/staff", icon: UserCog, permission: PERMISSIONS.STAFF_MANAGE },
+      { label: "Store settings", href: "/admin/settings", icon: Settings, permission: PERMISSIONS.SETTINGS_MANAGE },
     ],
   },
 ];
@@ -52,13 +64,17 @@ function isActive(pathname: string, href: string) {
 
 export default function AdminNavigation({ variant = "sidebar" }: { variant?: "sidebar" | "mobile" }) {
   const pathname = usePathname() ?? "";
+  const permissions = useAdminPermissions();
+  const groups = navigationGroups
+    .map((group) => ({ ...group, items: group.items.filter((item) => permissions.has(item.permission)) }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <nav
       className={variant === "sidebar" ? "admin-navigation" : "admin-mobile-navigation__panel"}
       aria-label={variant === "sidebar" ? "Admin navigation" : "Mobile admin navigation"}
     >
-      {navigationGroups.map((group) => (
+      {groups.map((group) => (
         <div className="admin-navigation__group" key={group.label}>
           <p className="admin-navigation__label">{group.label}</p>
           {group.items.map(({ label, href, icon: Icon }) => {

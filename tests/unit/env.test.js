@@ -20,20 +20,25 @@ describe("validateEnv", () => {
     );
   });
 
-  it("rejects short secrets and half-configured integrations", () => {
+  it("rejects short secrets, bad encryption keys and half-configured integrations", () => {
     const { errors } = validateEnv({
       NODE_ENV: "development",
       JWT_SECRET: "short",
-      RAZORPAY_KEY_ID: "rzp_test_123",
+      TENANT_SECRETS_KEY: "not-32-bytes",
       CLOUDINARY_CLOUD_NAME: "demo",
     });
     expect(errors).toEqual(
       expect.arrayContaining([
         "JWT_SECRET must be at least 32 bytes.",
-        "Set both RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET, or neither.",
+        "TENANT_SECRETS_KEY must be 32 random bytes, base64-encoded.",
         "Set all of CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET, or none.",
       ]),
     );
+  });
+
+  it("warns about settings that moved to per-store configuration", () => {
+    const { warnings } = validateEnv({ NODE_ENV: "development", RAZORPAY_KEY_ID: "rzp_test_123" });
+    expect(warnings.some((warning) => warning.startsWith("RAZORPAY_KEY_ID is no longer read"))).toBe(true);
   });
 
   it("passes a complete production configuration", () => {
@@ -43,6 +48,7 @@ describe("validateEnv", () => {
       AUTH_SECRET: strongSecret,
       JWT_SECRET: `${strongSecret}a`,
       JWT_REFRESH_SECRET: `${strongSecret}b`,
+      TENANT_SECRETS_KEY: Buffer.alloc(32, 1).toString("base64"),
       NEXT_PUBLIC_APP_URL: "https://norosilk.example",
     });
     expect(errors).toEqual([]);

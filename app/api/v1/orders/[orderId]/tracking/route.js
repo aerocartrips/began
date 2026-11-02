@@ -1,3 +1,4 @@
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { withDatabase } from "@/lib/api/with-database";
 import { successResponse } from "@/lib/utils/api-response";
 import { getAuthUser } from "@/lib/auth/session";
@@ -19,7 +20,7 @@ export const GET = withDatabase(async (request, context) => {
   if (sessionUser) {
     isAdmin = sessionUser.role === ROLES.ADMIN;
   } else {
-    await requireAdminAccess();
+    await requireAdminAccess(PERMISSIONS.ORDERS_MANAGE);
     isAdmin = true;
     user = null;
   }

@@ -8,6 +8,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import { MongoMemoryServer } from "mongodb-memory-server";
+import { createTestTenant, enterTenantBeforeEach } from "../helpers/tenant.js";
+
+let testTenantId;
+enterTenantBeforeEach(() => testTenantId);
 
 const cookieJar = new Map();
 const sentEmails = [];
@@ -63,6 +67,7 @@ async function createUser(role = "customer", overrides = {}) {
     email: `account-${role}-${counter}@norosilk.test`,
     password: await bcrypt.hash(PASSWORD, 4),
     role,
+    ...(role === "admin" ? { adminRole: "owner" } : {}),
     ...overrides,
   });
 }
@@ -131,6 +136,7 @@ beforeAll(async () => {
   session = await import("@/lib/auth/session");
   const { connectDB } = await import("@/lib/db/connect");
   await connectDB();
+  ({ tenantId: testTenantId } = await createTestTenant());
 
   models = {
     User: (await import("@/lib/db/models/User")).User,

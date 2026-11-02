@@ -94,7 +94,7 @@ describe("password policy", () => {
 });
 
 describe("checkout address payload", () => {
-  const items = [{ productId: "p1", quantity: 1 }];
+  const items = [{ productId: "64b7f9e2c3a1d2e3f4a5b6c7", quantity: 1 }];
 
   it("accepts a saved address id or a full address", () => {
     expect(createOrderSchema.safeParse({ items, shippingAddressId: "abc" }).success).toBe(true);

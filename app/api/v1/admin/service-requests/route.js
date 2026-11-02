@@ -1,3 +1,4 @@
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { withDatabase } from "@/lib/api/with-database";
 import { successResponse } from "@/lib/utils/api-response";
 import { requireAdminAccess } from "@/lib/auth/admin-access";
@@ -8,7 +9,7 @@ import {
 } from "@/lib/services/service-request.service";
 
 export const GET = withDatabase(async (request) => {
-  await requireAdminAccess();
+  await requireAdminAccess(PERMISSIONS.RETURNS_MANAGE);
   await migrateLegacyServiceRequestsFromOrders();
   const searchParams = new URL(request.url).searchParams;
   if (searchParams.get("summary") === "1") {

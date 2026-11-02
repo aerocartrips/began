@@ -32,7 +32,7 @@ export default function VerifyEmailClient({ token }: { token: string }) {
     return (
       <SuccessCard
         title="Email address confirmed"
-        description={state.email ? `${state.email} is now the verified email on your Norosilk account.` : "Your email address is verified."}
+        description={state.email ? `${state.email} is now the verified email on your account.` : "Your email address is verified."}
         action={<Button href="/account" size="sm">Go to my account</Button>}
       />
     );
@@ -51,7 +51,7 @@ export default function VerifyEmailClient({ token }: { token: string }) {
   return (
     <section className="account-panel account-verify">
       <h2>Confirm your email address</h2>
-      <p className="account-muted">Confirm to finish verifying the email address on your Norosilk account.</p>
+      <p className="account-muted">Confirm to finish verifying the email address on your account.</p>
       <LoadingButton size="sm" loading={state.status === "verifying"} loadingText="Confirming..." onClick={() => void verify()}>
         Confirm email address
       </LoadingButton>

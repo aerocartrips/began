@@ -1,3 +1,4 @@
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
@@ -15,7 +16,7 @@ export const GET = withDatabase(async (_request, context) => {
 });
 
 export const PATCH = withDatabase(async (request, context) => {
-  await requireAdminUser();
+  await requireAdminUser(PERMISSIONS.CATALOG_MANAGE);
   const { categoryId } = await context.params;
   const payload = await parseJsonBody(request);
   const category = await updateCategory(categoryId, payload);
@@ -23,7 +24,7 @@ export const PATCH = withDatabase(async (request, context) => {
 });
 
 export const DELETE = withDatabase(async (_request, context) => {
-  await requireAdminUser();
+  await requireAdminUser(PERMISSIONS.CATALOG_MANAGE);
   const { categoryId } = await context.params;
   const category = await deleteCategory(categoryId);
   return successResponse(category, "Category deactivated successfully.");

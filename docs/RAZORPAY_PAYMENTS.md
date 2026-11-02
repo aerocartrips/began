@@ -1,17 +1,14 @@
 # Razorpay Payments
 
-## Environment
+## Configuration (per store)
 
-```env
-RAZORPAY_KEY_ID=rzp_test_...
-RAZORPAY_KEY_SECRET=...
-RAZORPAY_WEBHOOK_SECRET=...
-NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_...
-CHECKOUT_CURRENCY=INR
-PAYMENT_RESERVATION_MINUTES=30
+Each store has its own Razorpay account. Store the keys on the store (encrypted with `TENANT_SECRETS_KEY`):
+
+```bash
+RAZORPAY_KEY_ID=rzp_test_... RAZORPAY_KEY_SECRET=... RAZORPAY_WEBHOOK_SECRET=... npm run tenant:integrations -- --tenant <slug>
 ```
 
-Use live keys only in production. Never expose `RAZORPAY_KEY_SECRET` or `RAZORPAY_WEBHOOK_SECRET` to the browser.
+In the Razorpay dashboard, point the store's webhook at `https://<store domain>/api/v1/payments/webhook`; the request's domain selects the store whose secret verifies the signature. All prices are INR. The payment reservation window is a store setting (Admin → Store settings → Orders). Secrets are never sent to the browser.
 
 ## Flow
 
@@ -46,7 +43,7 @@ The handler verifies `X-Razorpay-Signature` against the raw request body.
 
 ## Inventory reservation
 
-Stock is reserved when the internal order enters `pending_payment`. Failed payments release inventory. Reservation expires after `PAYMENT_RESERVATION_MINUTES` (documented; cleanup job can be added separately).
+Stock is reserved when the internal order enters `pending_payment`. Failed payments release inventory. Reservation expires after the store's payment reservation window; the `payment-expiry` cron job releases expired reservations for every store.
 
 ## MongoDB transactions
 

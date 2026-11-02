@@ -1,12 +1,15 @@
 "use client";
 
-import { useCart } from "@/features/cart/cart-provider";
+import { useCartCount } from "@/features/cart/cart-store";
+import { useHydrated } from "@/lib/client/persistent-store";
+import { formatNumber } from "@/lib/format";
 
 export default function CartCount() {
-  const { itemCount, hydrated } = useCart();
+  const hydrated = useHydrated();
+  const count = useCartCount();
   return (
     <span className="cart-count" aria-live="polite" aria-atomic="true">
-      {hydrated ? itemCount.toLocaleString("en-US") : "0"}
+      {hydrated ? formatNumber(count) : "0"}
     </span>
   );
 }

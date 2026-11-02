@@ -12,7 +12,7 @@ export const GET = withDatabase(async () => {
     "You have downloaded your data several times recently. Please try again later.",
   );
   const data = await buildAccountExport(user);
-  const filename = `norosilk-account-data-${new Date().toISOString().slice(0, 10)}.json`;
+  const filename = `account-data-${new Date().toISOString().slice(0, 10)}.json`;
   return new Response(JSON.stringify(data, null, 2), {
     headers: {
       "content-type": "application/json; charset=utf-8",

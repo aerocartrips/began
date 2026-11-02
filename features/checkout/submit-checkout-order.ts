@@ -1,4 +1,4 @@
-import type { CartLine } from "@/features/cart/types/cart";
+import type { CartItem } from "@/features/cart/types";
 import type { RazorpaySuccessResponse } from "@/features/checkout/razorpay-checkout";
 
 type CheckoutAddress = {
@@ -33,16 +33,6 @@ type CreatePaymentOrderData = {
   orderNumber: string;
 };
 
-function mapSelectedAttributes(item: CartLine) {
-  const attributes: Record<string, string> = {};
-  for (const [optionId, valueId] of Object.entries(item.selectedOptions)) {
-    const option = item.product.options.find((candidate) => candidate.id === optionId);
-    const value = option?.values.find((candidate) => candidate.id === valueId);
-    if (option && value) attributes[option.label] = value.label;
-  }
-  return attributes;
-}
-
 function addressFields(kind: "shipping" | "billing", selection: AddressSelection) {
   return "addressId" in selection
     ? { [`${kind}AddressId`]: selection.addressId }
@@ -50,13 +40,10 @@ function addressFields(kind: "shipping" | "billing", selection: AddressSelection
 }
 
 /** Billing is omitted when it matches shipping; the server then bills the shipping address. */
-function buildOrderPayload(items: CartLine[], shipping: AddressSelection, billing: AddressSelection | null) {
+function buildOrderPayload(items: CartItem[], shipping: AddressSelection, billing: AddressSelection | null) {
   return {
-    items: items.map((item) => ({
-      productId: item.product.id,
-      quantity: item.quantity,
-      selectedAttributes: mapSelectedAttributes(item),
-    })),
+    // Identifiers only: the server prices every line again from the catalogue.
+    items: items.map((item) => ({ productId: item.productId, variantId: item.variantId, quantity: item.quantity })),
     ...addressFields("shipping", shipping),
     ...(billing ? addressFields("billing", billing) : {}),
     paymentMethod: "razorpay",
@@ -74,7 +61,7 @@ export async function fetchCurrentCustomer() {
   return payload.success ? payload.data : null;
 }
 
-export async function createPaymentOrder(items: CartLine[], shipping: AddressSelection, billing: AddressSelection | null) {
+export async function createPaymentOrder(items: CartItem[], shipping: AddressSelection, billing: AddressSelection | null) {
   const response = await fetch("/api/v1/payments/create-order", {
     method: "POST",
     credentials: "include",

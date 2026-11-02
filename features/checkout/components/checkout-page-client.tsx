@@ -12,10 +12,12 @@ import CheckoutSkeleton from "@/components/ui/loaders/checkout-skeleton";
 import ErrorCard from "@/components/ui/feedback/error-card";
 import WarningCard from "@/components/ui/feedback/warning-card";
 import CartSummary from "@/features/cart/components/cart-summary";
-import { useCart } from "@/features/cart/cart-provider";
+import { buyNowStore, cartActions, useCartItems } from "@/features/cart/cart-store";
+import { useCartPricing } from "@/features/cart/use-cart-pricing";
 import EmptyState from "@/components/ui/empty-state";
-import type { CartLine } from "@/features/cart/types/cart";
-import { formatCurrency } from "@/lib/format-currency";
+import type { PricedCartLine } from "@/features/cart/types";
+import { formatRupees } from "@/lib/format";
+import { useHydrated } from "@/lib/client/persistent-store";
 import { openRazorpayCheckout } from "@/features/checkout/razorpay-checkout";
 import {
   createPaymentOrder,
@@ -28,6 +30,7 @@ import { readAddressForm } from "@/features/account/components/address-form-fiel
 import { accountApi, toFieldErrors } from "@/features/account/account-api";
 import type { AddressBook, FieldErrors } from "@/features/account/types";
 import { usePaymentStatusPoll } from "@/hooks/use-payment-status-poll";
+import { useTenant } from "@/features/tenant/tenant-provider";
 
 type CheckoutPageClientProps = {
   buyNow: boolean;
@@ -76,34 +79,34 @@ function mapAddressErrors(errors: { field: string; message: string }[] | undefin
   return result;
 }
 
-function CheckoutLine({ item }: { item: CartLine }) {
+function CheckoutLine({ item }: { item: PricedCartLine }) {
   return (
     <li className="checkout-line">
       <div className="checkout-line-image">
-        <Image
-          src={item.product.images[0].src}
-          alt={item.product.images[0].alt}
-          fill
-          sizes="72px"
-          className="cover-image"
-        />
+        {item.imageUrl ? <Image src={item.imageUrl} alt="" fill sizes="72px" className="cover-image" /> : null}
         <span>{item.quantity}</span>
       </div>
       <div className="checkout-line-copy">
-        <strong>{item.product.title}</strong>
-        <small>{item.product.details}</small>
+        <strong>{item.name ?? "Unavailable product"}</strong>
+        <small>{[item.colorName, item.sku].filter(Boolean).join(" · ")}</small>
+        {item.issues?.map((issue) => <small key={issue.message} className="cart-line__issue">{issue.message}</small>)}
       </div>
-      <strong>{formatCurrency(item.lineTotalCents, item.product.currency)}</strong>
+      <strong>{formatRupees(item.lineTotal ?? 0)}</strong>
     </li>
   );
 }
 
 export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) {
+  const tenant = useTenant();
   const router = useRouter();
   const feedback = useOptionalFeedback();
   const paymentStartedRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const { items, checkoutIntent, hydrated, clearCart, clearBuyNow } = useCart();
+  const hydrated = useHydrated();
+  const cartItems = useCartItems();
+  const buyNowItem = buyNowStore.use();
+  const clearCart = cartActions.clear;
+  const clearBuyNow = cartActions.clearBuyNow;
   const [notice, setNotice] = useState("");
   const [phase, setPhase] = useState<LegacyPaymentPhase>("idle");
   const [customer, setCustomer] = useState<Awaited<ReturnType<typeof fetchCurrentCustomer>>>(null);
@@ -116,10 +119,11 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
   const [billingSameAsShipping, setBillingSameAsShipping] = useState(true);
   const [addressErrors, setAddressErrors] = useState<{ shipping: FieldErrors; billing: FieldErrors }>({ shipping: {}, billing: {} });
   const addressBookFull = addressBook ? addressBook.items.length >= addressBook.limit : false;
-  const checkoutItems = buyNow ? (checkoutIntent ? [checkoutIntent] : []) : items;
+  const checkoutItems = buyNow ? (buyNowItem ? [buyNowItem] : []) : cartItems;
   const checkoutCount = checkoutItems.reduce((count, item) => count + item.quantity, 0);
-  const checkoutSubtotal = checkoutItems.reduce((sum, item) => sum + item.lineTotalCents, 0);
-  const razorpayEnabled = Boolean(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
+  const { pricing, loading: pricingLoading, error: pricingError } = useCartPricing(checkoutItems);
+  const pricingBlocked = Boolean(pricingError) || (pricing?.issues.length ?? 0) > 0;
+  const razorpayEnabled = tenant.paymentsEnabled && !pricingBlocked && !pricingLoading;
   const pending =
     phase === "creating" || phase === "checkout" || phase === "verifying";
   const paymentUiPhase = mapPaymentPhase(phase);
@@ -254,6 +258,7 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
       setPhase("checkout");
       await openRazorpayCheckout({
         key: payload.data.key,
+        storeName: tenant.name,
         amount: payload.data.amount,
         currency: payload.data.currency,
         orderId: payload.data.razorpayOrderId,
@@ -327,7 +332,7 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
     <main className="commerce-page content-width">
       <div className="commerce-heading">
         <div>
-          <p className="eyebrow">{buyNow ? "Express purchase" : "Wholesale order"}</p>
+          <p className="eyebrow">{buyNow ? "Express purchase" : tenant.salesMode === "wholesale" ? "Wholesale order" : "Your order"}</p>
           <h1>Checkout</h1>
         </div>
         {!buyNow && <Link className="text-button" href="/cart">Edit cart</Link>}
@@ -335,7 +340,7 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
       {!customer && (
         <WarningCard
           title="Sign in to continue"
-          description="Wholesale checkout requires an authenticated business account."
+          description={tenant.salesMode === "wholesale" ? "Wholesale checkout requires a signed-in business account." : "Sign in or create an account to place your order."}
           action={
             <Button
               href={`/account/login?next=${encodeURIComponent(buyNow ? "/checkout?intent=buy-now" : "/checkout")}`}
@@ -435,7 +440,7 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
             }
             disabled={!razorpayEnabled}
           >
-            {razorpayEnabled ? "Pay now with Razorpay" : "Payment unavailable"}
+            {razorpayEnabled ? "Pay now with Razorpay" : pricingBlocked ? "Fix your cart to pay" : tenant.paymentsEnabled ? "Preparing order…" : "Payment unavailable"}
           </LoadingButton>
         </form>
 
@@ -445,9 +450,10 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
             {!buyNow && <Link href="/cart">Edit</Link>}
           </div>
           <ul className="checkout-lines">
-            {checkoutItems.map((item) => <CheckoutLine item={item} key={item.key} />)}
+            {(pricing?.lines ?? []).map((item) => <CheckoutLine item={item} key={`${item.productId}:${item.variantId ?? ""}`} />)}
           </ul>
-          <CartSummary itemCount={checkoutCount} subtotalCents={checkoutSubtotal} showCheckout={false} />
+          {pricingError ? <p className="cart-line__issue" role="alert">{pricingError}</p> : null}
+          <CartSummary itemCount={checkoutCount} totals={pricing?.totals ?? null} loading={pricingLoading} showCheckout={false} />
         </aside>
       </div>
     </main>

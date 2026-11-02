@@ -45,7 +45,7 @@ Route Handler (app/api/v1)
 
 - Unit price is resolved server-side (`resolveUnitPrice`) using MOQ, wholesale price, and optional bulk tiers.
 - Totals ignore client-submitted prices.
-- Tax and shipping use env-configured rules (`TAX_RATE_PERCENT`, `SHIPPING_FLAT_AMOUNT`, `SHIPPING_FREE_THRESHOLD`).
+- Tax and shipping are store settings (`StoreSettings.commerce`): GST per product (or the store default) plus a flat shipping charge with an optional free-shipping threshold. See `lib/services/order-pricing.js`.
 - Order creation uses a MongoDB transaction to decrement inventory and insert the order atomically (requires a replica set, available on Atlas).
 
 ## Security practices

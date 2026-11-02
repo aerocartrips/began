@@ -1,3 +1,4 @@
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
@@ -16,7 +17,7 @@ export const GET = withDatabase(async (request) => {
     return successResponse(result.items, "Orders fetched successfully.", result.meta);
   }
 
-  await requireAdminAccess();
+  await requireAdminAccess(PERMISSIONS.ORDERS_MANAGE);
   const result = await listOrders(null, searchParams, true);
   return successResponse(result.items, "Orders fetched successfully.", result.meta);
 });

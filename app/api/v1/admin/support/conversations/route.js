@@ -1,3 +1,4 @@
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
@@ -9,7 +10,7 @@ import {
 } from "@/lib/services/support-messages.service";
 
 export const GET = withDatabase(async (request) => {
-  await requireAdminAccess();
+  await requireAdminAccess(PERMISSIONS.SUPPORT_MANAGE);
   const searchParams = new URL(request.url).searchParams;
   const result = await listSupportConversations({
     status: searchParams.get("status") ?? undefined,
@@ -25,7 +26,7 @@ export const GET = withDatabase(async (request) => {
 
 /** @deprecated Prefer PATCH /api/v1/admin/support/conversations/:conversationId */
 export const PATCH = withDatabase(async (request) => {
-  const access = await requireAdminAccess();
+  const access = await requireAdminAccess(PERMISSIONS.SUPPORT_MANAGE);
   const { conversationId, ...payload } = await parseJsonBody(request);
   const conversation = await updateSupportConversation(conversationId, access.user, payload);
   return successResponse(conversation, "Conversation updated.");
@@ -33,7 +34,7 @@ export const PATCH = withDatabase(async (request) => {
 
 /** @deprecated Prefer POST /api/v1/admin/support/conversations/:conversationId/messages */
 export const POST = withDatabase(async (request) => {
-  const access = await requireAdminAccess();
+  const access = await requireAdminAccess(PERMISSIONS.SUPPORT_MANAGE);
   const payload = await parseJsonBody(request);
   const message = await addSupportAdminMessage(payload.conversationId, access.user, payload.body, payload.clientMessageId);
   return successResponse(message, "Reply sent.");

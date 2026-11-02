@@ -5,7 +5,7 @@ const contentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""} https://checkout.razorpay.com`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://res.cloudinary.com https://storage.googleapis.com",
+  "img-src 'self' data: blob: https://res.cloudinary.com",
   "font-src 'self' data:",
   "connect-src 'self' https://api.razorpay.com https://lumberjack.razorpay.com https://api.cloudinary.com",
   "frame-src https://api.razorpay.com https://checkout.razorpay.com https://maps.google.com https://www.google.com",
@@ -28,7 +28,22 @@ const securityHeaders = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   cacheComponents: true,
+  experimental: {
+    globalNotFound: true,
+    authInterrupts: true,
+  },
   poweredByHeader: false,
+  async redirects() {
+    // Common policy URLs (payment providers and shoppers look for these) map to the store's pages.
+    return [
+      { source: "/cancellation-policy", destination: "/returns", permanent: true },
+      { source: "/refund-policy", destination: "/returns", permanent: true },
+      { source: "/terms", destination: "/terms-and-conditions", permanent: true },
+      { source: "/privacy", destination: "/privacy-policy", permanent: true },
+      { source: "/size-and-care-guide", destination: "/care-guide", permanent: true },
+      { source: "/account/wishlist", destination: "/wishlist", permanent: false },
+    ];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
@@ -36,11 +51,6 @@ const nextConfig = {
   serverExternalPackages: ["pdfkit"],
   images: {
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "storage.googleapis.com",
-        pathname: "/uxpilot-auth.appspot.com/**",
-      },
       {
         protocol: "https",
         hostname: "res.cloudinary.com",

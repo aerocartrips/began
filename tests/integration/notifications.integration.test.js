@@ -7,12 +7,13 @@ import { createHmac } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import mongoose from "mongoose";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
+import { createTestTenant, enterTenantBeforeEach } from "../helpers/tenant.js";
+
+let testTenantId;
+enterTenantBeforeEach(() => testTenantId);
 
 const KEY_SECRET = "rzp_test_secret_for_notifications";
 const WEBHOOK_SECRET = "rzp_webhook_secret_for_notifications";
-process.env.RAZORPAY_KEY_ID = "rzp_test_key";
-process.env.RAZORPAY_KEY_SECRET = KEY_SECRET;
-process.env.RAZORPAY_WEBHOOK_SECRET = WEBHOOK_SECRET;
 
 const cookieJar = new Map();
 const razorpay = { payments: new Map(), orderSeq: 0, refundSeq: 0 };
@@ -79,6 +80,7 @@ async function createUser(role = "customer", extra = {}) {
     email: `notify-${role}-${seq}-${Date.now()}@norosilk.test`,
     password: "x".repeat(60),
     role,
+    ...(role === "admin" ? { adminRole: "owner" } : {}),
     ...extra,
   });
 }
@@ -179,6 +181,12 @@ beforeAll(async () => {
   signAccessToken = session.signAccessToken;
   ACCESS_COOKIE = session.ACCESS_COOKIE;
   await (await import("@/lib/db/connect")).connectDB();
+  const { encryptSecret } = await import("@/lib/tenant/secrets");
+  ({ tenantId: testTenantId } = await createTestTenant({
+    integrations: {
+      razorpay: { keyId: "rzp_test_key", keySecret: encryptSecret(KEY_SECRET), webhookSecret: encryptSecret(WEBHOOK_SECRET) },
+    },
+  }));
 
   models = {
     User: (await import("@/lib/db/models/User")).User,
@@ -520,22 +528,20 @@ describe("notification APIs", () => {
     expect(await models.Notification.countDocuments({ recipientId: owner._id, isRead: false })).toBe(2);
   });
 
-  it("keeps admin inboxes separate and gives env-only dashboard admins their own inbox", async () => {
+  it("keeps admin inboxes separate and targets audiences by staff role", async () => {
     const [adminA, adminB] = await Promise.all([createUser("admin"), createUser("admin")]);
-    process.env.ADMIN_EMAIL = "owner@norosilk.test";
+    const staffMember = await createUser("admin", { adminRole: "staff" });
     await service.notifyAdmins("support", { type: "support_new_conversation", title: "New conversation", dedupeKey: `admin-test:${Date.now()}` });
+    await service.notifyAdmins("finance", { type: "payment_issue", title: "Finance alert", dedupeKey: `admin-fin:${Date.now()}` });
 
-    const dashboardId = adminRecipients.dashboardAdminRecipientId("owner@norosilk.test");
-    for (const recipientId of [adminA._id, adminB._id, dashboardId]) {
-      expect(await models.Notification.countDocuments({ recipientId, recipientType: "admin" })).toBeGreaterThan(0);
+    for (const recipientId of [adminA._id, adminB._id, staffMember._id]) {
+      expect(await models.Notification.countDocuments({ recipientId, recipientType: "admin", audience: "support" })).toBeGreaterThan(0);
     }
+    expect(await models.Notification.countDocuments({ recipientId: staffMember._id, audience: "finance" })).toBe(0);
 
     const target = (await models.Notification.findOne({ recipientId: adminA._id, type: "support_new_conversation" }).lean())._id.toString();
     expect((await call(routes.adminRead.PATCH, { as: adminB, method: "PATCH", params: { notificationId: target } })).status).toBe(404);
     expect((await call(routes.adminRead.PATCH, { as: adminA, method: "PATCH", params: { notificationId: target } })).status).toBe(200);
-
-    const inbox = adminRecipients.adminRecipientFromAccess({ source: "dashboard", session: { email: "Owner@Norosilk.test" }, user: { email: "owner@norosilk.test" } });
-    expect(String(inbox.recipient.recipientId)).toBe(String(dashboardId));
   });
 
   it("enforces admin audience restrictions on reads", async () => {

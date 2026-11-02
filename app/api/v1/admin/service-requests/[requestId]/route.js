@@ -1,3 +1,4 @@
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
@@ -8,14 +9,14 @@ import {
 } from "@/lib/services/service-request.service";
 
 export const GET = withDatabase(async (_request, context) => {
-  await requireAdminAccess();
+  await requireAdminAccess(PERMISSIONS.RETURNS_MANAGE);
   const { requestId } = await context.params;
   const doc = await getServiceRequestById(requestId);
   return successResponse(doc, "Service request fetched.");
 });
 
 export const PATCH = withDatabase(async (request, context) => {
-  const admin = await requireAdminAccess();
+  const admin = await requireAdminAccess(PERMISSIONS.RETURNS_MANAGE);
   const { requestId } = await context.params;
   const payload = await parseJsonBody(request);
   const doc = await updateServiceRequest(requestId, admin, payload);

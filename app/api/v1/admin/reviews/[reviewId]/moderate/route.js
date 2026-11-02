@@ -1,3 +1,4 @@
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
@@ -10,7 +11,7 @@ import { ApiError } from "@/lib/utils/api-error";
 import "@/lib/db/models/User";
 
 export const PATCH = withDatabase(async (request, context) => {
-  await requireAdminAccess();
+  await requireAdminAccess(PERMISSIONS.REVIEWS_MODERATE);
   const apiUser = await getAuthUser();
   const adminUser =
     apiUser?.role === ROLES.ADMIN

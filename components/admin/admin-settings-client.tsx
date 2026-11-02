@@ -14,7 +14,7 @@ import { useAsyncAction } from "@/hooks/use-async-action";
 import { apiRequest } from "@/lib/api/api-client";
 import { formatDateTime } from "@/lib/format";
 
-type SettingsSection = "general" | "business" | "orders" | "shipping";
+type SettingsSection = "store" | "branding" | "theme" | "contact" | "business" | "commerce" | "orders" | "shipping";
 type Tab = SettingsSection | "integrations";
 type SettingsValue = string | number;
 
@@ -28,7 +28,8 @@ type HealthResponse = {
 type FieldConfig = {
   name: string;
   label: string;
-  type?: "text" | "email" | "tel" | "number" | "textarea";
+  type?: "text" | "email" | "tel" | "number" | "textarea" | "color" | "url" | "select";
+  options?: { value: string; label: string }[];
   step?: string;
   fallback?: SettingsValue;
   hint?: string;
@@ -39,27 +40,73 @@ type FieldConfig = {
 const upper = (value: string) => value.toUpperCase();
 
 const TABS: { id: Tab; label: string; description: string }[] = [
-  { id: "general", label: "General", description: "Storefront identity and support contact details." },
-  { id: "business", label: "Business", description: "Legal entity details printed on invoices." },
-  { id: "orders", label: "Orders", description: "Payment reservation, cancellation, and return windows." },
-  { id: "shipping", label: "Shipping", description: "Pickup location and default parcel details for courier booking." },
+  { id: "store", label: "Store", description: "Store name and how it sells." },
+  { id: "branding", label: "Branding", description: "Title, tagline, logo and images shown on the storefront." },
+  { id: "theme", label: "Colours", description: "Storefront colours. Changes apply to every page immediately." },
+  { id: "contact", label: "Contact", description: "Contact details shown on the contact page, footer and emails." },
+  { id: "business", label: "Business & GST", description: "Legal details printed on invoices, and where store alerts are sent." },
+  { id: "commerce", label: "Tax & shipping", description: "GST and shipping charges added at checkout." },
+  { id: "orders", label: "Orders", description: "Payment reservation, cancellation and return windows." },
+  { id: "shipping", label: "Pickup", description: "Pickup location and default parcel details for courier booking." },
   { id: "integrations", label: "Integrations", description: "Connection health for third-party services." },
 ];
 
+const colour = (name: string, label: string): FieldConfig => ({ name, label, type: "color" });
+
 const FIELDS: Record<SettingsSection, FieldConfig[]> = {
-  general: [
-    { name: "storeName", label: "Store name" },
-    { name: "supportEmail", label: "Support email", type: "email" },
-    { name: "supportPhone", label: "Support phone", type: "tel" },
-    { name: "timeZone", label: "Time zone", hint: "IANA name, e.g. Asia/Kolkata" },
-    { name: "defaultCurrency", label: "Currency", fallback: "INR", transform: upper, hint: "ISO 4217 code" },
-    { name: "businessAddress", label: "Business address", type: "textarea", wide: true },
+  store: [
+    { name: "name", label: "Store name" },
+    {
+      name: "salesMode",
+      label: "Sales mode",
+      type: "select",
+      options: [
+        { value: "wholesale", label: "Wholesale — MOQ, quantity tiers, quote requests" },
+        { value: "retail", label: "Retail — single pieces at the retail price" },
+      ],
+      hint: "Changes prices, quantities and checkout rules across the whole storefront.",
+      wide: true,
+    },
+  ],
+  branding: [
+    { name: "siteTitle", label: "Site title", hint: "Shown in browser tabs and search results" },
+    { name: "tagline", label: "Home page headline" },
+    { name: "description", label: "Short description", type: "textarea", wide: true, hint: "Used for search engines and the footer" },
+    { name: "logoUrl", label: "Logo URL", type: "url", wide: true },
+    { name: "heroImageUrl", label: "Home page image URL", type: "url", wide: true },
+    { name: "faviconUrl", label: "Favicon URL", type: "url", wide: true },
+  ],
+  theme: [
+    colour("brand", "Brand"),
+    colour("brandSecondary", "Brand secondary"),
+    colour("accent", "Accent"),
+    colour("text", "Text"),
+    colour("textMuted", "Muted text"),
+    colour("background", "Page background"),
+    colour("surface", "Cards"),
+    colour("border", "Borders"),
+  ],
+  contact: [
+    { name: "email", label: "Support email", type: "email" },
+    { name: "phone", label: "Support phone", type: "tel" },
+    { name: "hours", label: "Business hours" },
+    { name: "address", label: "Business address", type: "textarea", wide: true },
+    { name: "instagram", label: "Instagram URL", type: "url" },
+    { name: "linkedin", label: "LinkedIn URL", type: "url" },
+    { name: "x", label: "X URL", type: "url" },
   ],
   business: [
     { name: "legalName", label: "Legal name" },
     { name: "gstin", label: "GSTIN", transform: upper },
-    { name: "invoicePrefix", label: "Invoice prefix", fallback: "INV" },
+    { name: "invoicePrefix", label: "Invoice prefix", fallback: "INV", transform: upper },
+    { name: "notificationEmail", label: "Alert inbox", type: "email", hint: "New orders, quotes and contact messages" },
     { name: "registeredAddress", label: "Registered address", type: "textarea", wide: true },
+  ],
+  commerce: [
+    { name: "defaultGstRatePercent", label: "Default GST %", type: "number", step: "0.01", fallback: 0, hint: "For products without their own rate, and shipping" },
+    { name: "shippingFlatAmount", label: "Shipping charge (₹)", type: "number", step: "0.01", fallback: 0 },
+    { name: "shippingFreeThreshold", label: "Free shipping from (₹)", type: "number", step: "0.01", fallback: 0, hint: "0 turns free shipping off" },
+    { name: "lowStockThreshold", label: "Low-stock alert at", type: "number", fallback: 5, hint: "Pieces remaining" },
   ],
   orders: [
     { name: "paymentReservationMinutes", label: "Payment reservation", type: "number", fallback: 30, hint: "Minutes stock is held for unpaid orders" },
@@ -79,7 +126,7 @@ export default function AdminSettingsClient() {
   const feedback = useFeedback();
   const settingsRequest = useApiRequest<SettingsDoc>("/api/v1/admin/settings");
   const healthRequest = useApiRequest<HealthResponse>("/api/v1/admin/settings/health");
-  const [tab, setTab] = useState<Tab>("general");
+  const [tab, setTab] = useState<Tab>("store");
   const [draft, setDraft] = useState<Partial<Record<SettingsSection, Record<string, SettingsValue>>> | null>(null);
 
   const settings = settingsRequest.data;
@@ -189,7 +236,7 @@ export default function AdminSettingsClient() {
               ))}
             </div>
             <p className="admin-card__footnote">
-              <ShieldCheck size={13} aria-hidden="true" /> Secrets stay in deployment environment variables and are never shown here.
+              <ShieldCheck size={13} aria-hidden="true" /> Payment and courier credentials are stored encrypted per store and are never shown here.
             </p>
           </AdminCard>
         ) : (
@@ -204,6 +251,10 @@ export default function AdminSettingsClient() {
                     {field.label}
                     {field.type === "textarea" ? (
                       <textarea value={String(raw)} rows={3} onChange={(event) => onChange(event.currentTarget.value)} />
+                    ) : field.type === "select" ? (
+                      <select value={String(raw)} onChange={(event) => onChange(event.currentTarget.value)}>
+                        {field.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                      </select>
                     ) : (
                       <input
                         type={field.type ?? "text"}

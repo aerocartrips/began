@@ -1,78 +1,91 @@
 # Norosilk
 
-Norosilk is a wholesale saree storefront and admin dashboard built with the Next.js App Router (Next.js 16, React 19), MongoDB/Mongoose, Razorpay payments, Cloudinary images, and Delhivery shipping.
+A multi-store saree commerce platform: one deployment serves many independent stores, each on its own domain, with its own catalogue, customers, orders, staff, branding and payment account. Each store sells either **wholesale** (minimum order quantities, quantity tiers, quote requests) or **retail** (single pieces). Prices are in Indian rupees (INR) everywhere.
+
+Built with the Next.js App Router (Next.js 16, React 19, Cache Components), MongoDB/Mongoose, Razorpay, Cloudinary and Delhivery.
 
 ## Getting started
 
 ```bash
-cp .env.example .env.local   # then fill in the values you need
+cp .env.example .env            # fill in MONGODB_URI and the secrets
 npm install
-npm run dev
+OWNER_PASSWORD='choose-a-strong-one' npm run tenant:create -- \
+  --slug demo --name "Demo Silks" --domain localhost --sales-mode wholesale --owner-email you@example.com
+npm run seed:catalog -- --tenant demo   # optional sample catalogue
+npm run dev                             # http://localhost:3000, admin at /admin
 ```
 
-Requires Node.js 20.19 or newer (see `.nvmrc`).
+Requires Node.js 20.19+ (see `.nvmrc`) and MongoDB (Atlas or a replica set: orders use transactions).
 
 | Script | Purpose |
 | --- | --- |
-| `npm run dev` | Development server |
-| `npm run build` / `npm start` | Production build and server |
-| `npm run check` | Lint, typecheck, and unit tests (what CI runs, plus `build`) |
-| `npm run test:integration` | MongoDB integration tests (needs `MONGODB_URI_TEST`) |
-| `npm run format` | Format the codebase with Prettier |
-| `npm run seed:catalog` | Seed the product catalog |
-| `npm run import:legacy-contacts` | One-off import of the retired `.data/contact-messages.json` store into the support inbox |
+| `npm run dev` / `build` / `start` | Development server, production build and server |
+| `npm run check` | Lint, typecheck and tests (CI also runs `build`) |
+| `npm run tenant:create` | Create or update a store, its domains, sales mode and owner account |
+| `npm run tenant:integrations` | Store a store's Razorpay / Delhivery credentials (encrypted) |
+| `npm run admin:create` | Create or update a staff account (`--role owner\|manager\|staff`) |
+| `npm run tenant:migrate` | One-time upgrade of a single-store database (see below) |
+| `npm run seed:catalog` | Sample attributes, categories and products (`--count 20000` for load tests) |
+| `npm run format` | Prettier |
 
-Server configuration is validated at startup (`lib/env.js`, called from `instrumentation.ts`). Missing core secrets or half-configured integrations stop a production server from booting; in development they are logged as warnings.
+Scripts read secrets (passwords, API keys) from environment variables, never from arguments, so they don't end up in shell history.
 
-Without `MONGODB_URI` the storefront falls back to the static demo catalog in `data/products.ts`; orders, accounts, payments, and the admin dashboard need MongoDB.
+## Stores (multi-tenancy)
 
-## Project layout
+- **Routing.** `proxy.ts` rewrites every page request to `app/[domain]/…`. The store is looked up by hostname in `Tenant.domains` (cached), so adding a domain needs no deploy. API routes resolve the store from the `Host` header. Unknown hosts get a "Store not found" page.
+- **Data isolation.** Every store-owned collection uses `lib/db/plugins/tenant-scope.js`, which adds `tenantId` to every query, aggregate, insert and bulk write from the request's tenant context. Code that runs without a tenant context **fails** rather than reading across stores. All indexes start with `tenantId`; this is enforced by `tests/unit/tenant-indexes.test.js`. Two-store tests are in `tests/integration/tenant-isolation.integration.test.js`.
+- **Establishing the tenant.** `withDatabase` (API routes), `withCurrentTenant` (server components), `getActionTenant` (server actions) and `runForEachTenant` (cron jobs). Cached functions take `tenantId` as an explicit argument so it is part of the cache key.
+- **Sessions** are bound to the issuing store through the JWT audience, and cookies are host-only. A token from one store is rejected by every other store.
+- **Store configuration** (Admin → Store settings): name, sales mode, title, tagline, logo and hero image, theme colours (CSS variables on `<html>`), contact details, legal and GST details, alert inbox, GST rate, shipping charges, order windows and pickup details.
+- **Integration secrets** (Razorpay, Delhivery) are stored per store, encrypted with AES-256-GCM using `TENANT_SECRETS_KEY`, and never sent to the browser. Configure each store's Razorpay webhook as `https://<store domain>/api/v1/payments/webhook`.
+- **Content pages** (about, FAQ, privacy, terms, shipping, returns, care guide) are per store (Admin → Pages). Until edited, they show a template filled with the store's details. Review policies with your adviser before going live.
 
-- `app/` — routes. `(storefront)` is the public shop, `admin/(protected)` the dashboard, `api/v1` the JSON API.
-- `components/` — UI shared across routes; `components/ui` holds primitives.
-- `features/` — client-side domain modules (cart, checkout, orders, products, reviews).
-- `hooks/` — shared React hooks.
-- `lib/` — server code:
-  - `auth/` — customer JWT sessions (`session.js`) and admin guards (`admin-access.js`)
-  - `admin/` — dashboard admin sign-in (separate signed cookie)
-  - `services/` — business logic; `repositories/` — query helpers; `db/models/` — Mongoose models
-  - `validators/` — Zod schemas; `security/` — rate limiting and client IP; `utils/` — shared helpers
-- `docs/` — feature and API documentation.
+### Upgrading an existing single-store database
 
-File names are kebab-case, except Mongoose models (`lib/db/models/PascalCase.js`).
+```bash
+npm run tenant:create -- --slug norosilk --name "Norosilk" --domain norosilk.com --domain www.norosilk.com
+npm run tenant:migrate -- --tenant norosilk
+RAZORPAY_KEY_ID=… RAZORPAY_KEY_SECRET=… RAZORPAY_WEBHOOK_SECRET=… npm run tenant:integrations -- --tenant norosilk
+```
+
+The migration assigns existing documents to the store and copies contact, business and env tax/shipping settings into it. It makes existing admins owners, relists sold-out products, and rebuilds indexes. It is safe to re-run. Back up the database first.
+
+## Catalogue at scale
+
+The storefront is server-rendered and built for 10k–50k products per store:
+
+- `/products`, `/categories/[slug]` and search share one listing (`lib/catalog/query.js`), with filters, sort and page in the URL. Product pages use indexed `find().sort().skip().limit()`, and every sort is backed by an index ending in `_id`. Filter counts come from one slim `$facet` aggregation, cached separately from paging and sorting.
+- Results are cached per store and per query (`"use cache"`), and invalidated by any product, category or attribute write.
+- Search uses a weighted text index with a name-prefix fallback ("bana" finds Banarasi). Header autocomplete shows photos and prices.
+- Colours are variants of one product (own SKU, stock and photos). Stock is reserved atomically per variant.
+- Attribute values (fabric, weave, occasion, pattern, colour) come from per-store lists (Admin → Attributes), so filters stay consistent.
+- Per-store `sitemap.xml` (an index with 10,000-URL product sitemaps), `robots.txt`, canonical URLs, and Product/FAQ structured data.
+
+Cart and checkout keep only `{productId, variantId, quantity}` in the browser. Prices, tiers, MOQ, stock, GST and shipping always come from the server (`POST /api/v1/cart/price`), using the same rules as order creation (`lib/catalog/pricing.js`).
+
+## Admin
+
+Staff accounts belong to one store and have a role (`lib/auth/permissions.js`):
+
+| Role | Can |
+| --- | --- |
+| Owner | Everything, including store settings, pages and staff |
+| Manager | Catalogue, orders, customers, payments and refunds, quotes, support |
+| Staff | Orders, quotes, support, reviews and returns |
+
+Permissions are enforced on every admin API route and page. The navigation only shows what the role can use. A store always keeps at least one active owner.
 
 ## API conventions
 
-All endpoints live under `/api/v1` and are wrapped in `withApiHandler` / `withDatabase`, which return a consistent shape:
+Endpoints live under `/api/v1` and are wrapped in `withDatabase`, which returns a consistent shape:
 
 ```json
 { "success": true, "message": "…", "data": {}, "meta": {} }
 { "success": false, "message": "…", "errors": [{ "field": "email", "message": "…" }], "requestId": "…" }
 ```
 
-Throw `ApiError(status, message, errors)` from services. Mongoose `CastError`, `ValidationError`, and duplicate-key errors are mapped to 400/422/409 automatically; anything else becomes a logged 500 with a `requestId` (also sent as the `x-request-id` header) to correlate with server logs.
-
-Every admin route handler must call `requireAdminAccess()` (or `requireAdminUser()`) itself — layout protection alone is not enough.
-
-## Admin access
-
-Two sign-in paths exist:
-
-1. **Database admins (recommended):** `node scripts/create-admin-user.mjs <email> <password> [name]`.
-2. **Environment bootstrap:** `ADMIN_EMAIL` plus `ADMIN_PASSWORD_HASH` (generate with `node scripts/hash-admin-password.mjs`; bcrypt cost ≥ 12). `ADMIN_PASSWORD` (plaintext) is accepted only outside production.
-
-`AUTH_SECRET` signs the dashboard session (eight hours, HttpOnly, SameSite=Strict, Secure in production).
-
-## Rate limiting
-
-Login, registration, contact, upload, and payment endpoints are rate limited per client IP. Buckets are stored in MongoDB (`ratelimits` collection with a TTL index) so limits hold across server instances, falling back to process memory when the database is unavailable. The client IP comes from `X-Real-IP` / `X-Forwarded-For`, so the hosting proxy must overwrite those headers.
-
-## Contact inquiries
-
-The `/contact` form posts to `POST /api/v1/contact`. Submissions are validated with Zod (including a honeypot field), rate limited, and stored as support conversations in MongoDB; they appear in `/admin/messages`. If `RESEND_API_KEY` and `NOTIFY_EMAIL_TO` are set, a notification email is sent after the response.
-
-Set `NEXT_PUBLIC_BUSINESS_EMAIL`, `NEXT_PUBLIC_BUSINESS_PHONE`, `NEXT_PUBLIC_BUSINESS_ADDRESS`, and `NEXT_PUBLIC_BUSINESS_HOURS` to publish contact cards and the embedded map; leave them empty to show setup placeholders.
+Throw `ApiError(status, message, errors)` from services. Mongoose cast, validation and duplicate-key errors map to 400, 422 and 409. Anything else becomes a logged 500 with a `requestId` (also sent as `x-request-id`). Rate limits are stored in MongoDB, namespaced per store, and fall back to memory.
 
 ## Security headers
 
-`next.config.mjs` sets a Content-Security-Policy, HSTS, `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy` on every response. When adding a new third-party script, image host, or iframe, add its origin to the CSP there.
+`next.config.mjs` sets a Content-Security-Policy, HSTS, `X-Frame-Options`, `Referrer-Policy` and `Permissions-Policy`. Store images (logo, hero, products) should be hosted on Cloudinary; add any other image host to `images.remotePatterns` and the CSP.

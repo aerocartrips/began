@@ -1,3 +1,4 @@
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { withDatabase } from "@/lib/api/with-database";
 import { successResponse } from "@/lib/utils/api-response";
 import { getAuthUser } from "@/lib/auth/session";
@@ -17,7 +18,7 @@ export const GET = withDatabase(async (_request, context) => {
     return successResponse({ order, payment }, "Order fetched successfully.");
   }
 
-  await requireAdminAccess();
+  await requireAdminAccess(PERMISSIONS.ORDERS_MANAGE);
   const order = await getOrderForUser(orderId, null, true);
   const payment = await getOrderPaymentSummary(orderId);
   return successResponse({ order, payment }, "Order fetched successfully.");

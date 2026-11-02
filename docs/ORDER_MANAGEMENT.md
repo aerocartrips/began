@@ -62,8 +62,9 @@ Server-side validation lives in `lib/constants/order-transitions.js` and `lib/se
 
 Configure:
 
+The API token is per store (`npm run tenant:integrations`); the endpoint and cache are platform env:
+
 ```env
-DELHIVERY_API_TOKEN=
 DELHIVERY_API_BASE_URL=https://track.delhivery.com
 DELHIVERY_TRACKING_CACHE_MS=300000
 ```

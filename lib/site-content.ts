@@ -1,56 +1,48 @@
+import type { SalesMode } from "@/lib/tenant/types";
+
 export type NavigationItem = {
   label: string;
   href: string;
 };
 
-export const siteNavigation: readonly NavigationItem[] = [
-  { label: "Catalog", href: "/products" },
-  { label: "Contact", href: "/contact" },
-  { label: "Global Export", href: "/#enterprise" },
-  { label: "Smart Weaving", href: "/#network" },
-  { label: "Bulk Deals", href: "/#batches" },
-] as const;
-
-export const footerColumns = {
-  account: [
-    { label: "My Account", href: "/account" },
-    { label: "My Orders", href: "/account/orders" },
-    { label: "My Reviews", href: "/account/reviews" },
-    { label: "Support Messages", href: "/account/support" },
-    { label: "Sign In", href: "/account/login" },
-    { label: "Create Account", href: "/account/register" },
-  ],
-  support: [
-    { label: "Contact Us", href: "/contact" },
-    { label: "Shipping Information", href: "/shipping" },
-    { label: "Returns & Refunds", href: "/returns" },
-  ],
-  marketplace: [
-    { label: "Bulk Catalog", href: "/#batches" },
-    { label: "Quantum Weaves", href: "/#collections" },
-    { label: "Custom Manufacturing", href: "/#enterprise" },
-    { label: "Supplier Onboarding", href: "/#enterprise" },
+/** Primary storefront links; wholesale stores also surface the quote flow. */
+export function getSiteNavigation(salesMode: SalesMode): readonly NavigationItem[] {
+  return [
+    { label: "Catalogue", href: "/products" },
+    { label: "Categories", href: "/categories" },
+    ...(salesMode === "wholesale" ? [{ label: "Request a quote", href: "/request-quote" }] : []),
+    { label: "Track order", href: "/track-order" },
     { label: "Contact", href: "/contact" },
-  ],
-  enterprise: [
-    { label: "API Documentation", href: "/#network" },
-    { label: "Global Logistics", href: "/#network" },
-    { label: "Smart Contracts", href: "/#network" },
-    { label: "Sustainability Report", href: "/#network" },
-  ],
-  legal: [
-    { label: "Terms of Settlement", href: "/#enterprise" },
-    { label: "Data Privacy Protocol", href: "/#enterprise" },
-    { label: "Compliance", href: "/#enterprise" },
-  ],
-} as const satisfies Record<
-  "account" | "support" | "marketplace" | "enterprise" | "legal",
-  readonly NavigationItem[]
->;
+  ];
+}
 
-export const siteContact = {
-  email: process.env.NEXT_PUBLIC_BUSINESS_EMAIL?.trim() || null,
-  phone: process.env.NEXT_PUBLIC_BUSINESS_PHONE?.trim() || null,
-  address: process.env.NEXT_PUBLIC_BUSINESS_ADDRESS?.trim() || null,
-  hours: process.env.NEXT_PUBLIC_BUSINESS_HOURS?.trim() || null,
-} as const;
+export function getFooterColumns(salesMode: SalesMode) {
+  return {
+    shop: [
+      { label: "All products", href: "/products" },
+      { label: "Categories", href: "/categories" },
+      { label: "Wishlist", href: "/wishlist" },
+      ...(salesMode === "wholesale" ? [{ label: "Request a quote", href: "/request-quote" }] : []),
+    ],
+    account: [
+      { label: "My account", href: "/account" },
+      { label: "My orders", href: "/account/orders" },
+      ...(salesMode === "wholesale" ? [{ label: "My quotes", href: "/account/quotes" }] : []),
+      { label: "Support messages", href: "/account/support" },
+    ],
+    help: [
+      { label: "Contact us", href: "/contact" },
+      { label: "FAQ", href: "/faq" },
+      { label: "Track an order", href: "/track-order" },
+      { label: "Shipping", href: "/shipping" },
+      { label: "Returns & refunds", href: "/returns" },
+      { label: "Saree care guide", href: "/care-guide" },
+    ],
+    legal: [
+      { label: "About us", href: "/about" },
+      { label: "Privacy policy", href: "/privacy-policy" },
+      { label: "Terms & conditions", href: "/terms-and-conditions" },
+      { label: "Cancellation & refund policy", href: "/returns" },
+    ],
+  } as const satisfies Record<string, readonly NavigationItem[]>;
+}

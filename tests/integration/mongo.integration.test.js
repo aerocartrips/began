@@ -3,6 +3,10 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import { registerSchema } from "@/lib/validators/auth.validator";
 import { resolveUnitPrice } from "@/lib/services/order-pricing";
+import { createTestTenant, enterTenantBeforeEach } from "../helpers/tenant.js";
+
+let testTenantId;
+enterTenantBeforeEach(() => testTenantId);
 
 const testUri = process.env.MONGODB_URI_TEST?.trim();
 
@@ -15,6 +19,7 @@ describe.skipIf(!testUri)("MongoDB integration", () => {
 
     const { connectDB } = await import("@/lib/db/connect");
     await connectDB();
+    ({ tenantId: testTenantId } = await createTestTenant());
   });
 
   afterAll(async () => {

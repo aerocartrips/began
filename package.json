@@ -14,11 +14,15 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run tests/integration",
-    "seed:catalog": "node scripts/seed-storefront-catalog.mjs",
+    "seed:catalog": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-alias.mjs scripts/seed-storefront-catalog.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "npm run lint && npm run typecheck && npm run test",
-    "import:legacy-contacts": "node --env-file=.env scripts/import-legacy-contact-messages.mjs"
+    "import:legacy-contacts": "node --env-file-if-exists=.env scripts/import-legacy-contact-messages.mjs",
+    "tenant:create": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-alias.mjs scripts/create-tenant.mjs",
+    "tenant:migrate": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-alias.mjs scripts/migrate-to-multi-tenant.mjs",
+    "tenant:integrations": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-alias.mjs scripts/set-tenant-integrations.mjs",
+    "admin:create": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-alias.mjs scripts/create-admin-user.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

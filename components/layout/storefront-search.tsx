@@ -1,107 +1,45 @@
 "use client";
 
+import { useEffect, useId, useRef, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useProductCatalog } from "@/features/products/product-catalog-provider";
-import { apiRequest } from "@/lib/api/api-client";
-import { formatCurrency } from "@/lib/format-currency";
+import { formatRupees } from "@/lib/format";
+import type { ProductSuggestion } from "@/features/catalog/types";
 
-type SearchHit = {
-  id: string;
-  slug: string;
-  title: string;
-  sku: string;
-  category: string;
-  priceCents: number;
-  currency: string;
-  imageUrl?: string;
-};
+type SuggestState = { term: string; hits: ProductSuggestion[] } | null;
 
-function localSearch(products: ReturnType<typeof useProductCatalog>["products"], term: string) {
-  const q = term.trim().toLowerCase();
-  if (!q) return [];
-  return products
-    .filter((product) => product.status === "published")
-    .filter((product) =>
-      `${product.title} ${product.sku} ${product.category} ${product.details} ${product.saree.fabric} ${product.saree.color}`
-        .toLowerCase()
-        .includes(q),
-    )
-    .slice(0, 8)
-    .map((product) => ({
-      id: product.id,
-      slug: product.slug,
-      title: product.title,
-      sku: product.sku,
-      category: product.category,
-      priceCents: product.priceCents,
-      currency: product.currency,
-      imageUrl: product.images[0]?.src,
-    }));
-}
-
+/**
+ * Header search with suggestions (product photo, name, price) from the
+ * catalogue API. Arrow keys move through suggestions; Enter opens the
+ * highlighted product or the full results page.
+ */
 export default function StorefrontSearch() {
   const router = useRouter();
-  const { products } = useProductCatalog();
+  const listId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [remoteHits, setRemoteHits] = useState<SearchHit[] | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  const canUseApi = useMemo(() => /^[a-f0-9]{24}$/i.test(products[0]?.id ?? ""), [products]);
+  const [active, setActive] = useState(-1);
+  const [result, setResult] = useState<SuggestState>(null);
+  const term = query.trim();
 
   useEffect(() => {
-    if (!query.trim()) {
-      setRemoteHits(null); // eslint-disable-line react-hooks/set-state-in-effect -- reset remote hits when query clears
-      setLoading(false);
-      return;
-    }
-
+    if (term.length < 2) return;
+    const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      if (canUseApi) {
-        abortRef.current?.abort();
-        const controller = new AbortController();
-        abortRef.current = controller;
-        setLoading(true);
-        void apiRequest<Record<string, unknown>[]>(
-          `/api/v1/products?search=${encodeURIComponent(query.trim())}&limit=8`,
-          { signal: controller.signal },
-        )
-          .then((result) => {
-            const hits = (result.data ?? []).map((item) => {
-              const doc = item as Record<string, unknown>;
-              const images = Array.isArray(doc.images) ? doc.images : [];
-              const image = images[0] as Record<string, unknown> | undefined;
-              return {
-                id: String(doc._id),
-                slug: String(doc.slug),
-                title: String(doc.name),
-                sku: String(doc.sku),
-                category: typeof doc.category === "object" && doc.category && "name" in (doc.category as object)
-                  ? String((doc.category as { name?: string }).name)
-                  : "Wholesale",
-                priceCents: Math.round(Number(doc.wholesalePrice ?? doc.price ?? 0) * 100),
-                currency: "USD",
-                imageUrl: String(image?.url ?? image?.secureUrl ?? ""),
-              } satisfies SearchHit;
-            });
-            setRemoteHits(hits);
-          })
-          .catch(() => setRemoteHits([]))
-          .finally(() => setLoading(false));
-      } else {
-        setRemoteHits(null);
-        setLoading(false);
-      }
-    }, 280);
-
-    return () => window.clearTimeout(timer);
-  }, [canUseApi, query]);
+      fetch(`/api/v1/catalog/suggest?q=${encodeURIComponent(term)}`, { signal: controller.signal })
+        .then((response) => response.json())
+        .then((payload) => setResult({ term, hits: payload.success ? payload.data : [] }))
+        .catch(() => {
+          if (!controller.signal.aborted) setResult({ term, hits: [] });
+        });
+    }, 200);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [term]);
 
   useEffect(() => {
     function onPointerDown(event: MouseEvent) {
@@ -111,68 +49,85 @@ export default function StorefrontSearch() {
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, []);
 
-  const hits = remoteHits ?? localSearch(products, query);
+  const hits = term.length >= 2 && result?.term === term ? result.hits : [];
+  const loading = term.length >= 2 && result?.term !== term;
 
-  function submitSearch() {
-    const term = query.trim();
-    if (!term) return;
+  function go(href: string) {
     setOpen(false);
-    router.push(`/products?search=${encodeURIComponent(term)}`);
+    setActive(-1);
+    router.push(href);
+  }
+
+  function submit() {
+    if (!term) return;
+    const selected = hits[active];
+    go(selected ? `/products/${selected.slug}` : `/products?q=${encodeURIComponent(term)}`);
   }
 
   return (
     <div className="storefront-search" ref={rootRef}>
       <label className="search-field">
-        <span className="sr-only">Search the catalog</span>
+        <span className="sr-only">Search products</span>
         <input
           type="search"
+          role="combobox"
+          aria-expanded={open && term.length >= 2}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
           value={query}
-          placeholder="Search sarees, SKU, fabric..."
+          placeholder="Search sarees, fabric, SKU…"
           onChange={(event) => {
             setQuery(event.currentTarget.value);
             setOpen(true);
+            setActive(-1);
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={(event) => {
-            if (event.key === "Enter") {
+            if (event.key === "ArrowDown") {
               event.preventDefault();
-              submitSearch();
+              setActive((index) => Math.min(index + 1, hits.length - 1));
+            } else if (event.key === "ArrowUp") {
+              event.preventDefault();
+              setActive((index) => Math.max(index - 1, -1));
+            } else if (event.key === "Enter") {
+              event.preventDefault();
+              submit();
+            } else if (event.key === "Escape") {
+              setOpen(false);
             }
-            if (event.key === "Escape") setOpen(false);
           }}
         />
-        <button type="button" className="search-submit" aria-label="Search catalog" onClick={submitSearch}>
+        <button type="button" className="search-submit" aria-label="Search" onClick={submit}>
           <Search size={14} aria-hidden="true" />
         </button>
       </label>
-      {open && query.trim() ? (
-        <div className="storefront-search-panel" role="listbox">
+      {open && term.length >= 2 ? (
+        <div className="storefront-search-panel">
           {loading ? <p className="storefront-search-meta">Searching…</p> : null}
-          {!loading && hits.length === 0 ? (
-            <p className="storefront-search-meta">No matching products.</p>
-          ) : null}
-          {hits.map((hit) => (
-            <Link
-              key={hit.id}
-              className="storefront-search-hit"
-              href={`/products/${hit.slug}`}
-              role="option"
-              onClick={() => setOpen(false)}
-            >
-              <span className="storefront-search-thumb">
-                {hit.imageUrl ? (
-                  <Image src={hit.imageUrl} alt="" fill sizes="48px" className="cover-image" />
-                ) : null}
-              </span>
-              <span className="storefront-search-copy">
-                <strong>{hit.title}</strong>
-                <small>{hit.category} · {hit.sku}</small>
-              </span>
-              <span className="storefront-search-price">{formatCurrency(hit.priceCents, hit.currency as "USD")}</span>
-            </Link>
-          ))}
-          <button type="button" className="storefront-search-all" onClick={submitSearch}>
-            View all results for “{query.trim()}” →
+          {!loading && hits.length === 0 ? <p className="storefront-search-meta">No matching products.</p> : null}
+          <ul id={listId} role="listbox" aria-label="Suggestions">
+            {hits.map((hit, index) => (
+              <li
+                key={hit.slug}
+                id={`${listId}-${index}`}
+                role="option"
+                aria-selected={index === active}
+                className={`storefront-search-hit${index === active ? " is-active" : ""}`}
+                onMouseEnter={() => setActive(index)}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => go(`/products/${hit.slug}`)}
+              >
+                <span className="storefront-search-thumb">
+                  {hit.imageUrl ? <Image src={hit.imageUrl} alt="" fill sizes="48px" className="cover-image" /> : null}
+                </span>
+                <span className="storefront-search-copy"><strong>{hit.name}</strong></span>
+                <span className="storefront-search-price">{formatRupees(hit.price)}</span>
+              </li>
+            ))}
+          </ul>
+          <button type="button" className="storefront-search-all" onClick={() => go(`/products?q=${encodeURIComponent(term)}`)}>
+            View all results for “{term}” →
           </button>
         </div>
       ) : null}

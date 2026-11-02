@@ -15,6 +15,7 @@ import { categoryLabel, SUPPORT_MESSAGE_MAX } from "@/features/support/support-l
 import type { AdminConversationDetail, ThreadMessage } from "@/features/support/types";
 import { useSupportThread } from "@/features/support/use-support-thread";
 import { formatDateTime, humanizeStatus } from "@/lib/format";
+import { useTenant } from "@/features/tenant/tenant-provider";
 
 type SupportDetailProps = {
   conversation: AdminConversationDetail;
@@ -25,7 +26,7 @@ type SupportDetailProps = {
 const STATUS_OPTIONS = ["open", "in_progress", "waiting_customer", "resolved", "closed"] as const;
 const PRIORITY_OPTIONS = ["low", "normal", "high", "urgent"] as const;
 const CLOSED_STATUSES = new Set(["resolved", "closed"]);
-const SENDER_LABELS = { customer: "Customer", support: "Norosilk team", system: "System" } as const;
+
 
 const unreadCountOf = (conversation: AdminConversationDetail) => conversation.unreadCount;
 
@@ -34,6 +35,7 @@ export default function AdminSupportDetailClient({
   initialMessages,
   initialHasMore,
 }: SupportDetailProps) {
+  const tenant = useTenant();
   const feedback = useFeedback();
   const [conversation, setConversation] = useState(initialConversation);
   const [notes, setNotes] = useState(initialConversation.internalNotes);
@@ -184,7 +186,7 @@ export default function AdminSupportDetailClient({
             messages={thread.messages}
             pending={thread.pending}
             viewer="support"
-            senderLabels={SENDER_LABELS}
+            senderLabels={{ customer: "Customer", support: `${tenant.name} team`, system: "System" }}
             hasOlder={thread.hasOlder}
             loadingOlder={thread.loadingOlder}
             onLoadOlder={() => void thread.loadOlder().catch(() => feedback.error("Could not load earlier messages", "Try again."))}

@@ -14,8 +14,9 @@ import { closeCustomerConversation, customerThreadApi } from "@/features/support
 import { categoryLabel, CUSTOMER_STATUS_COPY, SUPPORT_MESSAGE_MAX } from "@/features/support/support-labels";
 import type { CustomerConversation } from "@/features/support/types";
 import { useSupportThread } from "@/features/support/use-support-thread";
+import { useTenant } from "@/features/tenant/tenant-provider";
 
-const SENDER_LABELS = { customer: "You", support: "Norosilk Support", system: "Norosilk" } as const;
+
 
 type CustomerThreadProps = {
   conversation: CustomerConversation;
@@ -29,6 +30,7 @@ const unreadCountOf = (conversation: CustomerConversation) => conversation.unrea
 
 /** Mounted with `key={conversation.id}` so each conversation gets fresh thread state. */
 export default function CustomerThread({ conversation, onBack, onConversation, onMarkedRead, onAuthError }: CustomerThreadProps) {
+  const tenant = useTenant();
   const feedback = useFeedback();
   const api = useMemo(() => customerThreadApi(conversation.id), [conversation.id]);
   const [closing, setClosing] = useState(false);
@@ -118,7 +120,7 @@ export default function CustomerThread({ conversation, onBack, onConversation, o
           messages={thread.messages}
           pending={thread.pending}
           viewer="customer"
-          senderLabels={SENDER_LABELS}
+          senderLabels={{ customer: "You", support: `${tenant.name} support`, system: tenant.name }}
           hasOlder={thread.hasOlder}
           loadingOlder={thread.loadingOlder}
           onLoadOlder={() =>

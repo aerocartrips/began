@@ -10,7 +10,7 @@
   --color-background: #f8f9fc;
   --color-brand: #6863ed;
   --color-brand-secondary: #a05ce9;
-  --color-brand-hover: #5751d7;
+  --color-brand-hover: color-mix(in srgb, var(--color-brand) 86%, #000);
   --color-accent: #21bfd0;
   --color-night: #111827;
   --color-success: #329978;

@@ -6,6 +6,10 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
+import { createTestTenant, enterTenantBeforeEach } from "../helpers/tenant.js";
+
+let testTenantId;
+enterTenantBeforeEach(() => testTenantId);
 
 const cookieJar = new Map();
 
@@ -33,6 +37,7 @@ async function createUser(role = "customer") {
     email: `support-${role}-${userCounter}-${Date.now()}@norosilk.test`,
     password: "x".repeat(60),
     role,
+    ...(role === "admin" ? { adminRole: "owner" } : {}),
   });
 }
 
@@ -82,6 +87,7 @@ beforeAll(async () => {
 
   const { connectDB } = await import("@/lib/db/connect");
   await connectDB();
+  ({ tenantId: testTenantId } = await createTestTenant());
 
   models = {
     User: (await import("@/lib/db/models/User")).User,
@@ -176,6 +182,7 @@ describe("conversations", () => {
     const owner = await createUser();
     const stranger = await createUser();
     const order = await models.Order.collection.insertOne({
+      tenantId: new mongoose.Types.ObjectId(testTenantId),
       orderNumber: `NS-T-${Date.now()}`,
       customer: owner._id,
       createdAt: new Date(),

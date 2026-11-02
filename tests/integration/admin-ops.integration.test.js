@@ -1,5 +1,9 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import mongoose from "mongoose";
+import { createTestTenant, enterTenantBeforeEach } from "../helpers/tenant.js";
+
+let testTenantId;
+enterTenantBeforeEach(() => testTenantId);
 
 const testUri = process.env.MONGODB_URI_TEST?.trim();
 
@@ -8,6 +12,7 @@ describe.skipIf(!testUri)("Admin operations integration", () => {
     process.env.MONGODB_URI = testUri;
     const { connectDB } = await import("@/lib/db/connect");
     await connectDB();
+    ({ tenantId: testTenantId } = await createTestTenant());
   });
 
   afterAll(async () => {

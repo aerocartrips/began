@@ -1,3 +1,4 @@
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
@@ -8,11 +9,7 @@ import { formatZodErrors } from "@/lib/validators/auth.validator";
 import { ApiError } from "@/lib/utils/api-error";
 
 export const PATCH = withDatabase(async (request, context) => {
-  const adminAccess = await requireAdminAccess();
-  const adminUser =
-    adminAccess.source === "api"
-      ? adminAccess.user
-      : { _id: undefined, email: adminAccess.session.email, name: adminAccess.session.email };
+  const { user: adminUser } = await requireAdminAccess(PERMISSIONS.ORDERS_MANAGE);
   const { orderId } = await context.params;
   const payload = await parseJsonBody(request);
   const parsed = updateOrderStatusSchema.safeParse(payload);

@@ -1,0 +1,171 @@
+/**
+ * Catalogue search, cart pricing, variant stock reservation and quotes against
+ * an in-memory MongoDB, with two stores to prove catalogue isolation.
+ */
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import mongoose from "mongoose";
+import { MongoMemoryReplSet } from "mongodb-memory-server";
+
+vi.mock("@/lib/services/email.service", () => ({ sendTransactionalEmail: vi.fn(async () => ({ sent: false })) }));
+
+let replSet;
+let m;
+let wholesale;
+let retail;
+let product;
+
+beforeAll(async () => {
+  replSet = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
+  process.env.MONGODB_URI = replSet.getUri("norosilk_catalog_test");
+  await (await import("@/lib/db/connect")).connectDB();
+  m = {
+    Tenant: (await import("@/lib/db/models/Tenant")).Tenant,
+    Product: (await import("@/lib/db/models/Product")).Product,
+    Category: (await import("@/lib/db/models/Category")).Category,
+    ...(await import("@/lib/tenant/context")),
+    ...(await import("@/lib/catalog/query")),
+    ...(await import("@/lib/services/cart-pricing.service")),
+    ...(await import("@/lib/services/order.service")),
+    ...(await import("@/lib/services/quote.service")),
+  };
+  await Promise.all([m.Product.syncIndexes(), m.Category.syncIndexes()]);
+  wholesale = await m.Tenant.create({ slug: "w", name: "Wholesale Co", domains: ["w.test"], salesMode: "wholesale" });
+  retail = await m.Tenant.create({ slug: "r", name: "Retail Co", domains: ["r.test"], salesMode: "retail" });
+
+  const catalogues = [
+    [wholesale, ["Banarasi Silk Red", "Banarasi Silk Blue", "Cotton Daily"]],
+    [retail, ["Retail Only Linen"]],
+  ];
+  for (const [tenant, names] of catalogues) {
+    await m.runWithTenant(tenant, async () => {
+      const category = await m.Category.create({ name: "Sarees", slug: "sarees" });
+      for (const [index, name] of names.entries()) {
+        const created = await m.Product.create({
+          name,
+          slug: name.toLowerCase().replace(/\s+/g, "-"),
+          sku: `SKU-${tenant.slug}-${index}`,
+          category: category._id,
+          fabric: name.includes("Cotton") ? "Cotton" : "Silk",
+          price: 1000,
+          compareAtPrice: 1200,
+          wholesalePrice: 700,
+          minimumOrderQuantity: 10,
+          bulkPricingTiers: [{ minQuantity: 50, pricePerUnit: 650 }],
+          variants: [
+            { colorName: "Red", colorHex: "#aa0000", sku: `V-${tenant.slug}-${index}-R`, stockQuantity: 60 },
+            { colorName: "Gold", colorHex: "#c9a227", sku: `V-${tenant.slug}-${index}-G`, stockQuantity: 0 },
+          ],
+          status: "active",
+        });
+        if (tenant === wholesale && index === 0) product = created;
+      }
+    });
+  }
+});
+
+afterAll(async () => {
+  await mongoose.disconnect();
+  await replSet?.stop();
+});
+
+describe("catalogue search", () => {
+  it("derives totals from variants and returns facets for one store only", async () => {
+    expect(product.stockQuantity).toBe(60);
+    expect(product.colors).toEqual(["Red", "Gold"]);
+    const result = await m.searchCatalog(String(wholesale._id), "wholesale", m.parseCatalogQuery({}));
+    expect(result.total).toBe(3);
+    expect(result.facets.fabric).toEqual(expect.arrayContaining([{ value: "Silk", count: 2 }, { value: "Cotton", count: 1 }]));
+    expect(result.items.every((item) => item.price === 700 && item.minimumQuantity === 10)).toBe(true);
+  });
+
+  it("keeps counts for other values when one value of a filter is selected", async () => {
+    const result = await m.searchCatalog(String(wholesale._id), "wholesale", m.parseCatalogQuery({ fabric: "Cotton" }));
+    expect(result.total).toBe(1);
+    expect(result.facets.fabric.find((facet) => facet.value === "Silk")?.count).toBe(2);
+  });
+
+  it("matches word searches and name prefixes", async () => {
+    const words = await m.searchCatalog(String(wholesale._id), "wholesale", m.parseCatalogQuery({ q: "banarasi" }));
+    const prefix = await m.searchCatalog(String(wholesale._id), "wholesale", m.parseCatalogQuery({ q: "bana" }));
+    expect(words.total).toBe(2);
+    expect(prefix.total).toBe(2);
+  });
+
+  it("shows retail prices in a retail store and never another store's products", async () => {
+    const result = await m.searchCatalog(String(retail._id), "retail", m.parseCatalogQuery({}));
+    expect(result.items.map((item) => item.name)).toEqual(["Retail Only Linen"]);
+    expect(result.items[0]).toMatchObject({ price: 1000, compareAtPrice: 1200, minimumQuantity: 1 });
+  });
+});
+
+describe("cart pricing and stock", () => {
+  const red = () => String(product.variants[0]._id);
+  const gold = () => String(product.variants[1]._id);
+
+  it("applies MOQ, tiers and per-colour stock in the wholesale store", async () => {
+    const priced = await m.runWithTenant(wholesale, () =>
+      m.priceCartItems([
+        { productId: String(product._id), variantId: red(), quantity: 5 },
+        { productId: String(product._id), variantId: gold(), quantity: 10 },
+      ]),
+    );
+    expect(priced.issues.map((issue) => issue.message)).toEqual(
+      expect.arrayContaining([expect.stringMatching(/Minimum order quantity/), expect.stringMatching(/out of stock/)]),
+    );
+    const tiered = await m.runWithTenant(wholesale, () =>
+      m.priceCartItems([{ productId: String(product._id), variantId: red(), quantity: 50 }]),
+    );
+    expect(tiered.lines[0]).toMatchObject({ unitPrice: 650, lineTotal: 32500, colorName: "Red" });
+  });
+
+  it("reserves and releases stock per colour atomically", async () => {
+    await m.runWithTenant(wholesale, async () => {
+      await m.reserveInventoryForItems([{ productId: product._id, variantId: red(), quantity: 40 }]);
+      let fresh = await m.Product.findById(product._id).lean();
+      expect([fresh.stockQuantity, fresh.variants[0].stockQuantity]).toEqual([20, 20]);
+
+      await expect(
+        m.reserveInventoryForItems([{ productId: product._id, variantId: red(), quantity: 21 }]),
+      ).rejects.toThrow(/Inventory changed/);
+
+      await m.releaseInventoryForOrder({ items: [{ product: product._id, variantId: red(), quantity: 40 }] });
+      fresh = await m.Product.findById(product._id).lean();
+      expect([fresh.stockQuantity, fresh.variants[0].stockQuantity]).toEqual([60, 60]);
+    });
+  });
+});
+
+describe("quotes", () => {
+  it("snapshots list prices, then lets the buyer accept the store's offer", async () => {
+    const buyer = { _id: new mongoose.Types.ObjectId() };
+    const admin = { _id: new mongoose.Types.ObjectId() };
+    await m.runWithTenant(wholesale, async () => {
+      const submitted = await m.submitQuote(
+        {
+          contact: { name: "Asha", email: "asha@shop.test" },
+          items: [{ productId: String(product._id), variantId: String(product.variants[0]._id), quantity: 100 }],
+        },
+        buyer,
+      );
+      expect(submitted.items[0]).toMatchObject({ listUnitPrice: 650, colorName: "Red" });
+
+      const [{ id }] = await m.listCustomerQuotes(buyer);
+      await expect(m.updateQuoteAsAdmin(id, admin, { status: "quoted" })).rejects.toThrow(/Price every line/);
+      const detail = await m.getQuoteForAdmin(id);
+      const quoted = await m.updateQuoteAsAdmin(id, admin, {
+        status: "quoted",
+        items: [{ id: detail.items[0].id, quotedUnitPrice: 600 }],
+      });
+      expect(quoted.totals.total).toBe(60000);
+      expect((await m.respondToQuote(buyer, id, { decision: "accept" })).status).toBe("accepted");
+    });
+  });
+
+  it("is not available to retail stores", async () => {
+    await expect(
+      m.runWithTenant(retail, () =>
+        m.submitQuote({ contact: { name: "A", email: "a@b.test" }, items: [{ productId: String(product._id), quantity: 1 }] }, null),
+      ),
+    ).rejects.toThrow(/not available/);
+  });
+});

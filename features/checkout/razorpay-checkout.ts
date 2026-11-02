@@ -6,6 +6,8 @@ type RazorpaySuccessResponse = {
 
 type RazorpayCheckoutInput = {
   key: string;
+  /** Store name shown in the Razorpay window. */
+  storeName: string;
   amount: number;
   currency: string;
   orderId: string;
@@ -43,8 +45,8 @@ export async function openRazorpayCheckout(input: RazorpayCheckoutInput) {
     amount: input.amount,
     currency: input.currency,
     order_id: input.orderId,
-    name: "Norosilk",
-    description: input.description ?? "Wholesale saree order",
+    name: input.storeName,
+    description: input.description ?? `${input.storeName} order`,
     prefill: {
       name: input.customer.name,
       email: input.customer.email,

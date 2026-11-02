@@ -1,3 +1,4 @@
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
@@ -15,7 +16,7 @@ export const GET = withDatabase(async (request) => {
 });
 
 export const POST = withDatabase(async (request) => {
-  await requireAdminUser();
+  await requireAdminUser(PERMISSIONS.CATALOG_MANAGE);
   const payload = await parseJsonBody(request);
   const category = await createCategory(payload);
   return successResponse(category, "Category created successfully.", undefined, 201);

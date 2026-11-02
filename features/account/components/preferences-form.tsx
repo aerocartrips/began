@@ -92,7 +92,7 @@ export default function PreferencesForm({ initialPreferences }: { initialPrefere
           <div><dt>Language</dt><dd>English</dd></div>
           <div><dt>Currency</dt><dd>Indian Rupee (INR)</dd></div>
         </dl>
-        <p className="account-muted">The Norosilk storefront and invoices are currently available in English and INR only.</p>
+        <p className="account-muted">The storefront and invoices are available in English, with prices in Indian rupees (INR).</p>
       </section>
     </div>
   );

@@ -1,5 +1,7 @@
 import {
   Bell,
+  FileText,
+  Heart,
   LayoutDashboard,
   MapPin,
   MessageSquare,
@@ -16,6 +18,8 @@ export const ACCOUNT_NAV_ITEMS = [
   { href: "/account/profile", label: "Personal information", icon: UserRound },
   { href: "/account/addresses", label: "My addresses", icon: MapPin },
   { href: "/account/orders", label: "My orders", icon: Package },
+  { href: "/account/quotes", label: "My quotes", icon: FileText, wholesaleOnly: true },
+  { href: "/wishlist", label: "Wishlist", icon: Heart },
   { href: "/account/reviews", label: "Reviews", icon: Star },
   { href: "/account/support", label: "Support", icon: MessageSquare },
   { href: "/account/notifications", label: "Notifications", icon: Bell },
