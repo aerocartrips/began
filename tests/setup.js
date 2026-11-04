@@ -16,3 +16,8 @@ vi.mock("next/cache", () => ({
 }));
 
 vi.mock("next/root-params", () => ({ domain: async () => "localhost" }));
+
+// Route handlers are called directly in tests, outside a Next.js request, so
+// there is nothing for connection() to wait for. Files that mock next/server
+// themselves spread `connection` from tests/stubs/next-server.js.
+vi.mock("next/server", async (importOriginal) => ({ ...(await importOriginal()), ...(await import("./stubs/next-server.js")) }));

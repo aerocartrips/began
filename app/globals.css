@@ -267,6 +267,21 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .footer-about { grid-column: 1 / -1; }
 }
 
+/* Header: links, search, account and the quote button only fit side by side on wide screens.
+   The quote button is also a nav link, so it goes first; below 1280px the links move into the menu. */
+@media (max-width: 1439px) {
+  .nav-actions > .portal-button { display: none; }
+}
+@media (max-width: 1279px) {
+  .nav-brand-group { gap: 16px; }
+  .nav-links { display: none; }
+  .mobile-menu { position: relative; display: block; }
+  .mobile-menu summary { display: grid; width: 40px; height: 40px; place-items: center; border: 1px solid var(--color-border); border-radius: var(--radius-control); color: var(--color-text); }
+  .mobile-menu[open] .mobile-menu-panel { position: fixed; top: 76px; right: 0; left: 0; display: grid; gap: 2px; padding: 12px var(--page-gutter) 18px; border-bottom: 1px solid var(--color-border); background: rgba(255,255,255,.97); box-shadow: 0 16px 30px rgba(35,42,61,.1); backdrop-filter: blur(18px); }
+  .mobile-menu-panel a { padding: 13px 10px; border-radius: var(--radius-control); color: #596273; font-size: 11px; font-weight: 700; }
+  .mobile-menu-panel a:hover, .mobile-menu-panel a:focus-visible { background: #f3f2ff; color: var(--color-brand); }
+}
+
 @media (max-width: 760px) {
   :root { --page-gutter: 20px; --content-inset: 40px; --container-width: 560px; }
   .site-nav { min-height: 66px; padding: 12px var(--page-gutter); }
@@ -333,7 +348,11 @@ button, a { -webkit-tap-highlight-color: transparent; }
 
 @media (max-width: 420px) {
   .portal-button { padding-inline: 11px; }
-  .nav-actions { gap: 15px; }
+  .site-nav { gap: 12px; }
+  .nav-actions { gap: 10px; }
+  /* Long store names shrink and truncate instead of pushing the cart off-screen. */
+  .nav-brand-group { min-width: 0; flex: 1 1 auto; }
+  .wordmark { display: block; min-width: 0; overflow: hidden; font-size: 16px; letter-spacing: .1em; text-overflow: ellipsis; }
   .hero-actions { display: grid; grid-template-columns: 1fr; }
   .button { justify-content: center; }
   .section-heading { flex-direction: column; align-items: start; gap: 12px; }

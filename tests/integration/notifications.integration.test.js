@@ -30,6 +30,7 @@ vi.mock("next/headers", () => ({
 }));
 vi.mock("next/server", async (importOriginal) => ({
   ...(await importOriginal()),
+  ...(await import("../stubs/next-server.js")),
   after: (task) => afterTasks.push(Promise.resolve().then(typeof task === "function" ? task : () => task)),
 }));
 vi.mock("@/lib/admin/auth", () => ({ getAdminSession: async () => null }));

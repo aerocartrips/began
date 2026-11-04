@@ -5,6 +5,7 @@ import ProductDetailClient from "@/components/catalog/product-detail-client";
 import ProductGrid from "@/components/catalog/product-grid";
 import RecentlyViewed from "@/components/catalog/recently-viewed";
 import ProductReviewsSection from "@/components/reviews/product-reviews-section";
+import JsonLd from "@/components/seo/json-ld";
 import { getPopularProductSlugs, getProductDetail, getRelatedProducts } from "@/lib/catalog/query";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { BUILD_PLACEHOLDER_DOMAIN } from "@/lib/tenant/host";
@@ -72,11 +73,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   return (
     <main className="product-detail-page content-width">
-      <script
-        type="application/ld+json"
-        // JSON.stringify output with "<" escaped cannot break out of the script element.
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }}
-      />
+      <JsonLd data={structuredData} />
       <nav className="breadcrumbs" aria-label="Breadcrumb">
         <Link href="/products">Catalogue</Link>
         {product.category ? (

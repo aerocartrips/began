@@ -6,6 +6,7 @@ import AdminPageHeading from "@/components/admin/admin-page-heading";
 import AdminStatusChip from "@/components/admin/admin-status-chip";
 import AdminCard from "@/components/admin/admin-card";
 import LoadingButton from "@/components/ui/buttons/loading-button";
+import { DatePicker, todayIso } from "@/components/ui/form/date-picker";
 import ErrorCard from "@/components/ui/feedback/error-card";
 import TableSkeleton from "@/components/ui/loaders/table-skeleton";
 import { useFeedback } from "@/components/feedback/feedback-provider";
@@ -177,10 +178,13 @@ export function AdminQuoteDetail({ quoteId }: { quoteId: string }) {
               Shipping (₹)
               <input type="number" min={0} step="0.01" value={form.shipping ?? (data.response.shippingCharges ?? "")} onChange={(event) => setForm({ ...form, shipping: event.currentTarget.value })} />
             </label>
-            <label className="admin-field">
-              Valid until
-              <input type="date" value={form.validUntil ?? (data.response.validUntil ? data.response.validUntil.slice(0, 10) : "")} onChange={(event) => setForm({ ...form, validUntil: event.currentTarget.value })} />
-            </label>
+            <DatePicker
+              className="admin-field"
+              label="Valid until"
+              min={todayIso()}
+              value={form.validUntil ?? (data.response.validUntil ? data.response.validUntil.slice(0, 10) : "")}
+              onChange={(validUntil) => setForm({ ...form, validUntil })}
+            />
             <label className="admin-field admin-field-wide">
               Message to the buyer
               <textarea rows={3} value={form.responseNotes ?? data.response.notes} onChange={(event) => setForm({ ...form, responseNotes: event.currentTarget.value })} />

@@ -8,6 +8,7 @@ import { themeToCssVariables } from "@/lib/tenant/theme";
 import "../globals.css";
 import "../catalog.css";
 import "../landing.css";
+import "../form-controls.css";
 
 const cinzel = Cinzel_Decorative({
   variable: "--font-cinzel",

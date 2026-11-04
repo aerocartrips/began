@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowLeft } from "lucide-react";
 import LoadingButton from "@/components/ui/buttons/loading-button";
+import Combobox from "@/components/ui/form/combobox";
 import { isClientApiError } from "@/lib/api/api-error";
 import { fetchCustomerOrders } from "@/features/orders/order-api";
 import { createCustomerConversation, createRequestKey } from "@/features/support/support-api";
@@ -137,16 +138,16 @@ export default function NewConversationForm({ onCreated, onCancel, onAuthError }
       </fieldset>
 
       {showOrders ? (
-        <label className="account-field">
-          Related order <small>(optional)</small>
-          <select value={orderId} onChange={(event) => setOrderId(event.currentTarget.value)} disabled={orderOptions === null}>
-            <option value="">{orderOptions === null ? "Loading your orders…" : orderOptions.length ? "Not about a specific order" : "No orders found"}</option>
-            {(orderOptions ?? []).map((order) => (
-              <option key={order.id} value={order.id}>{order.label}</option>
-            ))}
-          </select>
-          {errors.orderId ? <small className="support-field-error">{errors.orderId}</small> : null}
-        </label>
+        <Combobox
+          className="account-field"
+          label={<>Related order <small>(optional)</small></>}
+          placeholder={orderOptions === null ? "Loading your orders…" : orderOptions.length ? "Not about a specific order" : "No orders found"}
+          disabled={orderOptions === null || orderOptions.length === 0}
+          options={orderOptions ?? []}
+          value={orderId}
+          onChange={setOrderId}
+          error={errors.orderId}
+        />
       ) : null}
 
       <label className="account-field">

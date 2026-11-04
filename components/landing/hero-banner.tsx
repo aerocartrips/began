@@ -64,6 +64,7 @@ export default function HeroBanner({ banners, storeName }: { banners: Storefront
               data-active={index === 0 ? "true" : undefined}
               data-tone={banner.textTone}
               data-position={banner.textPosition}
+              data-banner-id={banner.id}
               style={{ "--banner-overlay": banner.overlayOpacity / 100 } as CSSProperties}
               role="group"
               aria-roledescription="slide"

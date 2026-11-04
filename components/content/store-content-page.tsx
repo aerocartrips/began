@@ -2,11 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getStorePage } from "@/lib/content/pages";
 import { getCurrentTenant } from "@/lib/tenant/current";
-
-/** Plain-text paragraphs; content is stored as text, never HTML. */
-function Paragraphs({ text }: { text: string }) {
-  return text.split(/\n{2,}/).map((paragraph, index) => <p key={index}>{paragraph}</p>);
-}
+import JsonLd from "@/components/seo/json-ld";
+import Paragraphs from "@/components/content/paragraphs";
 
 export async function storePageMetadata(slug: string): Promise<Metadata> {
   const tenant = await getCurrentTenant();
@@ -34,9 +31,7 @@ export default async function StoreContentPage({ slug }: { slug: string }) {
 
   return (
     <main className="content-page content-width">
-      {faqData ? (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqData).replace(/</g, "\u003c") }} />
-      ) : null}
+      {faqData ? <JsonLd data={faqData} /> : null}
       <header className="content-page__header">
         <h1>{page.title}</h1>
         {page.summary ? <p>{page.summary}</p> : null}

@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run tests/integration",
+    "test:scale": "vitest run --mode scale tests/integration/homepage-scale.integration.test.js",
     "seed:catalog": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-alias.mjs scripts/seed-storefront-catalog.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -27,6 +28,7 @@
     "seed:test-banners": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-alias.mjs scripts/seed-test-banners.mjs"
   },
   "dependencies": {
+    "@internationalized/date": "^3.12.4",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.11.0",
     "jose": "^6.2.13",
@@ -36,6 +38,7 @@
     "pdfkit": "^0.20.2",
     "razorpay": "^2.9.8",
     "react": "19.3.0",
+    "react-aria-components": "^1.22.1",
     "react-dom": "19.3.0",
     "zod": "^4.6.7"
   },

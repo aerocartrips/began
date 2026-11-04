@@ -12,6 +12,7 @@ import StockAlertButton from "@/features/notifications/components/stock-alert-bu
 import { useFeedback } from "@/components/feedback/feedback-provider";
 import { cartActions } from "@/features/cart/cart-store";
 import { recordProductView } from "@/features/catalog/recently-viewed";
+import { MEANINGFUL_VIEW_MS, trackProductActivity } from "@/features/catalog/activity";
 import { compareAtPriceFor, unitPriceFor } from "@/lib/catalog/pricing";
 import { formatNumber, formatRupees } from "@/lib/format";
 import type { ProductDetailData } from "@/features/catalog/types";
@@ -44,6 +45,29 @@ export default function ProductDetailClient({ product, salesMode }: ProductDetai
 
   useEffect(() => {
     recordProductView(product.id);
+    // Count a view for popularity only once the page has been visible for a few seconds.
+    let visibleFor = 0;
+    let visibleSince = document.visibilityState === "visible" ? Date.now() : 0;
+    let timer: number | undefined;
+    const schedule = () => {
+      timer = window.setTimeout(() => trackProductActivity(product.id, "view"), Math.max(0, MEANINGFUL_VIEW_MS - visibleFor));
+    };
+    const onVisibility = () => {
+      window.clearTimeout(timer);
+      if (document.visibilityState === "visible") {
+        visibleSince = Date.now();
+        schedule();
+      } else if (visibleSince) {
+        visibleFor += Date.now() - visibleSince;
+        visibleSince = 0;
+      }
+    };
+    if (visibleSince) schedule();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [product.id]);
 
   const line = { productId: product.id, variantId: variant?.id ?? null, quantity: safeQuantity };

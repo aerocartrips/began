@@ -37,6 +37,7 @@ export function getFooterColumns(salesMode: SalesMode) {
       { label: "Shipping", href: "/shipping" },
       { label: "Returns & refunds", href: "/returns" },
       { label: "Saree care guide", href: "/care-guide" },
+      { label: "Buying guides", href: "/guides" },
     ],
     legal: [
       { label: "About us", href: "/about" },

@@ -1,0 +1,93 @@
+/* ==========================================================================
+   Shared searchable select + date pickers (components/ui/form/*)
+   They take their box look from the surrounding field context so they match
+   the native inputs next to them; only the context variables differ.
+   ========================================================================== */
+.admin-field { --field-height: 38px; --field-radius: 5px; --field-border: #dfe4ea; --field-color: #344052; --field-font: 10px; --field-pad: 10px; --field-ring: 0 0 0 2px rgba(104, 99, 237, .12); }
+.contact-field { --field-height: 41px; --field-radius: 6px; --field-border: #dfe4ea; --field-color: #253041; --field-font: 10px; --field-pad: 11px; --field-ring: 0 0 0 3px rgba(104, 99, 237, .11); }
+.account-field { --field-height: 42px; --field-radius: var(--radius-control); --field-border: var(--color-border); --field-color: var(--color-text); --field-font: 12px; --field-pad: 12px; --field-ring: 0 0 0 3px rgba(104, 99, 237, .12); }
+
+.ui-field-control { position: relative; display: flex; align-items: center; }
+/* The text input keeps the context's own input styling; room for the button. */
+.ui-combobox .ui-field-control input { padding-right: calc(var(--field-height, 38px) - 4px); text-overflow: ellipsis; }
+.ui-field-button { position: absolute; top: 50%; right: 4px; display: grid; width: calc(var(--field-height, 38px) - 10px); height: calc(var(--field-height, 38px) - 10px); place-items: center; border: 0; border-radius: calc(var(--field-radius, 6px) - 1px); background: transparent; color: var(--color-text-muted); cursor: pointer; transform: translateY(-50%); }
+.ui-field-button[data-hovered] { background: #f3f2ff; color: var(--color-brand); }
+.ui-field-button[data-focus-visible] { outline: 2px solid var(--color-brand); outline-offset: 1px; }
+
+/* Date fields are segment groups, not inputs, so they draw the box themselves. */
+.ui-field-box { width: 100%; min-height: var(--field-height, 40px); padding: 0 calc(var(--field-height, 40px) - 4px) 0 var(--field-pad, 10px); border: 1px solid var(--field-border, var(--color-border)); border-radius: var(--field-radius, 6px); background: #fff; color: var(--field-color, var(--color-text)); font-size: var(--field-font, 12px); font-weight: 400; box-sizing: border-box; transition: border-color .16s ease, box-shadow .16s ease; }
+.ui-field-box[data-focus-within] { border-color: var(--color-brand); box-shadow: var(--field-ring); }
+.ui-field-box[data-invalid] { border-color: #b54747; }
+.ui-field-box[data-disabled] { background: #f6f7f9; color: var(--color-text-subtle); }
+.ui-combobox [data-invalid] input, .ui-combobox input[aria-invalid="true"] { border-color: #b54747; }
+
+.ui-date-input { display: flex; align-items: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ui-date-segment { padding: 2px 1px; border-radius: 3px; outline: 0; caret-color: transparent; }
+.ui-date-segment[data-type="literal"] { padding: 0; color: var(--color-text-subtle); }
+.ui-date-segment[data-placeholder] { color: #a3abb8; }
+.ui-date-segment[data-focused] { background: var(--color-brand); color: #fff; }
+.ui-date-range-dash { padding: 0 8px; color: var(--color-text-subtle); }
+
+.ui-field-hint { color: #939caa; font-size: 8px; font-weight: 400; }
+.account-field .ui-field-hint { font-size: 10px; }
+.ui-field-error { color: #b54747; font-size: 8px; font-weight: 500; line-height: 1.45; }
+.account-field .ui-field-error { color: #e5484d; font-size: 10px; }
+
+/* Popover: list and calendar */
+.ui-popover { z-index: 60; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); box-shadow: var(--shadow-overlay); outline: 0; }
+.ui-popover--list { width: var(--trigger-width); max-height: min(320px, var(--visual-viewport-height, 60vh)); }
+.ui-popover[data-entering] { animation: ui-popover-in .14s ease-out; }
+@keyframes ui-popover-in { from { opacity: 0; transform: translateY(-4px); } }
+
+.ui-listbox { display: grid; padding: 4px; outline: 0; }
+.ui-listbox__item { display: flex; min-height: 36px; align-items: center; gap: 9px; padding: 7px 10px; border-radius: 6px; color: var(--color-text); font-size: 12px; outline: 0; cursor: pointer; }
+.ui-listbox__item[data-focused], .ui-listbox__item[data-hovered] { background: #f3f2ff; color: var(--color-brand); }
+.ui-listbox__item[data-selected] { font-weight: 700; }
+.ui-listbox__item[data-disabled] { color: var(--color-text-subtle); cursor: not-allowed; }
+.ui-listbox__label { display: grid; flex: 1; min-width: 0; gap: 1px; overflow-wrap: anywhere; }
+.ui-listbox__label small { color: var(--color-text-muted); font-size: 10px; font-weight: 400; }
+.ui-listbox__check { flex: none; color: var(--color-brand); }
+.ui-listbox__empty { margin: 0; padding: 12px; color: var(--color-text-muted); font-size: 12px; }
+.ui-swatch { flex: none; width: 14px; height: 14px; border: 1px solid rgba(0, 0, 0, .12); border-radius: 50%; }
+.ui-spin { animation: ui-spin .8s linear infinite; }
+@keyframes ui-spin { to { transform: rotate(360deg); } }
+
+.ui-calendar-dialog { padding: 12px; outline: 0; }
+.ui-calendar { width: 266px; color: var(--color-text); }
+.ui-calendar__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.ui-calendar__title { margin: 0; font-size: 13px; font-weight: 700; }
+.ui-calendar__nav { display: grid; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--color-text); cursor: pointer; }
+.ui-calendar__nav[data-hovered] { background: #f3f2ff; color: var(--color-brand); }
+.ui-calendar__nav[data-disabled] { opacity: .3; cursor: default; }
+.ui-calendar__grid { width: 100%; border-collapse: collapse; }
+.ui-calendar__grid th { padding-bottom: 4px; color: var(--color-text-subtle); font-size: 10px; font-weight: 700; }
+.ui-calendar__grid td { padding: 1px 0; }
+.ui-calendar__cell { display: grid; width: 36px; height: 34px; margin: auto; place-items: center; border-radius: 8px; font-size: 12px; outline: 0; cursor: pointer; }
+.ui-calendar__cell[data-outside-month] { visibility: hidden; }
+.ui-calendar__cell[data-hovered] { background: #f3f2ff; }
+.ui-calendar__cell[data-focus-visible] { box-shadow: inset 0 0 0 2px var(--color-brand); }
+.ui-calendar__cell[aria-disabled="true"], .ui-calendar__cell[data-disabled] { color: #c9ced6; cursor: default; background: none; }
+.ui-calendar__cell[data-unavailable] { color: #c9ced6; text-decoration: line-through; cursor: default; }
+.ui-calendar__cell[data-selected] { border-radius: 0; background: color-mix(in srgb, var(--color-brand) 12%, transparent); color: var(--color-brand); }
+.ui-calendar__cell[data-selection-start], .ui-calendar__cell[data-selection-end],
+.ui-calendar:not(.ui-calendar--range) .ui-calendar__cell[data-selected] { border-radius: 8px; background: var(--color-brand); color: #fff; font-weight: 700; }
+.ui-calendar__cell[data-selection-start] { border-radius: 8px 0 0 8px; }
+.ui-calendar__cell[data-selection-end] { border-radius: 0 8px 8px 0; }
+.ui-calendar__cell[data-selection-start][data-selection-end] { border-radius: 8px; }
+/* Today, when not selected: a subtle ring */
+.ui-calendar__cell[data-today]:not([data-selected]) { box-shadow: inset 0 0 0 1px var(--color-brand); }
+
+@media (pointer: coarse) {
+  .ui-listbox__item { min-height: 44px; }
+  .ui-calendar { width: 296px; }
+  .ui-calendar__cell { width: 40px; height: 40px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-popover[data-entering] { animation: none; }
+}
+
+/* The order filters had separate From/To fields; the range picker takes both columns. */
+.account-filters .ui-date-picker--range { grid-column: span 2; }
+@media (max-width: 560px) {
+  .account-filters .ui-date-picker--range { grid-column: auto; }
+}

@@ -10,6 +10,7 @@ import AdminStatusChip from "@/components/admin/admin-status-chip";
 import AdminCard from "@/components/admin/admin-card";
 import Button from "@/components/ui/button";
 import LoadingButton from "@/components/ui/buttons/loading-button";
+import { DatePicker } from "@/components/ui/form/date-picker";
 import ErrorCard from "@/components/ui/feedback/error-card";
 import TableSkeleton from "@/components/ui/loaders/table-skeleton";
 import { useFeedback } from "@/components/feedback/feedback-provider";
@@ -145,7 +146,7 @@ const EMPTY: Draft = {
   isActive: true,
 };
 
-/** <input type="datetime-local"> works in local time without a zone. */
+/** The date picker works in local time without a zone ("YYYY-MM-DDTHH:mm"). */
 const toLocalInput = (value: string | null) => {
   if (!value) return "";
   const date = new Date(value);
@@ -156,12 +157,15 @@ function toDraft(banner: AdminBanner): Draft {
   return { ...banner, startsAt: toLocalInput(banner.startsAt), endsAt: toLocalInput(banner.endsAt) };
 }
 
-function ImageField({ label, hint, value, onChange, required }: {
+/** Single image upload to Cloudinary; also used by the buying guide editor. */
+export function ImageField({ label, hint, value, onChange, required, folder = "norosilk/banners", filenamePrefix = "banner" }: {
   label: string;
   hint: string;
   value: BannerImage | null;
   onChange: (image: BannerImage | null) => void;
   required?: boolean;
+  folder?: string;
+  filenamePrefix?: string;
 }) {
   const feedback = useFeedback();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -175,8 +179,8 @@ function ImageField({ label, hint, value, onChange, required }: {
     try {
       const form = new FormData();
       form.append("files", file);
-      form.append("folder", "norosilk/banners");
-      form.append("filenamePrefix", "banner");
+      form.append("folder", folder);
+      form.append("filenamePrefix", filenamePrefix);
       const result = await apiRequest<{ images: { secureUrl: string; publicId: string; width: number; height: number }[] }>("/api/v1/upload", { method: "POST", body: form });
       const image = result.data?.images?.[0];
       if (!image) throw new Error("The upload did not return an image.");
@@ -357,8 +361,8 @@ export function AdminBannerForm({ initial }: { initial?: AdminBanner }) {
       <AdminCard title="Schedule">
         <div className="admin-form-grid">
           <label className="admin-checkbox"><input type="checkbox" checked={draft.isActive} onChange={(event) => set("isActive", event.currentTarget.checked)} /> Show on the home page</label>
-          <label className="admin-field">Start (optional)<input type="datetime-local" value={draft.startsAt} onChange={(event) => set("startsAt", event.currentTarget.value)} /></label>
-          <label className="admin-field">End (optional)<input type="datetime-local" value={draft.endsAt} onChange={(event) => set("endsAt", event.currentTarget.value)} />{error("endsAt")}</label>
+          <DatePicker className="admin-field" label="Start (optional)" withTime value={draft.startsAt} onChange={(startsAt) => set("startsAt", startsAt)} />
+          <DatePicker className="admin-field" label="End (optional)" withTime min={draft.startsAt} value={draft.endsAt} onChange={(endsAt) => set("endsAt", endsAt)} error={errors.endsAt} />
         </div>
       </AdminCard>
     </form>

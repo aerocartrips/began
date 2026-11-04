@@ -22,7 +22,7 @@ vi.mock("next/headers", () => ({
     set: (name, value) => cookieJar.set(name, value),
   }),
 }));
-vi.mock("next/server", async (importOriginal) => ({ ...(await importOriginal()), after: vi.fn() }));
+vi.mock("next/server", async (importOriginal) => ({ ...(await importOriginal()), ...(await import("../stubs/next-server.js")), after: vi.fn() }));
 vi.mock("@/lib/admin/auth", () => ({ getAdminSession: async () => null }));
 vi.mock("@/lib/services/email.service", () => ({
   isCustomerEmailConfigured: () => true,

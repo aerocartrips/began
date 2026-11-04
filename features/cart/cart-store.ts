@@ -1,5 +1,7 @@
 import { createPersistentStore } from "@/lib/client/persistent-store";
 import type { CartItem } from "@/features/cart/types";
+import { trackProductActivity } from "@/features/catalog/activity";
+import { trackEvent } from "@/features/analytics/analytics";
 
 const OBJECT_ID = /^[a-f\d]{24}$/i;
 const MAX_LINES = 100;
@@ -31,6 +33,8 @@ export const buyNowStore = createPersistentStore<CartItem | null>("buy-now:v2", 
 
 export const cartActions = {
   add(item: CartItem) {
+    trackProductActivity(item.productId, "cart");
+    trackEvent("cart_add", { target: item.productId });
     return cartStore.set((items) => {
       const existing = items.find((candidate) => sameLine(candidate, item));
       if (existing) {

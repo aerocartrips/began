@@ -1,4 +1,6 @@
 import { createPersistentStore } from "@/lib/client/persistent-store";
+import { trackProductActivity } from "@/features/catalog/activity";
+import { trackEvent } from "@/features/analytics/analytics";
 
 const OBJECT_ID = /^[a-f\d]{24}$/i;
 const MAX_ITEMS = 200;
@@ -41,6 +43,10 @@ export const wishlistActions = {
   async toggle(productId: string) {
     const saved = wishlistStore.get().includes(productId);
     wishlistStore.set((ids) => (saved ? ids.filter((id) => id !== productId) : [...ids, productId]));
+    if (!saved) {
+      trackProductActivity(productId, "wishlist");
+      trackEvent("wishlist_add", { target: productId });
+    }
     const serverIds = saved
       ? await callServer("DELETE", undefined, `?productId=${productId}`)
       : await callServer("POST", { productId });

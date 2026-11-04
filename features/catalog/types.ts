@@ -10,14 +10,21 @@ export type ProductCardData = {
   id: string;
   slug: string;
   name: string;
+  sku: string;
   image: CatalogImage | null;
   /** Per-piece price for the store's sales mode (wholesale or retail). */
   price: number;
   /** Retail "was" price, when discounted. */
   compareAtPrice: number | null;
+  /** Retail discount against the "was" price, rounded. */
+  discountPercent: number | null;
+  /** Wholesale: the lowest quantity-tier price below the base price. */
+  bestTier: PriceTier | null;
   /** Minimum pieces per order (1 for retail stores). */
   minimumQuantity: number;
   inStock: boolean;
+  /** Added to the catalogue recently. */
+  isNew: boolean;
   rating: { average: number; count: number };
   swatches: Swatch[];
 };
@@ -86,6 +93,42 @@ export type CategorySummary = {
   description: string;
   imageUrl: string;
   productCount: number;
+};
+
+/** A top-level category on the home page "catalogue at a glance". */
+export type CategoryOverview = {
+  id: string;
+  name: string;
+  slug: string;
+  imageUrl: string;
+  /** Active products, including those in subcategories. */
+  productCount: number;
+  /** Lowest per-piece price in the store's sales mode. */
+  startingPrice: number;
+  previews: CatalogImage[];
+};
+
+export type FeedPage = { items: ProductCardData[]; nextCursor: string | null };
+
+export type QuickPickLink = { label: string; href: string; count?: number };
+
+export type QuickPickGroup = { key: string; title: string; links: QuickPickLink[] };
+
+export type HomeReview = {
+  id: string;
+  rating: number;
+  title: string;
+  comment: string;
+  authorName: string;
+  createdAt: string;
+  product: { name: string; slug: string };
+};
+
+export type Recommendations = {
+  personalized: boolean;
+  /** Why these products were picked, e.g. "Based on your interest in Banarasi". */
+  reason: string;
+  items: ProductCardData[];
 };
 
 export type ProductSuggestion = {

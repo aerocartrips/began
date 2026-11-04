@@ -5,6 +5,7 @@ import AdminPageHeading from "@/components/admin/admin-page-heading";
 import AdminStatusChip from "@/components/admin/admin-status-chip";
 import AdminCard from "@/components/admin/admin-card";
 import LoadingButton from "@/components/ui/buttons/loading-button";
+import Combobox from "@/components/ui/form/combobox";
 import ErrorCard from "@/components/ui/feedback/error-card";
 import TableSkeleton from "@/components/ui/loaders/table-skeleton";
 import { useFeedback } from "@/components/feedback/feedback-provider";
@@ -93,13 +94,14 @@ export function AdminCategories() {
             <label className="admin-field admin-field-wide">Name<input name="name" required minLength={2} maxLength={120} defaultValue={editing?.name} /></label>
             <label className="admin-field admin-field-wide">Description<textarea name="description" rows={3} maxLength={2000} defaultValue={editing?.description} /></label>
             <label className="admin-field admin-field-wide">Image URL<input name="imageUrl" type="url" defaultValue={editing?.image?.url} /></label>
-            <label className="admin-field">
-              Parent
-              <select name="parentCategory" defaultValue={editing?.parentCategory ?? ""}>
-                <option value="">None</option>
-                {(data ?? []).filter((category) => category._id !== editing?._id).map((category) => <option key={category._id} value={category._id}>{category.name}</option>)}
-              </select>
-            </label>
+            <Combobox
+              className="admin-field"
+              label="Parent"
+              name="parentCategory"
+              placeholder="None"
+              options={(data ?? []).filter((category) => category._id !== editing?._id).map((category) => ({ id: category._id, label: category.name }))}
+              defaultValue={editing?.parentCategory ?? ""}
+            />
             <label className="admin-field">Display order<input name="sortOrder" type="number" min={0} max={10000} defaultValue={editing?.sortOrder ?? 0} /></label>
             <label className="admin-checkbox"><input name="isActive" type="checkbox" defaultChecked={editing?.isActive ?? true} /> Visible on the storefront</label>
             <div className="admin-form-actions">

@@ -10,6 +10,7 @@ import EmptyState from "@/components/ui/empty-state";
 import ErrorCard from "@/components/ui/feedback/error-card";
 import Button from "@/components/ui/button";
 import LoadingButton from "@/components/ui/buttons/loading-button";
+import { DateRangePicker, todayIso } from "@/components/ui/form/date-picker";
 import DownloadInvoiceButton from "@/components/orders/download-invoice-button";
 import { OrderListSkeleton } from "@/components/ui/loaders/order-list-skeleton";
 import OrderProductReviewAction from "@/components/reviews/order-product-review-action";
@@ -185,14 +186,16 @@ export default function CustomerOrdersPageClient() {
             <option value="asc">Oldest first</option>
           </select>
         </label>
-        <label className="account-field">
-          From
-          <input type="date" value={dateFrom} max={dateTo || undefined} onChange={(event) => setDateFrom(event.currentTarget.value)} />
-        </label>
-        <label className="account-field">
-          To
-          <input type="date" value={dateTo} min={dateFrom || undefined} onChange={(event) => setDateTo(event.currentTarget.value)} />
-        </label>
+        <DateRangePicker
+          className="account-field"
+          label="Order date"
+          max={todayIso()}
+          value={{ start: dateFrom, end: dateTo }}
+          onChange={(range) => {
+            setDateFrom(range.start);
+            setDateTo(range.end);
+          }}
+        />
         <LoadingButton type="submit" size="sm" loading={loading && orders.length > 0}>
           Apply
         </LoadingButton>

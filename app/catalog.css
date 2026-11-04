@@ -42,8 +42,15 @@
 .catalog-card:hover .catalog-card__media img { transform: scale(1.04); }
 .catalog-card__placeholder { position: absolute; inset: 0; background: linear-gradient(135deg, var(--color-background), var(--color-border)); }
 .catalog-card__badge { position: absolute; bottom: 12px; left: 12px; padding: 5px 10px; border-radius: var(--radius-pill); background: rgba(17, 24, 39, .78); color: #fff; font-size: 10px; font-weight: 700; }
-.catalog-card__body { display: grid; gap: 8px; padding: 14px 16px 18px; }
-.catalog-card__title { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.35; }
+.catalog-card__body { display: grid; gap: 8px; align-content: start; padding: 14px 16px 18px; }
+/* Two lines at most, so cards in a row line up whatever the product name length. */
+.catalog-card__title { display: -webkit-box; margin: 0; overflow: hidden; font-size: 14px; font-weight: 600; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.catalog-card__flags { position: absolute; top: 10px; left: 10px; display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; }
+.catalog-card__flag { padding: 4px 8px; border-radius: var(--radius-pill); background: var(--color-surface); color: var(--color-text); font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; box-shadow: var(--shadow-card); }
+.catalog-card__flag.is-offer { background: var(--color-brand); color: #fff; }
+.catalog-card__sku { margin: -4px 0 0; color: var(--color-text-subtle); font-size: 10.5px; letter-spacing: .03em; }
+.catalog-card__tier { margin: -2px 0 0; color: var(--color-success); font-size: 11.5px; font-weight: 600; }
+.catalog-card__stock { color: var(--color-success); }
 .catalog-card__title a:hover { color: var(--color-brand); }
 .catalog-card__meta { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; color: var(--color-text-muted); font-size: 11px; }
 .swatch-list { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 0; padding: 0; list-style: none; }

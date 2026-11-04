@@ -60,7 +60,7 @@ export default async function CatalogView({ tenant, query, basePath, title, desc
               {suggestions.length > 0 ? (
                 <div className="catalog-suggestions">
                   <h3>Popular right now</h3>
-                  <ProductGrid products={suggestions} salesMode={tenant.salesMode} label="Popular products" />
+                  <ProductGrid products={suggestions} salesMode={tenant.salesMode} priorityCount={4} label="Popular products" />
                 </div>
               ) : null}
             </div>

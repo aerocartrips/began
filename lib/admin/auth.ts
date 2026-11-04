@@ -2,6 +2,7 @@ import "server-only";
 
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { forbidden, redirect } from "next/navigation";
 import { SignJWT, jwtVerify } from "jose";
 import { connectDB } from "@/lib/db/connect";
@@ -67,6 +68,8 @@ export async function createAdminSessionToken(admin: { _id: unknown; sessionVers
 export async function getAdminSession(): Promise<AdminSession | null> {
   const token = (await cookies()).get(ADMIN_SESSION_COOKIE)?.value;
   if (!token) return null;
+  // Token expiry is checked against the current time, so this must run at request time.
+  await connection();
 
   try {
     const { payload } = await jwtVerify(token, getSigningKey(), {

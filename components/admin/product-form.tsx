@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import ImageUploader, { type ManagedImage } from "@/components/images/image-uploader";
+import Combobox from "@/components/ui/form/combobox";
 import { useFeedback } from "@/components/feedback/feedback-provider";
 import { useTenant } from "@/features/tenant/tenant-provider";
 import {
@@ -49,6 +50,13 @@ function useCatalogOptions() {
   return { categories, attributes };
 }
 
+/** A store attribute list as combobox options, keeping a saved value that has since left the list. */
+function attributeOptions(options: Option[], value: string) {
+  const items = options.map((option) => ({ id: option.label, label: option.label, swatch: option.hex }));
+  if (value && !options.some((option) => option.label === value)) items.push({ id: value, label: `${value} (not in list)`, swatch: undefined });
+  return items;
+}
+
 /** Select from the store's list, or free text when the store has not defined one yet. */
 function AttributeField({ label, name, value, options, onChange }: {
   label: string;
@@ -57,18 +65,13 @@ function AttributeField({ label, name, value, options, onChange }: {
   options: Option[];
   onChange: (value: string) => void;
 }) {
+  if (options.length > 0) {
+    return <Combobox className="admin-field" label={label} name={name} placeholder="Not set" options={attributeOptions(options, value)} value={value} onChange={onChange} />;
+  }
   return (
     <label className="admin-field">
       {label}
-      {options.length > 0 ? (
-        <select name={name} value={value} onChange={(event) => onChange(event.currentTarget.value)}>
-          <option value="">Not set</option>
-          {options.map((option) => <option key={option.label} value={option.label}>{option.label}</option>)}
-          {value && !options.some((option) => option.label === value) ? <option value={value}>{value} (not in list)</option> : null}
-        </select>
-      ) : (
-        <input name={name} value={value} maxLength={80} onChange={(event) => onChange(event.currentTarget.value)} />
-      )}
+      <input name={name} value={value} maxLength={80} onChange={(event) => onChange(event.currentTarget.value)} />
     </label>
   );
 }
@@ -151,14 +154,16 @@ export default function ProductForm({ initial }: { initial?: AdminProductDraft }
             <input maxLength={160} placeholder="Generated from the name" value={draft.slug} onChange={(event) => set("slug", event.currentTarget.value)} />
             {error("slug")}
           </label>
-          <label className="admin-field">
-            Category
-            <select required value={draft.categoryId} onChange={(event) => set("categoryId", event.currentTarget.value)}>
-              <option value="">Choose a category</option>
-              {categories.map((category) => <option key={category._id} value={category._id}>{category.name}</option>)}
-            </select>
-            {error("category")}
-          </label>
+          <Combobox
+            className="admin-field"
+            label="Category"
+            required
+            placeholder="Choose a category"
+            options={categories.map((category) => ({ id: category._id, label: category.name }))}
+            value={draft.categoryId}
+            onChange={(id) => set("categoryId", id)}
+            error={errors.category}
+          />
           <label className="admin-field">
             Status
             <select value={draft.status} onChange={(event) => set("status", event.currentTarget.value)}>
@@ -283,19 +288,17 @@ export default function ProductForm({ initial }: { initial?: AdminProductDraft }
             <legend>Colour {index + 1}</legend>
             <div className="admin-repeater__row">
               {attributes.color.length > 0 ? (
-                <label className="admin-field">
-                  Colour
-                  <select
-                    value={variant.colorName}
-                    onChange={(event) => {
-                      const option = attributes.color.find((entry) => entry.label === event.currentTarget.value);
-                      setVariant(variant.key, { colorName: event.currentTarget.value, colorHex: option?.hex || variant.colorHex });
-                    }}
-                  >
-                    <option value="">Choose</option>
-                    {attributes.color.map((option) => <option key={option.label} value={option.label}>{option.label}</option>)}
-                  </select>
-                </label>
+                <Combobox
+                  className="admin-field"
+                  label="Colour"
+                  placeholder="Choose"
+                  options={attributeOptions(attributes.color, variant.colorName)}
+                  value={variant.colorName}
+                  onChange={(colorName) => {
+                    const option = attributes.color.find((entry) => entry.label === colorName);
+                    setVariant(variant.key, { colorName, colorHex: option?.hex || variant.colorHex });
+                  }}
+                />
               ) : (
                 <label className="admin-field">
                   Colour name

@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { CheckCircle2, Trash2 } from "lucide-react";
 import LoadingButton from "@/components/ui/buttons/loading-button";
+import { DatePicker, todayIso } from "@/components/ui/form/date-picker";
 import QuantitySelector from "@/components/ui/quantity-selector";
 import EmptyState from "@/components/ui/empty-state";
 import Button from "@/components/ui/button";
@@ -186,10 +187,7 @@ export default function RequestQuoteClient({ initialLines, fromCart, signedIn }:
               <input name="deliveryPincode" inputMode="numeric" maxLength={6} pattern="\d{6}" />
               {error("requirements.deliveryPincode")}
             </label>
-            <label className="contact-field">
-              Needed by
-              <input name="neededBy" type="date" />
-            </label>
+            <DatePicker className="contact-field" label="Needed by" name="neededBy" min={todayIso()} error={errors["requirements.neededBy"]} />
             <label className="contact-field contact-field-wide">
               Anything else we should know?
               <textarea name="message" rows={4} maxLength={4000} />

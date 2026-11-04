@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { formatRupees } from "@/lib/format";
+import { trackEvent } from "@/features/analytics/analytics";
 import type { ProductSuggestion } from "@/features/catalog/types";
 
 type SuggestState = { term: string; hits: ProductSuggestion[] } | null;
@@ -53,6 +54,8 @@ export default function StorefrontSearch() {
   const loading = term.length >= 2 && result?.term !== term;
 
   function go(href: string) {
+    // Count the interaction only; the search text itself is never sent.
+    trackEvent(href.startsWith("/products/") ? "search_suggestion_click" : "search_submit");
     setOpen(false);
     setActive(-1);
     router.push(href);

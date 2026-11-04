@@ -26,7 +26,7 @@ type JobRun = {
 };
 
 type JobsPayload = {
-  jobs: { name: string; description: string; runs: JobRun[] }[];
+  jobs: { name: string; description: string; runPath?: string; runs: JobRun[] }[];
 };
 
 function duration(run: JobRun) {
@@ -40,10 +40,10 @@ export default function AdminJobsClient() {
   const feedback = useFeedback();
   const { data, loading, error, refetch } = useApiRequest<JobsPayload>("/api/v1/admin/jobs");
 
-  const { run: triggerJob, loading: running } = useAsyncAction(async () => {
+  const { run: triggerJob, loading: running } = useAsyncAction(async (job: { name: string; runPath: string }) => {
     try {
-      await apiRequest("/api/v1/admin/jobs/payment-expiry", { method: "POST" });
-      feedback.success("Job finished", "Payment expiry job executed.");
+      await apiRequest(job.runPath, { method: "POST" });
+      feedback.success("Job finished", `${humanizeStatus(job.name)} job executed.`);
       await refetch();
     } catch (jobError) {
       feedback.error("Job failed", jobError instanceof Error ? jobError.message : "Try again.");
@@ -84,13 +84,13 @@ export default function AdminJobsClient() {
               title={humanizeStatus(job.name)}
               description={job.description}
               action={
-                job.name.includes("payment") ? (
+                job.runPath ? (
                   <LoadingButton
                     type="button"
                     icon={<Play size={13} aria-hidden="true" />}
                     loading={running}
                     loadingText="Running…"
-                    onClick={() => void triggerJob()}
+                    onClick={() => void triggerJob({ name: job.name, runPath: job.runPath! })}
                   >
                     Run now
                   </LoadingButton>
