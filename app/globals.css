@@ -1472,6 +1472,7 @@ a.customer-review-product:hover { color: var(--color-brand); }
 a.account-menu-trigger { padding-left: 13px; }
 .account-menu-trigger:hover,
 .account-menu-trigger[aria-expanded="true"] { border-color: rgba(104,99,237,.3); background: #fff; color: var(--color-brand); }
+.account-menu-trigger--icon { width: 38px; justify-content: center; padding: 0; }
 .account-menu-avatar { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 50%; background: linear-gradient(135deg, var(--color-brand), var(--color-brand-secondary)); color: #fff; font-size: 10px; letter-spacing: 0; }
 .account-menu-panel { position: absolute; z-index: 40; top: calc(100% + 10px); right: 0; display: grid; gap: 2px; min-width: 230px; padding: 8px; border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface); box-shadow: var(--shadow-overlay); animation: review-rise .16s ease-out; }
 .account-menu-identity { display: grid; gap: 3px; margin-bottom: 4px; padding: 10px 10px 12px; border-bottom: 1px solid var(--color-border); }

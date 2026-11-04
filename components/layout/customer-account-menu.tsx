@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell, ChevronDown, LayoutDashboard, LogOut, MapPin, MessageSquare, Package, Star, User } from "lucide-react";
+import { Bell, LayoutDashboard, LogOut, MapPin, MessageSquare, Package, Star, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { apiRequest } from "@/lib/api/api-client";
 import NotificationBell from "@/features/notifications/components/notification-bell";
@@ -79,14 +79,14 @@ export default function CustomerAccountMenu() {
       <div className="account-menu" ref={rootRef}>
         <button
           type="button"
-          className="account-menu-trigger"
+          className="account-menu-trigger account-menu-trigger--icon"
           aria-expanded={open}
           aria-haspopup="menu"
+          aria-label={`Account menu for ${user.name || user.email}`}
+          title={user.name || user.email}
           onClick={() => setOpen((value) => !value)}
         >
           <span className="account-menu-avatar" aria-hidden="true">{(user.name || user.email).charAt(0).toUpperCase()}</span>
-          <span>{user.name.split(/\s+/)[0] || "Account"}</span>
-          <ChevronDown size={13} aria-hidden="true" />
         </button>
         {open ? (
           <div className="account-menu-panel" role="menu">
