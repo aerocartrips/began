@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CreditCard,
+  GalleryHorizontal,
   FileText,
   FolderTree,
   Newspaper,
@@ -51,6 +52,7 @@ const navigationGroups: { label: string; items: NavItem[] }[] = [
       { label: "Returns", href: "/admin/returns", icon: RefreshCw, permission: PERMISSIONS.RETURNS_MANAGE },
       { label: "Messages", href: "/admin/messages", icon: Mail, permission: PERMISSIONS.SUPPORT_MANAGE },
       { label: "Jobs", href: "/admin/jobs", icon: Timer, permission: PERMISSIONS.JOBS_RUN },
+      { label: "Banners", href: "/admin/banners", icon: GalleryHorizontal, permission: PERMISSIONS.MARKETING_MANAGE },
       { label: "Pages", href: "/admin/content", icon: Newspaper, permission: PERMISSIONS.SETTINGS_MANAGE },
       { label: "Staff & roles", href: "/admin/staff", icon: UserCog, permission: PERMISSIONS.STAFF_MANAGE },
       { label: "Store settings", href: "/admin/settings", icon: Settings, permission: PERMISSIONS.SETTINGS_MANAGE },

@@ -4,6 +4,8 @@ import { ArrowRight, BadgeCheck, Boxes, FileText, Truck } from "lucide-react";
 import Button from "@/components/ui/button";
 import ProductGrid from "@/components/catalog/product-grid";
 import RecentlyViewed from "@/components/catalog/recently-viewed";
+import HeroBanner from "@/components/landing/hero-banner";
+import { getLiveBanners } from "@/lib/content/banners";
 import { getCategories, getFeaturedProducts } from "@/lib/catalog/query";
 import { getCurrentTenant } from "@/lib/tenant/current";
 
@@ -22,7 +24,8 @@ const RETAIL_POINTS = [
 
 export default async function Home() {
   const tenant = await getCurrentTenant();
-  const [categories, featured] = await Promise.all([
+  const [banners, categories, featured] = await Promise.all([
+    getLiveBanners(tenant.id),
     getCategories(tenant.id),
     getFeaturedProducts(tenant.id, tenant.salesMode, 8),
   ]);
@@ -33,39 +36,51 @@ export default async function Home() {
 
   return (
     <>
-      <header className="hero">
-        <div className="hero-grid content-width">
-          <div className="hero-copy">
-            <h1>{tagline || siteTitle}</h1>
-            {description ? <p className="hero-description">{description}</p> : null}
-            <div className="hero-actions">
-              <Button href="/products" icon={<ArrowRight size={15} aria-hidden="true" />}>Shop the catalogue</Button>
-              {isWholesale ? <Button href="/request-quote" variant="secondary">Request a quote</Button> : null}
-            </div>
-          </div>
-          {heroImageUrl ? (
-            <div className="hero-visual">
-              <div className="hero-image-frame">
-                <Image
-                  src={heroImageUrl}
-                  alt=""
-                  fill
-                  priority
-                  sizes="(max-width: 760px) 92vw, (max-width: 1100px) 70vw, 45vw"
-                  className="cover-image hero-image"
-                />
+      {banners.length > 0 ? (
+        <HeroBanner banners={banners} storeName={tenant.name} />
+      ) : (
+        <header className="hero">
+          <div className="hero-grid content-width">
+            <div className="hero-copy">
+              <h1>{tagline || siteTitle}</h1>
+              {description ? <p className="hero-description">{description}</p> : null}
+              <div className="hero-actions">
+                <Button href="/products" icon={<ArrowRight size={15} aria-hidden="true" />}>
+                  Shop the catalogue
+                </Button>
+                {isWholesale ? (
+                  <Button href="/request-quote" variant="secondary">
+                    Request a quote
+                  </Button>
+                ) : null}
               </div>
             </div>
-          ) : null}
-        </div>
-      </header>
+            {heroImageUrl ? (
+              <div className="hero-visual">
+                <div className="hero-image-frame">
+                  <Image
+                    src={heroImageUrl}
+                    alt=""
+                    fill
+                    priority
+                    sizes="(max-width: 760px) 92vw, (max-width: 1100px) 70vw, 45vw"
+                    className="cover-image hero-image"
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </header>
+      )}
 
       <main className="content-width home-sections">
         {visibleCategories.length > 0 ? (
           <section aria-labelledby="home-categories">
             <div className="section-row">
               <h2 id="home-categories">Shop by category</h2>
-              <Link className="text-link" href="/categories">All categories</Link>
+              <Link className="text-link" href="/categories">
+                All categories
+              </Link>
             </div>
             <ul className="category-grid">
               {visibleCategories.map((category) => (
@@ -73,7 +88,13 @@ export default async function Home() {
                   <Link href={`/categories/${category.slug}`} className="category-tile">
                     <span className="category-tile__media">
                       {category.imageUrl ? (
-                        <Image src={category.imageUrl} alt="" fill sizes="(max-width: 640px) 50vw, 25vw" className="cover-image" />
+                        <Image
+                          src={category.imageUrl}
+                          alt=""
+                          fill
+                          sizes="(max-width: 640px) 50vw, 25vw"
+                          className="cover-image"
+                        />
                       ) : null}
                     </span>
                     <span className="category-tile__name">{category.name}</span>
@@ -88,9 +109,16 @@ export default async function Home() {
           <section aria-labelledby="home-featured">
             <div className="section-row">
               <h2 id="home-featured">Featured</h2>
-              <Link className="text-link" href="/products">View all</Link>
+              <Link className="text-link" href="/products">
+                View all
+              </Link>
             </div>
-            <ProductGrid products={featured} salesMode={tenant.salesMode} priorityCount={4} label="Featured products" />
+            <ProductGrid
+              products={featured}
+              salesMode={tenant.salesMode}
+              priorityCount={4}
+              label="Featured products"
+            />
           </section>
         ) : null}
 

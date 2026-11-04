@@ -14,6 +14,7 @@ import { connect, disconnect, fail, parseCli } from "./lib/cli.mjs";
 import { Tenant } from "@/lib/db/models/Tenant";
 import { Address } from "@/lib/db/models/Address";
 import { Attribute } from "@/lib/db/models/Attribute";
+import { Banner } from "@/lib/db/models/Banner";
 import { Quote } from "@/lib/db/models/Quote";
 import { StorePage } from "@/lib/db/models/StorePage";
 import { Cart } from "@/lib/db/models/Cart";
@@ -35,7 +36,7 @@ import { User } from "@/lib/db/models/User";
 import { Wishlist } from "@/lib/db/models/Wishlist";
 
 const TENANT_MODELS = [
-  Address, Attribute, Cart, Category, JobRun, Notification, Order, Payment, PaymentWebhookEvent, Product,
+  Address, Attribute, Banner, Cart, Category, JobRun, Notification, Order, Payment, PaymentWebhookEvent, Product,
   Quote, Review, ReviewVote, ServiceRequest, StockAlert, StorePage, StoreSettings, SupportConversation, SupportMessage, User, Wishlist,
 ];
 
