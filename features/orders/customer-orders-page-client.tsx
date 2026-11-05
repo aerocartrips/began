@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Package } from "lucide-react";
+import { ArrowRight, Package, SlidersHorizontal } from "lucide-react";
 import { useFeedback } from "@/components/feedback/feedback-provider";
 import EmptyState from "@/components/ui/empty-state";
 import ErrorCard from "@/components/ui/feedback/error-card";
@@ -60,6 +60,9 @@ export default function CustomerOrdersPageClient() {
   const [appliedDateFrom, setAppliedDateFrom] = useState("");
   const [appliedDateTo, setAppliedDateTo] = useState("");
   const [reviewContext, setReviewContext] = useState<OrderReviewContextMap>({});
+  // Phones show only the search box until the shopper asks for the other filters.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const extraFilters = (bucket !== "all" ? 1 : 0) + (sort !== "desc" ? 1 : 0) + (dateFrom || dateTo ? 1 : 0);
   const loadingRef = useRef(false);
 
   const filterKey = useMemo(
@@ -162,6 +165,7 @@ export default function CustomerOrdersPageClient() {
       <form
         className="account-filters"
         role="search"
+        data-expanded={filtersOpen || undefined}
         onSubmit={(event) => {
           event.preventDefault();
           applyFilters();
@@ -169,8 +173,19 @@ export default function CustomerOrdersPageClient() {
       >
         <label className="account-field account-field--search">
           Search
-          <input type="search" value={q} onChange={(event) => setQ(event.currentTarget.value)} placeholder="Order number or product" />
+          <input type="search" enterKeyHint="search" value={q} onChange={(event) => setQ(event.currentTarget.value)} placeholder="Order number or product" />
         </label>
+        <button
+          type="button"
+          className="account-filters__toggle"
+          aria-expanded={filtersOpen}
+          aria-label={extraFilters ? `Filters, ${extraFilters} applied` : "Filters"}
+          onClick={() => setFiltersOpen((value) => !value)}
+        >
+          <SlidersHorizontal size={16} aria-hidden="true" />
+          Filters
+          {extraFilters ? <span className="catalog-toolbar__badge" aria-hidden="true">{extraFilters}</span> : null}
+        </button>
         <label className="account-field">
           Status
           <select value={bucket} onChange={(event) => setBucket(event.currentTarget.value)}>

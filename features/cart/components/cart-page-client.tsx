@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ShoppingBag } from "lucide-react";
+import { ArrowRight, ShoppingBag } from "lucide-react";
 import CartLine from "@/features/cart/components/cart-line";
 import CartSummary from "@/features/cart/components/cart-summary";
 import { cartActions, useCartItems } from "@/features/cart/cart-store";
 import { useCartPricing } from "@/features/cart/use-cart-pricing";
 import { useTenant } from "@/features/tenant/tenant-provider";
 import { useHydrated } from "@/lib/client/persistent-store";
+import { formatNumber, formatRupees } from "@/lib/format";
 import CartSkeleton from "@/components/ui/loaders/cart-skeleton";
 import EmptyState from "@/components/ui/empty-state";
 import Button from "@/components/ui/button";
@@ -69,6 +70,22 @@ export default function CartPageClient() {
             ) : null
           }
         />
+      </div>
+      {/* Phones: the total and the way forward stay on screen while the cart scrolls. */}
+      <div className="cart-checkout-bar mobile-action-bar">
+        <p className="cart-checkout-bar__total">
+          <span>Total · {formatNumber(itemCount)} pcs</span>
+          <strong>{loading || !pricing ? "…" : formatRupees(pricing.totals.totalAmount)}</strong>
+        </p>
+        {blocked || loading ? (
+          <button type="button" className="button button-primary" disabled>
+            Checkout
+          </button>
+        ) : (
+          <Button href="/checkout" icon={<ArrowRight size={16} aria-hidden="true" />}>
+            Checkout
+          </Button>
+        )}
       </div>
     </main>
   );

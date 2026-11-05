@@ -102,7 +102,7 @@ export default function ProductDetailClient({ product, salesMode }: ProductDetai
 
   return (
     <div className="product-detail-grid">
-      <ProductGallery images={images} productName={product.name} />
+      <ProductGallery key={variant?.images.length ? variant.id : "product"} images={images} productName={product.name} />
 
       <div className="product-detail-copy">
         {product.category ? <Link className="product-detail-category" href={`/categories/${product.category.slug}`}>{product.category.name}</Link> : null}
@@ -174,11 +174,14 @@ export default function ProductDetailClient({ product, salesMode }: ProductDetai
 
         {purchasable ? (
           <div className="product-purchase">
-            <QuantitySelector value={safeQuantity} minimum={minimum} maximum={stock} onChange={setQuantity} />
-            <button type="button" className="button button-primary" onClick={addToCart}>
+            <div className="product-purchase__quantity">
+              <span className="product-purchase__label" aria-hidden="true">{isWholesale ? "Quantity (pieces)" : "Quantity"}</span>
+              <QuantitySelector value={safeQuantity} minimum={minimum} maximum={stock} onChange={setQuantity} />
+            </div>
+            <button type="button" className="button button-primary product-purchase__action" onClick={addToCart}>
               <ShoppingBag size={16} aria-hidden="true" /> Add to cart
             </button>
-            <button type="button" className="button button-glass" onClick={buyNow}>
+            <button type="button" className="button button-glass product-purchase__action" onClick={buyNow}>
               <Zap size={16} aria-hidden="true" /> Buy now
             </button>
           </div>
@@ -186,8 +189,33 @@ export default function ProductDetailClient({ product, salesMode }: ProductDetai
           <StockAlertButton productId={product.id} />
         )}
 
+        {purchasable ? (
+          // Phones: the purchase buttons stay within thumb reach while the shopper scrolls.
+          <div className="product-buy-bar mobile-action-bar">
+            <p className="product-buy-bar__price">
+              <strong>
+                {formatRupees(unitPrice)}
+                {isWholesale ? <small>/pc</small> : null}
+              </strong>
+              <span>
+                {isWholesale
+                  ? `${formatNumber(safeQuantity)} pcs · ${formatRupees(unitPrice * safeQuantity)}`
+                  : compareAt
+                    ? <del>{formatRupees(compareAt)}</del>
+                    : "Excl. GST"}
+              </span>
+            </p>
+            <button type="button" className="button button-glass" onClick={buyNow}>
+              Buy now
+            </button>
+            <button type="button" className="button button-primary" onClick={addToCart}>
+              <ShoppingBag size={16} aria-hidden="true" /> Add to cart
+            </button>
+          </div>
+        ) : null}
+
         <div className="product-secondary-actions">
-          <WishlistButton productId={product.id} productName={product.name} className="wishlist-toggle wishlist-toggle--labelled" />
+          <WishlistButton productId={product.id} productName={product.name} className="wishlist-toggle wishlist-toggle--labelled" showLabel />
           <button type="button" className="text-link" onClick={share}>
             <Share2 size={15} aria-hidden="true" /> Share
           </button>

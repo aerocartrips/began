@@ -2,11 +2,13 @@ import BrandLink from "@/components/ui/brand-link";
 import Button from "@/components/ui/button";
 import CartCount from "@/features/cart/components/cart-count";
 import CustomerAccountMenu from "@/components/layout/customer-account-menu";
+import MobileMenu from "@/components/layout/mobile-menu";
+import MobileSearch from "@/components/layout/mobile-search";
 import StorefrontSearch from "@/components/layout/storefront-search";
 import { getSiteNavigation } from "@/lib/site-content";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import Link from "next/link";
-import { Heart, Menu, ShoppingCart } from "lucide-react";
+import { Heart, ShoppingCart } from "lucide-react";
 
 export default async function SiteHeader() {
   const tenant = await getCurrentTenant();
@@ -14,30 +16,20 @@ export default async function SiteHeader() {
   const isWholesale = tenant.salesMode === "wholesale";
 
   return (
-    <nav className="site-nav" aria-label="Main navigation">
+    <header className="site-nav">
       <div className="nav-brand-group">
+        <MobileMenu />
         <BrandLink href="/" />
-        <div className="nav-links">
+        <nav className="nav-links" aria-label="Main navigation">
           {navigation.map((item) => (
             <Link href={item.href} key={item.href}>{item.label}</Link>
           ))}
-        </div>
-        <details className="mobile-menu">
-          <summary aria-label="Site navigation">
-            <Menu size={20} aria-hidden="true" />
-          </summary>
-          <div className="mobile-menu-panel">
-            {navigation.map((item) => (
-              <Link href={item.href} key={item.href}>{item.label}</Link>
-            ))}
-            <Link href="/wishlist">Wishlist</Link>
-            <Link href="/account/orders">My orders</Link>
-          </div>
-        </details>
+        </nav>
       </div>
       <div className="nav-actions">
         <StorefrontSearch />
-        <Link className="cart-link" href="/wishlist" aria-label="Wishlist">
+        <MobileSearch />
+        <Link className="cart-link nav-wishlist-link" href="/wishlist" aria-label="Wishlist">
           <Heart size={19} strokeWidth={1.8} aria-hidden="true" />
         </Link>
         <Link className="cart-link" href="/cart" aria-label="Shopping cart">
@@ -49,6 +41,6 @@ export default async function SiteHeader() {
           <Button href="/request-quote" variant="portal">Request a quote</Button>
         ) : null}
       </div>
-    </nav>
+    </header>
   );
 }

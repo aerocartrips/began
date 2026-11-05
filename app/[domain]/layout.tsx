@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Cinzel_Decorative, Montserrat } from "next/font/google";
 import { TenantProvider } from "@/features/tenant/tenant-provider";
 import { getCurrentTenant } from "@/lib/tenant/current";
@@ -9,6 +9,15 @@ import "../globals.css";
 import "../catalog.css";
 import "../landing.css";
 import "../form-controls.css";
+import "../mobile.css";
+
+/** Edge to edge on notched phones (app/mobile.css pads the safe areas); the browser bar matches the header. */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#ffffff",
+};
 
 const cinzel = Cinzel_Decorative({
   variable: "--font-cinzel",

@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowRight, CheckCircle2, Circle, Info, Package } from "
 import Button from "@/components/ui/button";
 import EmptyState from "@/components/ui/empty-state";
 import AccountHeading from "@/features/account/components/account-heading";
+import AccountSignOut from "@/features/account/components/account-sign-out";
 import { AddressSummary } from "@/features/account/components/address-card";
 import { AccountSectionSkeleton } from "@/features/account/components/account-skeletons";
 import { ACCOUNT_NAV_ITEMS } from "@/features/account/nav-items";
@@ -170,6 +171,7 @@ async function AccountOverview() {
           </Link>
         ))}
       </nav>
+      <AccountSignOut />
     </>
   );
 }

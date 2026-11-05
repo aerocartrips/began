@@ -3,19 +3,35 @@
 import { useEffect, useId, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { formatRupees } from "@/lib/format";
 import { trackEvent } from "@/features/analytics/analytics";
 import type { ProductSuggestion } from "@/features/catalog/types";
 
 type SuggestState = { term: string; hits: ProductSuggestion[] } | null;
 
+/** Starting points shown in the phone search sheet before anything is typed. */
+const SHORTCUTS = [
+  { label: "New arrivals", href: "/products?sort=newest" },
+  { label: "Best sellers", href: "/products?sort=popular" },
+  { label: "All categories", href: "/categories" },
+  { label: "Buying guides", href: "/guides" },
+];
+
+type StorefrontSearchProps = {
+  /** "sheet" is the full-screen phone search: results always shown, plus a Cancel button. */
+  variant?: "inline" | "sheet";
+  /** Called before navigating away (the phone sheet closes itself). */
+  onNavigate?: () => void;
+  onCancel?: () => void;
+};
+
 /**
  * Header search with suggestions (product photo, name, price) from the
  * catalogue API. Arrow keys move through suggestions; Enter opens the
  * highlighted product or the full results page.
  */
-export default function StorefrontSearch() {
+export default function StorefrontSearch({ variant = "inline", onNavigate, onCancel }: StorefrontSearchProps) {
   const router = useRouter();
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -24,6 +40,7 @@ export default function StorefrontSearch() {
   const [active, setActive] = useState(-1);
   const [result, setResult] = useState<SuggestState>(null);
   const term = query.trim();
+  const sheet = variant === "sheet";
 
   useEffect(() => {
     if (term.length < 2) return;
@@ -58,6 +75,7 @@ export default function StorefrontSearch() {
     trackEvent(href.startsWith("/products/") ? "search_suggestion_click" : "search_submit");
     setOpen(false);
     setActive(-1);
+    onNavigate?.();
     router.push(href);
   }
 
@@ -67,48 +85,98 @@ export default function StorefrontSearch() {
     go(selected ? `/products/${selected.slug}` : `/products?q=${encodeURIComponent(term)}`);
   }
 
-  return (
-    <div className="storefront-search" ref={rootRef}>
-      <label className="search-field">
-        <span className="sr-only">Search products</span>
-        <input
-          type="search"
-          role="combobox"
-          aria-expanded={open && term.length >= 2}
-          aria-controls={listId}
-          aria-autocomplete="list"
-          aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
-          value={query}
-          placeholder="Search sarees, fabric, SKU…"
-          onChange={(event) => {
-            setQuery(event.currentTarget.value);
-            setOpen(true);
-            setActive(-1);
-          }}
-          onFocus={() => setOpen(true)}
-          onKeyDown={(event) => {
-            if (event.key === "ArrowDown") {
-              event.preventDefault();
-              setActive((index) => Math.min(index + 1, hits.length - 1));
-            } else if (event.key === "ArrowUp") {
-              event.preventDefault();
-              setActive((index) => Math.max(index - 1, -1));
-            } else if (event.key === "Enter") {
-              event.preventDefault();
-              submit();
-            } else if (event.key === "Escape") {
-              setOpen(false);
-            }
-          }}
-        />
+  const showPanel = sheet || (open && term.length >= 2);
+  const field = (
+    <label className="search-field">
+      {sheet ? <Search className="search-field__icon" size={18} aria-hidden="true" /> : null}
+      <span className="sr-only">Search products</span>
+      <input
+        type="search"
+        role="combobox"
+        enterKeyHint="search"
+        aria-expanded={showPanel && term.length >= 2}
+        aria-controls={listId}
+        aria-autocomplete="list"
+        aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
+        value={query}
+        placeholder="Search sarees, fabric, SKU…"
+        onChange={(event) => {
+          setQuery(event.currentTarget.value);
+          setOpen(true);
+          setActive(-1);
+        }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            setActive((index) => Math.min(index + 1, hits.length - 1));
+          } else if (event.key === "ArrowUp") {
+            event.preventDefault();
+            setActive((index) => Math.max(index - 1, -1));
+          } else if (event.key === "Enter") {
+            event.preventDefault();
+            submit();
+          } else if (event.key === "Escape") {
+            setOpen(false);
+          }
+        }}
+      />
+      {sheet ? (
+        query ? (
+          <button
+            type="button"
+            className="search-submit"
+            aria-label="Clear search"
+            onClick={(event) => {
+              setQuery("");
+              setActive(-1);
+              event.currentTarget.closest("label")?.querySelector("input")?.focus();
+            }}
+          >
+            <X size={16} aria-hidden="true" />
+          </button>
+        ) : null
+      ) : (
         <button type="button" className="search-submit" aria-label="Search" onClick={submit}>
           <Search size={14} aria-hidden="true" />
         </button>
-      </label>
-      {open && term.length >= 2 ? (
+      )}
+    </label>
+  );
+
+  return (
+    <div className={sheet ? "storefront-search storefront-search--sheet" : "storefront-search"} ref={rootRef}>
+      {sheet ? (
+        <div className="storefront-search__bar">
+          {field}
+          <button type="button" className="storefront-search__cancel" onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
+      ) : (
+        field
+      )}
+      {showPanel ? (
         <div className="storefront-search-panel">
-          {loading ? <p className="storefront-search-meta">Searching…</p> : null}
-          {!loading && hits.length === 0 ? <p className="storefront-search-meta">No matching products.</p> : null}
+          {term.length < 2 ? (
+            <div className="storefront-search-shortcuts">
+              <p className="storefront-search-meta">Popular right now</p>
+              <ul>
+                {SHORTCUTS.map((shortcut) => (
+                  <li key={shortcut.href}>
+                    <button type="button" className="quick-pick" onClick={() => go(shortcut.href)}>
+                      {shortcut.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <>
+              {loading ? <p className="storefront-search-meta">Searching…</p> : null}
+              {!loading && hits.length === 0 ? <p className="storefront-search-meta">No matching products.</p> : null}
+            </>
+          )}
           <ul id={listId} role="listbox" aria-label="Suggestions">
             {hits.map((hit, index) => (
               <li
@@ -129,9 +197,11 @@ export default function StorefrontSearch() {
               </li>
             ))}
           </ul>
-          <button type="button" className="storefront-search-all" onClick={() => go(`/products?q=${encodeURIComponent(term)}`)}>
-            View all results for “{term}” →
-          </button>
+          {term.length >= 2 ? (
+            <button type="button" className="storefront-search-all" onClick={() => go(`/products?q=${encodeURIComponent(term)}`)}>
+              View all results for “{term}” →
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>

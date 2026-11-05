@@ -7,9 +7,10 @@ import { formatNumber } from "@/lib/format";
 export default function CartCount() {
   const hydrated = useHydrated();
   const count = useCartCount();
+  const value = hydrated ? count : 0;
   return (
-    <span className="cart-count" aria-live="polite" aria-atomic="true">
-      {hydrated ? formatNumber(count) : "0"}
+    <span className="cart-count" data-count={value} aria-live="polite" aria-atomic="true">
+      {formatNumber(value)}
     </span>
   );
 }

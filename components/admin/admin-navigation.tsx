@@ -72,7 +72,8 @@ function isActive(pathname: string, href: string) {
   return href === "/admin" ? pathname === "/admin" : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export default function AdminNavigation({ variant = "sidebar" }: { variant?: "sidebar" | "mobile" }) {
+/** "drawer" is the phone menu (components/admin/admin-mobile-nav.tsx), which closes itself on navigation. */
+export default function AdminNavigation({ variant = "sidebar" }: { variant?: "sidebar" | "drawer" }) {
   const pathname = usePathname() ?? "";
   const permissions = useAdminPermissions();
   const groups = navigationGroups
@@ -81,8 +82,8 @@ export default function AdminNavigation({ variant = "sidebar" }: { variant?: "si
 
   return (
     <nav
-      className={variant === "sidebar" ? "admin-navigation" : "admin-mobile-navigation__panel"}
-      aria-label={variant === "sidebar" ? "Admin navigation" : "Mobile admin navigation"}
+      className={variant === "sidebar" ? "admin-navigation" : "admin-navigation admin-navigation--drawer"}
+      aria-label={variant === "sidebar" ? "Admin navigation" : "Admin menu"}
     >
       {groups.map((group) => (
         <div className="admin-navigation__group" key={group.label}>
@@ -95,7 +96,6 @@ export default function AdminNavigation({ variant = "sidebar" }: { variant?: "si
                 key={href}
                 className={active ? "is-active" : undefined}
                 aria-current={active ? "page" : undefined}
-                onClick={variant === "mobile" ? (event) => event.currentTarget.closest("details")?.removeAttribute("open") : undefined}
               >
                 <Icon size={16} strokeWidth={1.8} aria-hidden="true" />
                 <span>{label}</span>

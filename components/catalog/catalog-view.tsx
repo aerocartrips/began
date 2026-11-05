@@ -1,8 +1,10 @@
 import Link from "next/link";
 import AppliedFilters from "@/components/catalog/applied-filters";
 import CatalogFilters from "@/components/catalog/catalog-filters";
+import CatalogFiltersPanel from "@/components/catalog/catalog-filters-panel";
 import Pagination from "@/components/catalog/pagination";
 import ProductGrid from "@/components/catalog/product-grid";
+import { catalogHref } from "@/features/catalog/query-string";
 import { getCategories, getFeaturedProducts, searchCatalog } from "@/lib/catalog/query";
 import { formatNumber } from "@/lib/format";
 import type { CatalogQuery } from "@/features/catalog/types";
@@ -24,6 +26,23 @@ export default async function CatalogView({ tenant, query, basePath, title, desc
   ]);
   const suggestions = result.total === 0 ? await getFeaturedProducts(tenant.id, tenant.salesMode, 8) : [];
   const firstItem = (result.page - 1) * 24 + 1;
+  const activeFilterCount =
+    query.fabric.length +
+    query.weave.length +
+    query.color.length +
+    query.occasion.length +
+    (query.minPrice !== null || query.maxPrice !== null ? 1 : 0) +
+    (query.inStock ? 1 : 0);
+  // Clears the filters but keeps the search term and sort order.
+  const clearFiltersHref = catalogHref(basePath, query, {
+    fabric: [],
+    weave: [],
+    color: [],
+    occasion: [],
+    minPrice: null,
+    maxPrice: null,
+    inStock: false,
+  });
 
   return (
     <main className="catalog-page content-width">
@@ -40,10 +59,9 @@ export default async function CatalogView({ tenant, query, basePath, title, desc
       </header>
 
       <div className="catalog-layout">
-        <details className="catalog-filters-panel" open>
-          <summary>Filters &amp; sort</summary>
+        <CatalogFiltersPanel total={result.total} activeCount={activeFilterCount} clearHref={clearFiltersHref}>
           <CatalogFilters basePath={basePath} query={query} result={result} categories={categories} />
-        </details>
+        </CatalogFiltersPanel>
 
         <section className="catalog-results" aria-label="Products">
           <AppliedFilters basePath={basePath} query={query} />

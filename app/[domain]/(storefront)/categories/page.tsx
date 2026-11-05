@@ -41,7 +41,9 @@ export default async function CategoriesPage() {
                   ) : null}
                 </span>
                 <span className="category-tile__name">{category.name}</span>
-                <span className="category-tile__count">{formatNumber(category.productCount)} products</span>
+                <span className="category-tile__count">
+                  {formatNumber(category.productCount)} {category.productCount === 1 ? "product" : "products"}
+                </span>
               </Link>
             </li>
           ))}

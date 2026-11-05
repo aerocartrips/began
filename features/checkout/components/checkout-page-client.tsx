@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ChevronDown, ShoppingBag } from "lucide-react";
 import PaymentFeedback, { type PaymentUiPhase } from "@/components/checkout/payment-feedback";
 import { useOptionalFeedback } from "@/components/feedback/feedback-provider";
 import LoadingButton from "@/components/ui/buttons/loading-button";
@@ -118,6 +119,7 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
   const [billingChoice, setBillingChoice] = useState(NEW_ADDRESS);
   const [billingSameAsShipping, setBillingSameAsShipping] = useState(true);
   const [addressErrors, setAddressErrors] = useState<{ shipping: FieldErrors; billing: FieldErrors }>({ shipping: {}, billing: {} });
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const addressBookFull = addressBook ? addressBook.items.length >= addressBook.limit : false;
   const checkoutItems = buyNow ? (buyNowItem ? [buyNowItem] : []) : cartItems;
   const checkoutCount = checkoutItems.reduce((count, item) => count + item.quantity, 0);
@@ -314,6 +316,8 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
     return <CheckoutSkeleton />;
   }
 
+  const totalLabel = pricingLoading || !pricing ? "…" : formatRupees(pricing.totals.totalAmount);
+
   if (checkoutItems.length === 0) {
     return (
       <main className="commerce-page content-width">
@@ -377,6 +381,19 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
           }
         />
       ) : null}
+      {/* Phones: the order summary folds into one line above the form. */}
+      <button
+        type="button"
+        className="checkout-summary-toggle"
+        aria-expanded={summaryOpen}
+        aria-controls="checkout-order-summary"
+        onClick={() => setSummaryOpen((value) => !value)}
+      >
+        <ShoppingBag size={17} aria-hidden="true" />
+        <span>{summaryOpen ? "Hide" : "Show"} order summary</span>
+        <ChevronDown size={16} aria-hidden="true" />
+        <strong>{totalLabel}</strong>
+      </button>
       <div className="checkout-layout">
         <form ref={formRef} className="checkout-form" onSubmit={submitPayment}>
           <section className="checkout-form-section" aria-labelledby="contact-heading">
@@ -427,24 +444,35 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
           {notice && phase !== "failed" && paymentUiPhase === "idle" ? (
             <p className="commerce-notice" role="status">{notice}</p>
           ) : null}
-          <LoadingButton
-            type="submit"
-            className="checkout-submit"
-            loading={pending}
-            loadingText={
-              phase === "creating"
-                ? "Creating order..."
-                : phase === "checkout"
-                  ? "Awaiting Razorpay..."
-                  : "Verifying payment..."
-            }
-            disabled={!razorpayEnabled}
-          >
-            {razorpayEnabled ? "Pay now with Razorpay" : pricingBlocked ? "Fix your cart to pay" : tenant.paymentsEnabled ? "Preparing order…" : "Payment unavailable"}
-          </LoadingButton>
+          <div className="checkout-submit-bar mobile-action-bar">
+            <p className="checkout-submit-bar__total">
+              <span>To pay</span>
+              <strong>{totalLabel}</strong>
+            </p>
+            <LoadingButton
+              type="submit"
+              className="checkout-submit"
+              loading={pending}
+              loadingText={
+                phase === "creating"
+                  ? "Creating order..."
+                  : phase === "checkout"
+                    ? "Awaiting Razorpay..."
+                    : "Verifying payment..."
+              }
+              disabled={!razorpayEnabled}
+            >
+              {razorpayEnabled ? "Pay now with Razorpay" : pricingBlocked ? "Fix your cart to pay" : tenant.paymentsEnabled ? "Preparing order…" : "Payment unavailable"}
+            </LoadingButton>
+          </div>
         </form>
 
-        <aside className="checkout-order-summary" aria-labelledby="checkout-summary-title">
+        <aside
+          id="checkout-order-summary"
+          className="checkout-order-summary"
+          data-open={summaryOpen || undefined}
+          aria-labelledby="checkout-summary-title"
+        >
           <div className="checkout-summary-header">
             <h2 id="checkout-summary-title">Order summary</h2>
             {!buyNow && <Link href="/cart">Edit</Link>}
