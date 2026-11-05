@@ -8,6 +8,7 @@ import AdminStatusChip from "@/components/admin/admin-status-chip";
 import Button from "@/components/ui/button";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import ErrorCard from "@/components/ui/feedback/error-card";
+import Select, { toSelectOptions } from "@/components/ui/form/select";
 import TableSkeleton from "@/components/ui/loaders/table-skeleton";
 import { useApiRequest } from "@/hooks/use-api-request";
 import { useAsyncAction } from "@/hooks/use-async-action";
@@ -17,6 +18,17 @@ import { useTenant } from "@/features/tenant/tenant-provider";
 import type { AdminProductRecord } from "@/features/products/admin-product";
 
 const PAGE_SIZE = 25;
+const STATUS_FILTER_OPTIONS = toSelectOptions([
+  ["", "All statuses"],
+  ["active", "Active"],
+  ["draft", "Draft"],
+  ["inactive", "Inactive"],
+]);
+const STOCK_FILTER_OPTIONS = toSelectOptions([
+  ["", "Any stock"],
+  ["in_stock", "In stock"],
+  ["out_of_stock", "Out of stock"],
+]);
 
 type ListFilters = { search: string; status: string; stock: string; page: number };
 
@@ -65,23 +77,20 @@ export default function AdminProductListClient() {
           <span className="sr-only">Search products</span>
           <input value={searchInput} onChange={(event) => setSearchInput(event.currentTarget.value)} placeholder="Search name, SKU, fabric…" />
         </label>
-        <label>
-          <span className="sr-only">Filter by status</span>
-          <select value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.currentTarget.value, page: 1 })}>
-            <option value="">All statuses</option>
-            <option value="active">Active</option>
-            <option value="draft">Draft</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </label>
-        <label>
-          <span className="sr-only">Filter by stock</span>
-          <select value={filters.stock} onChange={(event) => setFilters({ ...filters, stock: event.currentTarget.value, page: 1 })}>
-            <option value="">Any stock</option>
-            <option value="in_stock">In stock</option>
-            <option value="out_of_stock">Out of stock</option>
-          </select>
-        </label>
+        <Select
+          label="Filter by status"
+          hideLabel
+          options={STATUS_FILTER_OPTIONS}
+          value={filters.status}
+          onChange={(status) => setFilters({ ...filters, status, page: 1 })}
+        />
+        <Select
+          label="Filter by stock"
+          hideLabel
+          options={STOCK_FILTER_OPTIONS}
+          value={filters.stock}
+          onChange={(stock) => setFilters({ ...filters, stock, page: 1 })}
+        />
         <LoadingButton type="submit" variant="secondary" size="sm" loading={loading}>Search</LoadingButton>
       </form>
 

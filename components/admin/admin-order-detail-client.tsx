@@ -10,6 +10,7 @@ import AdminPageHeading from "@/components/admin/admin-page-heading";
 import AdminStatusChip from "@/components/admin/admin-status-chip";
 import ErrorCard from "@/components/ui/feedback/error-card";
 import LoadingButton from "@/components/ui/buttons/loading-button";
+import Select, { type SelectOption } from "@/components/ui/form/select";
 import DownloadInvoiceButton from "@/components/orders/download-invoice-button";
 import { OrderDetailSkeleton } from "@/components/ui/loaders/order-list-skeleton";
 import OrderTimeline from "@/features/orders/order-timeline";
@@ -32,6 +33,10 @@ const ORDER_STATUSES = [
 ];
 
 const PAYMENT_STATUSES = ["pending", "paid", "failed", "refunded", "partially_refunded"];
+
+const statusOptions = (statuses: readonly string[]): SelectOption[] =>
+  statuses.map((status) => ({ id: status, label: humanizeStatus(status) }));
+const PAYMENT_STATUS_OPTIONS = statusOptions(PAYMENT_STATUSES);
 
 type ShipmentAction = "create" | "manifest" | "refresh-tracking";
 
@@ -278,19 +283,15 @@ function OrderUpdateForm({ order, endpoint, onSaved }: OrderUpdateFormProps) {
           void save();
         }}
       >
-        <label className="admin-field">
-          Fulfilment status
-          <select value={orderStatus} onChange={(event) => setOrderStatus(event.currentTarget.value)}>
-            {ORDER_STATUSES.includes(order.orderStatus) ? null : <option value={order.orderStatus}>{humanizeStatus(order.orderStatus)}</option>}
-            {ORDER_STATUSES.map((status) => <option key={status} value={status}>{humanizeStatus(status)}</option>)}
-          </select>
-        </label>
-        <label className="admin-field">
-          Payment status
-          <select value={paymentStatus} onChange={(event) => setPaymentStatus(event.currentTarget.value)}>
-            {PAYMENT_STATUSES.map((status) => <option key={status} value={status}>{humanizeStatus(status)}</option>)}
-          </select>
-        </label>
+        <Select
+          className="admin-field"
+          label="Fulfilment status"
+          // An order in a status outside the editable list keeps it as the first choice.
+          options={statusOptions(ORDER_STATUSES.includes(order.orderStatus) ? ORDER_STATUSES : [order.orderStatus, ...ORDER_STATUSES])}
+          value={orderStatus}
+          onChange={setOrderStatus}
+        />
+        <Select className="admin-field" label="Payment status" options={PAYMENT_STATUS_OPTIONS} value={paymentStatus} onChange={setPaymentStatus} />
         <label className="admin-field admin-field-wide">
           Shipment AWB
           <input value={shipmentAwb} onChange={(event) => setShipmentAwb(event.currentTarget.value)} placeholder="Assigned by courier" />

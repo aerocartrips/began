@@ -8,6 +8,7 @@ import AdminCard from "@/components/admin/admin-card";
 import AdminStatusChip from "@/components/admin/admin-status-chip";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import Combobox from "@/components/ui/form/combobox";
+import Select, { type SelectOption } from "@/components/ui/form/select";
 import ErrorCard from "@/components/ui/feedback/error-card";
 import TableSkeleton from "@/components/ui/loaders/table-skeleton";
 import { useFeedback } from "@/components/feedback/feedback-provider";
@@ -32,6 +33,13 @@ const SOURCE_LABELS: Record<CollectionSource["kind"], string> = {
   occasion: "Occasion",
   products: "Hand-picked products",
 };
+const SOURCE_OPTIONS: SelectOption[] = Object.entries(SOURCE_LABELS).map(([id, label]) => ({ id, label }));
+const SORT_OPTIONS: SelectOption[] = [
+  { id: "popular", label: "Most popular" },
+  { id: "newest", label: "Newest" },
+  { id: "price-asc", label: "Lowest price" },
+];
+const TRUST_ICON_OPTIONS: SelectOption[] = TRUST_ICONS.map((icon) => ({ id: icon, label: icon }));
 
 const meta = (section: HomeSection) => HOME_SECTION_META[section.type] ?? { label: section.type, help: "" };
 
@@ -196,14 +204,13 @@ function SectionEditor({ section, categories, onChange }: {
 
       {section.type === "collection" ? (
         <>
-          <label className="admin-field">
-            Products from
-            <select value={source.kind} onChange={(event) => setSource({ kind: event.currentTarget.value as CollectionSource["kind"], value: "" })}>
-              {Object.entries(SOURCE_LABELS).map(([kind, label]) => (
-                <option key={kind} value={kind}>{label}</option>
-              ))}
-            </select>
-          </label>
+          <Select
+            className="admin-field"
+            label="Products from"
+            options={SOURCE_OPTIONS}
+            value={source.kind}
+            onChange={(kind) => setSource({ kind: kind as CollectionSource["kind"], value: "" })}
+          />
           {source.kind === "category" ? (
             <Combobox
               className="admin-field"
@@ -222,14 +229,13 @@ function SectionEditor({ section, categories, onChange }: {
           {source.kind === "products" ? (
             <ProductPicker ids={source.productIds} onChange={(productIds) => setSource({ productIds })} />
           ) : (
-            <label className="admin-field">
-              Order
-              <select value={source.sort} onChange={(event) => setSource({ sort: event.currentTarget.value as CollectionSource["sort"] })}>
-                <option value="popular">Most popular</option>
-                <option value="newest">Newest</option>
-                <option value="price-asc">Lowest price</option>
-              </select>
-            </label>
+            <Select
+              className="admin-field"
+              label="Order"
+              options={SORT_OPTIONS}
+              value={source.sort}
+              onChange={(sort) => setSource({ sort: sort as CollectionSource["sort"] })}
+            />
           )}
         </>
       ) : null}
@@ -239,11 +245,7 @@ function SectionEditor({ section, categories, onChange }: {
           <span>Points {items.length ? "" : "(using the defaults for your sales mode)"}</span>
           {items.map((item, index) => (
             <div key={index} className="admin-home-trust-row">
-              <select aria-label="Icon" value={item.icon} onChange={(event) => setItem(index, { icon: event.currentTarget.value })}>
-                {TRUST_ICONS.map((icon) => (
-                  <option key={icon} value={icon}>{icon}</option>
-                ))}
-              </select>
+              <Select label="Icon" hideLabel options={TRUST_ICON_OPTIONS} value={item.icon} onChange={(icon) => setItem(index, { icon })} />
               <input aria-label="Title" value={item.title} maxLength={60} placeholder="Title" onChange={(event) => setItem(index, { title: event.currentTarget.value })} />
               <input aria-label="Text" value={item.text} maxLength={140} placeholder="One short line" onChange={(event) => setItem(index, { text: event.currentTarget.value })} />
               <button type="button" className="icon-button" aria-label={`Remove ${item.title || "point"}`} onClick={() => onChange({ items: items.filter((_, position) => position !== index) })}>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import EmptyState from "@/components/ui/empty-state";
 import ErrorCard from "@/components/ui/feedback/error-card";
 import LoadingButton from "@/components/ui/buttons/loading-button";
+import Select, { type SelectOption } from "@/components/ui/form/select";
 import ProductRatingSummary from "@/components/reviews/product-rating-summary";
 import RatingDistribution from "@/components/reviews/rating-distribution";
 import ReviewCard from "@/components/reviews/review-card";
@@ -11,11 +12,15 @@ import { ReviewListSkeleton } from "@/components/reviews/review-skeleton";
 import { fetchProductReviews } from "@/features/reviews/review-api";
 import type { ProductRatingSummary as Summary, PublicReview } from "@/features/reviews/types";
 
-const SORT_OPTIONS = [
+const SORT_OPTIONS: SelectOption[] = [
   { id: "recent", label: "Most recent" },
   { id: "highest", label: "Highest rated" },
   { id: "lowest", label: "Lowest rated" },
   { id: "photos", label: "Photo reviews" },
+];
+const RATING_OPTIONS: SelectOption[] = [
+  { id: "", label: "All ratings" },
+  ...[5, 4, 3, 2, 1].map((star) => ({ id: String(star), label: `${star} stars` })),
 ];
 
 type ProductReviewsSectionProps = {
@@ -84,39 +89,26 @@ export default function ProductReviewsSection({ productId }: ProductReviewsSecti
             <RatingDistribution summary={summary} />
           </div>
           <div className="product-reviews-filters">
-            <label className="account-field">
-              Sort
-              <select
-                value={sort}
-                onChange={(event) => {
-                  setSort(event.currentTarget.value);
-                  setPage(1);
-                }}
-              >
-                {SORT_OPTIONS.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="account-field">
-              Rating
-              <select
-                value={ratingFilter}
-                onChange={(event) => {
-                  setRatingFilter(event.currentTarget.value);
-                  setPage(1);
-                }}
-              >
-                <option value="">All ratings</option>
-                {[5, 4, 3, 2, 1].map((star) => (
-                  <option key={star} value={String(star)}>
-                    {star} stars
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Select
+              className="account-field"
+              label="Sort"
+              options={SORT_OPTIONS}
+              value={sort}
+              onChange={(next) => {
+                setSort(next);
+                setPage(1);
+              }}
+            />
+            <Select
+              className="account-field"
+              label="Rating"
+              options={RATING_OPTIONS}
+              value={ratingFilter}
+              onChange={(next) => {
+                setRatingFilter(next);
+                setPage(1);
+              }}
+            />
           </div>
         </div>
       ) : null}

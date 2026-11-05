@@ -1,17 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { useFeedback } from "@/components/feedback/feedback-provider";
 import { accountApi } from "@/features/account/account-api";
+import { completeSignOut } from "@/features/account/session-transitions";
 
 /**
  * Sign out at the end of the account overview. Phones only (see app/mobile.css):
  * there the header account menu, which has its own sign out, gives way to the tab bar.
  */
 export default function AccountSignOut() {
-  const router = useRouter();
   const feedback = useFeedback();
   const [pending, setPending] = useState(false);
 
@@ -19,8 +18,7 @@ export default function AccountSignOut() {
     setPending(true);
     try {
       await accountApi.logout();
-      router.push("/");
-      router.refresh();
+      completeSignOut("/");
     } catch (error) {
       feedback.error("Sign out failed", error instanceof Error ? error.message : undefined);
       setPending(false);

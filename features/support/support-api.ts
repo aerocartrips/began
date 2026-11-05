@@ -1,5 +1,4 @@
 import { apiRequest } from "@/lib/api/api-client";
-import { isClientApiError } from "@/lib/api/api-error";
 import type {
   AdminConversationDetail,
   CustomerConversation,
@@ -10,30 +9,6 @@ import type {
 
 const CUSTOMER_BASE = "/api/v1/support/conversations";
 const ADMIN_BASE = "/api/v1/admin/support/conversations";
-
-let refreshInFlight: Promise<boolean> | null = null;
-
-/** Access tokens are short-lived; refresh once (shared across concurrent calls) before giving up. */
-function refreshSession() {
-  refreshInFlight ??= apiRequest("/api/v1/auth/refresh", { method: "POST" })
-    .then(() => true)
-    .catch(() => false)
-    .finally(() => {
-      refreshInFlight = null;
-    });
-  return refreshInFlight;
-}
-
-async function withSessionRefresh<T>(request: () => Promise<T>): Promise<T> {
-  try {
-    return await request();
-  } catch (error) {
-    if (isClientApiError(error) && error.status === 401 && (await refreshSession())) {
-      return request();
-    }
-    throw error;
-  }
-}
 
 function jsonBody(payload: unknown) {
   return { headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) };
@@ -63,9 +38,7 @@ export function createRequestKey() {
 /* Customer */
 
 export async function fetchCustomerConversations(page: number, signal?: AbortSignal) {
-  const result = await withSessionRefresh(() =>
-    apiRequest<CustomerConversation[]>(`${CUSTOMER_BASE}?page=${page}&limit=20`, { signal }),
-  );
+  const result = await apiRequest<CustomerConversation[]>(`${CUSTOMER_BASE}?page=${page}&limit=20`, { signal });
   const meta = (result.meta ?? {}) as { page?: number; totalPages?: number; unreadConversations?: number };
   return {
     items: result.data ?? [],
@@ -75,26 +48,20 @@ export async function fetchCustomerConversations(page: number, signal?: AbortSig
 }
 
 export async function fetchCustomerConversation(conversationId: string, signal?: AbortSignal) {
-  const result = await withSessionRefresh(() =>
-    apiRequest<CustomerConversation>(`${CUSTOMER_BASE}/${encodeURIComponent(conversationId)}`, { signal }),
-  );
+  const result = await apiRequest<CustomerConversation>(`${CUSTOMER_BASE}/${encodeURIComponent(conversationId)}`, { signal });
   return result.data as CustomerConversation;
 }
 
 export async function createCustomerConversation(input: NewConversationInput) {
-  const result = await withSessionRefresh(() =>
-    apiRequest<CustomerConversation>(CUSTOMER_BASE, { method: "POST", ...jsonBody(input) }),
-  );
+  const result = await apiRequest<CustomerConversation>(CUSTOMER_BASE, { method: "POST", ...jsonBody(input) });
   return result.data as CustomerConversation;
 }
 
 export async function closeCustomerConversation(conversationId: string) {
-  const result = await withSessionRefresh(() =>
-    apiRequest<CustomerConversation>(`${CUSTOMER_BASE}/${encodeURIComponent(conversationId)}`, {
-      method: "PATCH",
-      ...jsonBody({ status: "closed" }),
-    }),
-  );
+  const result = await apiRequest<CustomerConversation>(`${CUSTOMER_BASE}/${encodeURIComponent(conversationId)}`, {
+    method: "PATCH",
+    ...jsonBody({ status: "closed" }),
+  });
   return result.data as CustomerConversation;
 }
 
@@ -102,20 +69,16 @@ export function customerThreadApi(conversationId: string) {
   const base = `${CUSTOMER_BASE}/${encodeURIComponent(conversationId)}`;
   return {
     async fetchMessages(params: PageParams, signal?: AbortSignal) {
-      const result = await withSessionRefresh(() =>
-        apiRequest<ThreadMessage[]>(`${base}/messages${pageQuery(params)}`, { signal }),
-      );
+      const result = await apiRequest<ThreadMessage[]>(`${base}/messages${pageQuery(params)}`, { signal });
       return toPage<CustomerConversation>(result);
     },
     async sendMessage(body: string, clientMessageId: string) {
-      const result = await withSessionRefresh(() =>
-        apiRequest<ThreadMessage>(`${base}/messages`, { method: "POST", ...jsonBody({ body, clientMessageId }) }),
-      );
+      const result = await apiRequest<ThreadMessage>(`${base}/messages`, { method: "POST", ...jsonBody({ body, clientMessageId }) });
       const meta = (result.meta ?? {}) as { conversation?: CustomerConversation };
       return { message: result.data as ThreadMessage, conversation: meta.conversation ?? null };
     },
     async markRead() {
-      await withSessionRefresh(() => apiRequest(`${base}/read`, { method: "POST" }));
+      await apiRequest(`${base}/read`, { method: "POST" });
     },
   };
 }

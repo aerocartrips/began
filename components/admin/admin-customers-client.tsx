@@ -8,9 +8,16 @@ import AdminStatusChip from "@/components/admin/admin-status-chip";
 import AdminSummaryGrid from "@/components/admin/admin-summary-grid";
 import ErrorCard from "@/components/ui/feedback/error-card";
 import LoadingButton from "@/components/ui/buttons/loading-button";
+import Select, { type SelectOption } from "@/components/ui/form/select";
 import TableSkeleton from "@/components/ui/loaders/table-skeleton";
 import { useApiRequest } from "@/hooks/use-api-request";
 import { formatDate, formatNumber, formatRupees } from "@/lib/format";
+
+const ORDER_HISTORY_OPTIONS: SelectOption[] = [
+  { id: "", label: "All customers" },
+  { id: "true", label: "With orders" },
+  { id: "false", label: "Without orders" },
+];
 
 type CustomerRow = {
   _id: string;
@@ -86,14 +93,7 @@ export default function AdminCustomersClient() {
             placeholder="Search name, email, phone, company…"
           />
         </label>
-        <label>
-          <span className="sr-only">Order history</span>
-          <select value={hasOrders} onChange={(event) => setHasOrders(event.currentTarget.value)}>
-            <option value="">All customers</option>
-            <option value="true">With orders</option>
-            <option value="false">Without orders</option>
-          </select>
-        </label>
+        <Select label="Order history" hideLabel options={ORDER_HISTORY_OPTIONS} value={hasOrders} onChange={setHasOrders} />
         <LoadingButton type="submit" variant="secondary" loading={listRequest.loading}>
           Apply
         </LoadingButton>

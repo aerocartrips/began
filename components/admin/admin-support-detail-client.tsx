@@ -7,6 +7,7 @@ import AdminCard from "@/components/admin/admin-card";
 import AdminPageHeading from "@/components/admin/admin-page-heading";
 import AdminStatusChip from "@/components/admin/admin-status-chip";
 import LoadingButton from "@/components/ui/buttons/loading-button";
+import Select from "@/components/ui/form/select";
 import MessageComposer from "@/components/support/chat/message-composer";
 import MessageThread from "@/components/support/chat/message-thread";
 import { useFeedback } from "@/components/feedback/feedback-provider";
@@ -25,6 +26,8 @@ type SupportDetailProps = {
 
 const STATUS_OPTIONS = ["open", "in_progress", "waiting_customer", "resolved", "closed"] as const;
 const PRIORITY_OPTIONS = ["low", "normal", "high", "urgent"] as const;
+const STATUS_SELECT_OPTIONS = STATUS_OPTIONS.map((value) => ({ id: value, label: humanizeStatus(value) }));
+const PRIORITY_SELECT_OPTIONS = PRIORITY_OPTIONS.map((value) => ({ id: value, label: `${humanizeStatus(value)} priority` }));
 const CLOSED_STATUSES = new Set(["resolved", "closed"]);
 
 
@@ -159,26 +162,22 @@ export default function AdminSupportDetailClient({
         </dl>
 
         <div className="admin-toolbar">
-          <label>
-            <span className="sr-only">Status</span>
-            <select
-              value={conversation.status}
-              disabled={savingField !== null}
-              onChange={(event) => void update("status", { status: event.currentTarget.value })}
-            >
-              {STATUS_OPTIONS.map((value) => <option key={value} value={value}>{humanizeStatus(value)}</option>)}
-            </select>
-          </label>
-          <label>
-            <span className="sr-only">Priority</span>
-            <select
-              value={conversation.priority}
-              disabled={savingField !== null}
-              onChange={(event) => void update("priority", { priority: event.currentTarget.value })}
-            >
-              {PRIORITY_OPTIONS.map((value) => <option key={value} value={value}>{`${humanizeStatus(value)} priority`}</option>)}
-            </select>
-          </label>
+          <Select
+            label="Status"
+            hideLabel
+            options={STATUS_SELECT_OPTIONS}
+            value={conversation.status}
+            disabled={savingField !== null}
+            onChange={(status) => void update("status", { status })}
+          />
+          <Select
+            label="Priority"
+            hideLabel
+            options={PRIORITY_SELECT_OPTIONS}
+            value={conversation.priority}
+            disabled={savingField !== null}
+            onChange={(priority) => void update("priority", { priority })}
+          />
         </div>
 
         <div className="admin-support-thread">

@@ -230,7 +230,8 @@ html:has(dialog[open]) { overflow: hidden; }
   .button.button-sm { min-height: 44px; padding: 0 16px; font-size: 11px; }
   .icon-button { width: 44px; height: 44px; }
 
-  .admin-field, .contact-field, .account-field { --field-height: 48px; --field-font: 16px; --field-pad: 14px; }
+  .admin-field, .contact-field, .account-field, .catalog-sort { --field-height: 48px; --field-font: 16px; --field-pad: 14px; }
+  .admin-toolbar, .admin-product-filters, .admin-heading-actions, .admin-home-trust-row, .admin-table { --field-height: 44px; --field-font: 14px; --field-pad: 12px; }
   .checkout-field, .product-option, .account-field, .contact-field { gap: 8px; font-size: 13px; }
   .checkout-field input:not([type="checkbox"]):not([type="radio"]),
   .product-option select,
@@ -555,12 +556,6 @@ html:has(dialog[open]) { overflow: hidden; }
   .account-address strong { font-size: 15px; }
   .account-help { font-size: 13px; line-height: 1.6; }
   .account-link-button { min-height: 44px; font-size: 13px; }
-  /* Attention cards: icon beside the text, the action link underneath. */
-  .account-action { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 4px 12px; padding: 14px; }
-  .account-action > svg { margin-top: 2px; }
-  .account-action .account-link-button { grid-column: 2; justify-self: start; min-height: 40px; }
-  .account-action strong { font-size: 14px; }
-  .account-action span { font-size: 13px; }
   .account-checklist li { min-height: 32px; font-size: 14px; }
   .account-order-list a { gap: 6px 12px; padding: 14px 2px; }
   .account-order-main strong,
@@ -853,7 +848,10 @@ html:has(dialog[open]) { overflow: hidden; }
   .guide-article__body p { font-size: 16px; line-height: 1.75; }
   .guide-article__more { font-size: 15px; line-height: 1.8; }
 
-  .customer-auth-form { width: 100%; padding: 20px 16px; }
+  .auth-page { gap: 10px; min-height: 0; padding: 24px 0 40px; }
+  .auth-card { gap: 20px; padding: 24px 18px; box-shadow: none; }
+  .auth-card__head h1 { font-size: 28px; }
+  .auth-card__lead { font-size: 14px; }
   .newsletter-action .button { width: 100%; }
 
   .empty-state { justify-items: center; padding: 40px 4px; text-align: center; }
@@ -870,14 +868,15 @@ html:has(dialog[open]) { overflow: hidden; }
   .ui-toast p { font-size: 14px; }
   .ui-toast__close { width: 40px; height: 40px; }
   .ui-toast__action { min-height: 36px; font-size: 12px; }
-  .feedback-card { gap: 12px; padding: 16px; }
-  .feedback-card__body h2 { font-size: 19px; }
-  .feedback-card__body p,
-  .feedback-card__detail { font-size: 14px; }
-  .feedback-card__meta { font-size: 12px; }
-  .feedback-card__actions > * { flex: 1 1 auto; }
-  .feedback-card--compact .feedback-card__body h2 { font-size: 14px; }
-  .feedback-card--compact .feedback-card__body p { font-size: 13px; }
+  /* Notices: icon beside the text, the action underneath. */
+  .notice-card { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 4px 12px; padding: 14px; }
+  .notice-card__icon { margin-top: 2px; }
+  .notice-card__action { grid-column: 2; justify-content: flex-start; margin-top: 6px; }
+  .notice-card__title { font-size: 14px; }
+  .notice-card__text,
+  .notice-card__detail { font-size: 13px; }
+  .notice-card__meta { font-size: 12px; }
+  .notice-link { min-height: 40px; font-size: 13px; }
   .ui-page-loader { font-size: 14px; }
 }
 
@@ -943,8 +942,8 @@ html:has(dialog[open]) { overflow: hidden; }
   .admin-integration-state small { font-size: 12px; }
   .admin-content .button,
   .admin-content .ui-loading-button { min-height: 44px; padding: 0 16px; font-size: 11px; }
-  .admin-content .feedback-card__body h2 { font-size: 14px; }
-  .admin-content .feedback-card__body p,
+  .admin-content .notice-card__title { font-size: 14px; }
+  .admin-content .notice-card__text,
   .admin-content .empty-state p { font-size: 13px; }
   .admin-content .empty-state { padding: 28px 16px; }
   .admin-content .empty-state h1 { font-size: 15px; }
@@ -964,7 +963,8 @@ html:has(dialog[open]) { overflow: hidden; }
   /* Toolbars and filters */
   .admin-toolbar { gap: 8px; }
   .admin-toolbar__search { flex-basis: 100%; }
-  .admin-toolbar > label { min-width: 0; flex: 1 1 calc(50% - 4px); }
+  .admin-toolbar > label,
+  .admin-toolbar > .ui-select { min-width: 0; flex: 1 1 calc(50% - 4px); }
   .admin-toolbar input,
   .admin-toolbar select,
   .admin-product-filters input,

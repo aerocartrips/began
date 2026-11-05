@@ -11,6 +11,7 @@ import AdminCard from "@/components/admin/admin-card";
 import Button from "@/components/ui/button";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import { DatePicker } from "@/components/ui/form/date-picker";
+import Select, { type SelectOption } from "@/components/ui/form/select";
 import ErrorCard from "@/components/ui/feedback/error-card";
 import TableSkeleton from "@/components/ui/loaders/table-skeleton";
 import { useFeedback } from "@/components/feedback/feedback-provider";
@@ -22,6 +23,15 @@ import type { AdminBanner, BannerImage } from "@/features/banners/types";
 
 const STATUS_TONE = { live: "active", scheduled: "pending", ended: "inactive", hidden: "draft" } as const;
 const STATUS_LABEL = { live: "Live", scheduled: "Scheduled", ended: "Ended", hidden: "Hidden" } as const;
+const TEXT_POSITION_OPTIONS: SelectOption[] = [
+  { id: "left", label: "Left" },
+  { id: "center", label: "Centre" },
+  { id: "right", label: "Right" },
+];
+const TEXT_TONE_OPTIONS: SelectOption[] = [
+  { id: "light", label: "Light text (dark images)" },
+  { id: "dark", label: "Dark text (light images)" },
+];
 
 /* ------------------------------------------------------------------ list */
 
@@ -335,21 +345,20 @@ export function AdminBannerForm({ initial }: { initial?: AdminBanner }) {
             {error("image")}
             <ImageField label="Mobile image" hint="Optional crop for phones, about 1200 × 750 px. Uses the desktop image when empty." value={draft.mobileImage} onChange={(image) => set("mobileImage", image)} />
             <label className="admin-field admin-field-wide">Image description (for screen readers)<input value={draft.imageAlt} maxLength={160} placeholder="Model in a red Banarasi silk saree" onChange={(event) => set("imageAlt", event.currentTarget.value)} /></label>
-            <label className="admin-field">
-              Text position
-              <select value={draft.textPosition} onChange={(event) => set("textPosition", event.currentTarget.value as Draft["textPosition"])}>
-                <option value="left">Left</option>
-                <option value="center">Centre</option>
-                <option value="right">Right</option>
-              </select>
-            </label>
-            <label className="admin-field">
-              Text colour
-              <select value={draft.textTone} onChange={(event) => set("textTone", event.currentTarget.value as Draft["textTone"])}>
-                <option value="light">Light text (dark images)</option>
-                <option value="dark">Dark text (light images)</option>
-              </select>
-            </label>
+            <Select
+              className="admin-field"
+              label="Text position"
+              options={TEXT_POSITION_OPTIONS}
+              value={draft.textPosition}
+              onChange={(id) => set("textPosition", id as Draft["textPosition"])}
+            />
+            <Select
+              className="admin-field"
+              label="Text colour"
+              options={TEXT_TONE_OPTIONS}
+              value={draft.textTone}
+              onChange={(id) => set("textTone", id as Draft["textTone"])}
+            />
             <label className="admin-field admin-field-wide">
               Image shading: {draft.overlayOpacity}%
               <input type="range" min={0} max={80} step={5} value={draft.overlayOpacity} onChange={(event) => set("overlayOpacity", Number(event.currentTarget.value))} />

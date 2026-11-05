@@ -7,6 +7,7 @@ import AdminPageHeading from "@/components/admin/admin-page-heading";
 import AdminStatusChip from "@/components/admin/admin-status-chip";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import ErrorCard from "@/components/ui/feedback/error-card";
+import Select from "@/components/ui/form/select";
 import TableSkeleton from "@/components/ui/loaders/table-skeleton";
 import { useApiRequest } from "@/hooks/use-api-request";
 import { useFeedback } from "@/components/feedback/feedback-provider";
@@ -246,15 +247,25 @@ export default function AdminSettingsClient() {
                 const raw = merged[tab][field.name] ?? field.fallback ?? "";
                 const onChange = (value: string) =>
                   patchField(tab, field.name, field.type === "number" ? Number(value) : field.transform ? field.transform(value) : value);
+                const fieldClass = `admin-field${field.wide ? " admin-field-wide" : ""}`;
+                if (field.type === "select") {
+                  return (
+                    <Select
+                      key={field.name}
+                      className={fieldClass}
+                      label={field.label}
+                      options={(field.options ?? []).map((option) => ({ id: option.value, label: option.label }))}
+                      value={String(raw)}
+                      onChange={onChange}
+                      hint={field.hint}
+                    />
+                  );
+                }
                 return (
-                  <label key={field.name} className={`admin-field${field.wide ? " admin-field-wide" : ""}`}>
+                  <label key={field.name} className={fieldClass}>
                     {field.label}
                     {field.type === "textarea" ? (
                       <textarea value={String(raw)} rows={3} onChange={(event) => onChange(event.currentTarget.value)} />
-                    ) : field.type === "select" ? (
-                      <select value={String(raw)} onChange={(event) => onChange(event.currentTarget.value)}>
-                        {field.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                      </select>
                     ) : (
                       <input
                         type={field.type ?? "text"}

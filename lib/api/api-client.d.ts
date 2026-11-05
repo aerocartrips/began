@@ -13,4 +13,10 @@ declare module "@/lib/api/api-client" {
     input: string,
     options?: Record<string, unknown>,
   ): Promise<ApiResult<T>>;
+
+  /** `fetch` that refreshes an expired customer session once and repeats the request. */
+  export function fetchWithSession(input: string, init?: RequestInit): Promise<Response>;
+
+  /** Renews the customer session from its refresh cookie (shared across concurrent callers). */
+  export function refreshSession(): Promise<boolean>;
 }

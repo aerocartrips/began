@@ -1,3 +1,4 @@
+import { fetchWithSession } from "@/lib/api/api-client";
 import type { CartItem } from "@/features/cart/types";
 import type { RazorpaySuccessResponse } from "@/features/checkout/razorpay-checkout";
 
@@ -50,21 +51,9 @@ function buildOrderPayload(items: CartItem[], shipping: AddressSelection, billin
   };
 }
 
-export async function fetchCurrentCustomer() {
-  const response = await fetch("/api/v1/auth/me", {
-    method: "GET",
-    credentials: "include",
-    cache: "no-store",
-  });
-  if (!response.ok) return null;
-  const payload = (await response.json()) as ApiEnvelope<{ email: string; name: string; phone?: string }>;
-  return payload.success ? payload.data : null;
-}
-
 export async function createPaymentOrder(items: CartItem[], shipping: AddressSelection, billing: AddressSelection | null) {
-  const response = await fetch("/api/v1/payments/create-order", {
+  const response = await fetchWithSession("/api/v1/payments/create-order", {
     method: "POST",
-    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(buildOrderPayload(items, shipping, billing)),
   });
@@ -73,9 +62,9 @@ export async function createPaymentOrder(items: CartItem[], shipping: AddressSel
 }
 
 export async function verifyPayment(response: RazorpaySuccessResponse) {
-  const result = await fetch("/api/v1/payments/verify", {
+  // The shopper may spend longer than an access token lives inside Razorpay; this survives it.
+  const result = await fetchWithSession("/api/v1/payments/verify", {
     method: "POST",
-    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       razorpay_order_id: response.razorpay_order_id,

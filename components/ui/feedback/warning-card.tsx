@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { AlertTriangle } from "lucide-react";
+import NoticeCard from "@/components/ui/feedback/notice-card";
 
 type WarningCardProps = {
   title: string;
@@ -10,19 +10,6 @@ type WarningCardProps = {
 
 export default function WarningCard({ title, description, action, className }: WarningCardProps) {
   return (
-    <section
-      className={["feedback-card feedback-card--warning", className].filter(Boolean).join(" ")}
-      role="status"
-      aria-live="polite"
-    >
-      <span className="feedback-card__icon" aria-hidden="true">
-        <AlertTriangle size={28} />
-      </span>
-      <div className="feedback-card__body">
-        <h2>{title}</h2>
-        <p>{description}</p>
-        {action ? <div className="feedback-card__actions">{action}</div> : null}
-      </div>
-    </section>
+    <NoticeCard tone="warning" live="status" titleAs="h2" title={title} description={description} action={action} className={className} />
   );
 }

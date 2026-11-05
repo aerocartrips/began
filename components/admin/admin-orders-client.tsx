@@ -8,12 +8,13 @@ import AdminStatusChip from "@/components/admin/admin-status-chip";
 import AdminSummaryGrid from "@/components/admin/admin-summary-grid";
 import ErrorCard from "@/components/ui/feedback/error-card";
 import LoadingButton from "@/components/ui/buttons/loading-button";
+import Select, { toSelectOptions } from "@/components/ui/form/select";
 import TableSkeleton from "@/components/ui/loaders/table-skeleton";
 import { useApiRequest } from "@/hooks/use-api-request";
 import { formatDateTime, formatNumber, formatRupees } from "@/lib/format";
 import type { OrderListItem, OrderSummaryStats } from "@/features/orders/types";
 
-const STATUS_OPTIONS = [
+const STATUS_OPTIONS = toSelectOptions([
   ["all", "All statuses"],
   ["pending_payment", "Pending payment"],
   ["confirmed", "Confirmed"],
@@ -22,15 +23,15 @@ const STATUS_OPTIONS = [
   ["shipped", "Shipped"],
   ["delivered", "Delivered"],
   ["cancelled", "Cancelled"],
-] as const;
+]);
 
-const PAYMENT_OPTIONS = [
+const PAYMENT_OPTIONS = toSelectOptions([
   ["", "All payments"],
   ["pending", "Pending"],
   ["paid", "Paid"],
   ["failed", "Failed"],
   ["refunded", "Refunded"],
-] as const;
+]);
 
 export default function AdminOrdersClient() {
   const [search, setSearch] = useState("");
@@ -104,18 +105,8 @@ export default function AdminOrdersClient() {
             placeholder="Search order number or product…"
           />
         </label>
-        <label>
-          <span className="sr-only">Order status</span>
-          <select value={bucket} onChange={(event) => setBucket(event.currentTarget.value)}>
-            {STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-        </label>
-        <label>
-          <span className="sr-only">Payment status</span>
-          <select value={paymentStatus} onChange={(event) => setPaymentStatus(event.currentTarget.value)}>
-            {PAYMENT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-        </label>
+        <Select label="Order status" hideLabel options={STATUS_OPTIONS} value={bucket} onChange={setBucket} />
+        <Select label="Payment status" hideLabel options={PAYMENT_OPTIONS} value={paymentStatus} onChange={setPaymentStatus} />
         <LoadingButton type="submit" variant="secondary" loading={listRequest.loading}>
           Apply
         </LoadingButton>

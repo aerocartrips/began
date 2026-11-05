@@ -7,6 +7,7 @@ import AdminCard from "@/components/admin/admin-card";
 import AdminStatusChip from "@/components/admin/admin-status-chip";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import ErrorCard from "@/components/ui/feedback/error-card";
+import Select, { type SelectOption } from "@/components/ui/form/select";
 import TableSkeleton from "@/components/ui/loaders/table-skeleton";
 import { useApiRequest } from "@/hooks/use-api-request";
 import { formatDateTime, formatNumber } from "@/lib/format";
@@ -23,6 +24,10 @@ type Subscriber = {
 
 const STATUS_TONE = { subscribed: "active", pending: "pending", unsubscribed: "inactive" } as const;
 const STATUS_LABEL = { subscribed: "Subscribed", pending: "Awaiting confirmation", unsubscribed: "Unsubscribed" } as const;
+const STATUS_OPTIONS: SelectOption[] = [
+  { id: "", label: "All" },
+  ...Object.entries(STATUS_LABEL).map(([id, label]) => ({ id, label })),
+];
 const PAGE_SIZE = 25;
 
 export default function AdminNewsletterClient() {
@@ -59,12 +64,16 @@ export default function AdminNewsletterClient() {
         action={
           <div className="admin-heading-actions">
             <input type="search" aria-label="Search by email" placeholder="Search by email" value={query} onChange={(event) => { setQuery(event.currentTarget.value); setPage(1); }} />
-            <select aria-label="Filter by status" value={status} onChange={(event) => { setStatus(event.currentTarget.value); setPage(1); }}>
-              <option value="">All</option>
-              <option value="subscribed">Subscribed</option>
-              <option value="pending">Awaiting confirmation</option>
-              <option value="unsubscribed">Unsubscribed</option>
-            </select>
+            <Select
+              label="Filter by status"
+              hideLabel
+              options={STATUS_OPTIONS}
+              value={status}
+              onChange={(next) => {
+                setStatus(next);
+                setPage(1);
+              }}
+            />
           </div>
         }
       >

@@ -8,6 +8,7 @@ import AdminStatusChip from "@/components/admin/admin-status-chip";
 import AdminCard from "@/components/admin/admin-card";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import ErrorCard from "@/components/ui/feedback/error-card";
+import Select, { type SelectOption } from "@/components/ui/form/select";
 import TableSkeleton from "@/components/ui/loaders/table-skeleton";
 import { useFeedback } from "@/components/feedback/feedback-provider";
 import { useApiRequest } from "@/hooks/use-api-request";
@@ -22,6 +23,11 @@ const ROLE_HELP: Record<string, string> = {
   manager: "Catalogue, orders, customers, payments and refunds",
   staff: "Orders, quotes, support, reviews and returns",
 };
+const ROLE_OPTIONS: SelectOption[] = [
+  { id: "staff", label: "Staff", description: ROLE_HELP.staff },
+  { id: "manager", label: "Manager", description: ROLE_HELP.manager },
+  { id: "owner", label: "Owner", description: ROLE_HELP.owner },
+];
 
 export function AdminStaff() {
   const feedback = useFeedback();
@@ -75,16 +81,14 @@ export function AdminStaff() {
                     <tr key={member.id}>
                       <td><strong>{member.name}</strong><small className="admin-cell-sub">{member.email}</small></td>
                       <td>
-                        <select
-                          aria-label={`Role for ${member.name}`}
+                        <Select
+                          label={`Role for ${member.name}`}
+                          hideLabel
+                          options={ROLE_OPTIONS}
                           value={member.adminRole}
                           disabled={busy === member.id}
-                          onChange={(event) => void act(member.id, () => sendJson(`/api/v1/admin/staff/${member.id}`, "PATCH", { adminRole: event.currentTarget.value }), "Role updated")}
-                        >
-                          <option value="owner">Owner</option>
-                          <option value="manager">Manager</option>
-                          <option value="staff">Staff</option>
-                        </select>
+                          onChange={(adminRole) => void act(member.id, () => sendJson(`/api/v1/admin/staff/${member.id}`, "PATCH", { adminRole }), "Role updated")}
+                        />
                       </td>
                       <td>{member.lastLoginAt ? formatDateTime(member.lastLoginAt) : "Never"}</td>
                       <td><AdminStatusChip status={member.isActive ? "active" : "inactive"} /></td>
@@ -112,14 +116,7 @@ export function AdminStaff() {
           <form className="admin-form-grid" onSubmit={create}>
             <label className="admin-field admin-field-wide">Name<input name="name" required minLength={2} maxLength={120} /></label>
             <label className="admin-field admin-field-wide">Email<input name="email" type="email" required maxLength={254} /></label>
-            <label className="admin-field">
-              Role
-              <select name="adminRole" defaultValue="staff">
-                <option value="staff">Staff</option>
-                <option value="manager">Manager</option>
-                <option value="owner">Owner</option>
-              </select>
-            </label>
+            <Select className="admin-field" label="Role" name="adminRole" options={ROLE_OPTIONS} defaultValue="staff" required />
             <label className="admin-field">Initial password<input name="password" type="password" required minLength={12} maxLength={128} autoComplete="new-password" /></label>
             <div className="admin-form-actions">
               <LoadingButton type="submit" size="sm" loading={busy === "create"}>Create account</LoadingButton>

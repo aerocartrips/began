@@ -4,6 +4,7 @@ import { useState } from "react";
 import { FileDown } from "lucide-react";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import { useFeedback } from "@/components/feedback/feedback-provider";
+import { fetchWithSession } from "@/lib/api/api-client";
 
 type DownloadInvoiceButtonProps = {
   orderId: string;
@@ -18,9 +19,7 @@ export default function DownloadInvoiceButton({ orderId, disabled, size = "sm" }
   async function download() {
     setLoading(true);
     try {
-      const response = await fetch(`/api/v1/orders/${encodeURIComponent(orderId)}/invoice`, {
-        credentials: "include",
-      });
+      const response = await fetchWithSession(`/api/v1/orders/${encodeURIComponent(orderId)}/invoice`);
       if (!response.ok) {
         const body = await response.json().catch(() => null);
         throw new Error(body?.message || "Could not download invoice.");
@@ -34,7 +33,8 @@ export default function DownloadInvoiceButton({ orderId, disabled, size = "sm" }
       anchor.href = url;
       anchor.download = filename;
       anchor.click();
-      URL.revokeObjectURL(url);
+      // Revoking synchronously can cancel the download (Firefox); let it start first.
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
       feedback.success("Invoice ready", "Your invoice download has started.");
     } catch (error) {
       feedback.error("Invoice unavailable", error instanceof Error ? error.message : "Try again later.");

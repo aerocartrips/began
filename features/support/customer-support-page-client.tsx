@@ -13,6 +13,7 @@ import NewConversationForm from "@/features/support/components/new-conversation-
 import { fetchCustomerConversation } from "@/features/support/support-api";
 import type { CustomerConversation } from "@/features/support/types";
 import { useCustomerConversations } from "@/features/support/use-customer-conversations";
+import { authHref } from "@/lib/auth/redirect";
 
 export default function CustomerSupportPageClient() {
   const router = useRouter();
@@ -23,7 +24,7 @@ export default function CustomerSupportPageClient() {
   const composing = searchParams.get("new") === "1";
 
   const redirectToLogin = useCallback(() => {
-    router.replace(`/account/login?next=${encodeURIComponent("/account/support")}`);
+    router.replace(authHref("/account/support"));
   }, [router]);
 
   const conversations = useCustomerConversations({ onAuthError: redirectToLogin });

@@ -9,6 +9,8 @@ import LoadingButton from "@/components/ui/buttons/loading-button";
 import AccountDialog from "@/features/account/components/account-dialog";
 import { PasswordField } from "@/features/account/components/form-field";
 import { accountApi, toFieldErrors } from "@/features/account/account-api";
+import { completeSignOut } from "@/features/account/session-transitions";
+import { authHref } from "@/lib/auth/redirect";
 import { SECURITY_EVENT_LABELS } from "@/lib/constants/account";
 import { formatDate, formatDateTime } from "@/lib/format";
 import type { FieldErrors, SecurityOverview } from "@/features/account/types";
@@ -74,9 +76,7 @@ export default function SecurityPanel({ overview }: { overview: SecurityOverview
     setSigningOut(scope);
     try {
       await (scope === "all" ? accountApi.logoutAll() : accountApi.logout());
-      feedback.success(scope === "all" ? "Signed out of all devices" : "Signed out");
-      router.push("/account/login?next=/account");
-      router.refresh();
+      completeSignOut(authHref("/account"));
     } catch (error) {
       feedback.error("Sign out failed", error instanceof Error ? error.message : undefined);
       setSigningOut(null);

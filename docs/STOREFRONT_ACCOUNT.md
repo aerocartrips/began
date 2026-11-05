@@ -2,8 +2,15 @@
 
 ## Account navigation
 
-- Header account menu (`CustomerAccountMenu`) — sign in / register or dropdown with My Orders, My Reviews, Support, logout.
+- Header account menu (`HeaderAccount` → `CustomerAccountMenu`): rendered on the server from the session cookie, behind its own `<Suspense>`, so it is right on first paint and the browser makes no session request. Signed in: notification bell and a dropdown with My Orders, My Reviews, Support and sign out. Signed out: the bell and **Sign in** both lead to sign-in, which returns to the current page (or to the notifications).
 - Footer **Account** and **Support** columns link to `/account/orders`, `/account/reviews`, `/shipping`, `/returns`, and `/contact`.
+
+## Sessions and redirects
+
+- `proxy.ts` (cookie-only, no database): account pages without any session cookie go straight to `/account/login?next=<page>`; visitors with a valid access token who open `/account/login` or `/account/register` go to `next` (or the home page).
+- Pages verify the session against the database (`lib/auth/current-customer.ts`). After the 15-minute access token expires, Server Components accept the refresh token too, so a session lasts its full 7 days; the browser renews its tokens on the next API call or through `GET /api/v1/auth/user-check`.
+- `next` is validated by `lib/auth/redirect.ts` (same-site paths only), so it can't be used for open redirects.
+- Sign-in replaces the sign-in page in history and refreshes the server UI; sign-out is a full page load, so nothing from the account stays in memory (router cache, pages kept for Back). Other open tabs follow along through a `BroadcastChannel` message.
 
 ## Pages
 

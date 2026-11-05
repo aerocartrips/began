@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AutoSubmitForm from "@/components/catalog/auto-submit-form";
+import CatalogSortSelect from "@/components/catalog/catalog-sort-select";
 import { CATALOG_SORT_LABELS } from "@/lib/constants/catalog";
 import type {
   CatalogFacet,
@@ -53,16 +54,14 @@ export default function CatalogFilters({ basePath, query, result, categories }: 
       {query.q ? <input type="hidden" name="q" value={query.q} /> : null}
       {query.category && !isCategoryPage ? <input type="hidden" name="category" value={query.category} /> : null}
 
-      <label className="catalog-sort">
-        <span>Sort by</span>
-        <select name="sort" defaultValue={query.sort}>
-          {Object.entries(CATALOG_SORT_LABELS)
-            .filter(([value]) => value !== "relevance" || query.q)
-            .map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-        </select>
-      </label>
+      <CatalogSortSelect
+        // Re-created when the URL's sort changes (back/forward), so it shows the page's sort.
+        key={query.sort}
+        defaultValue={query.sort}
+        options={Object.entries(CATALOG_SORT_LABELS)
+          .filter(([value]) => value !== "relevance" || query.q)
+          .map(([id, label]) => ({ id, label }))}
+      />
 
       {visibleCategories.length > 0 ? (
         <nav className="catalog-facet" aria-label="Categories">

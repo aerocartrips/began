@@ -1,9 +1,8 @@
 import { withDatabase } from "@/lib/api/with-database";
-import { getAuthUser } from "@/lib/auth/session";
+import { authenticationRequired, getAuthUser } from "@/lib/auth/session";
 import { resolveAdminAccess } from "@/lib/auth/admin-access";
 import { ROLES } from "@/lib/constants/roles";
 import { getOrCreateOrderInvoice } from "@/lib/invoices/invoice.service";
-import { ApiError } from "@/lib/utils/api-error";
 
 export const GET = withDatabase(async (_request, context) => {
   const { orderId } = await context.params;
@@ -20,10 +19,10 @@ export const GET = withDatabase(async (_request, context) => {
       isAdmin = true;
       userId = undefined;
     } catch {
-      throw new ApiError(401, "Authentication required.");
+      throw await authenticationRequired();
     }
   } else if (!userId) {
-    throw new ApiError(401, "Authentication required.");
+    throw await authenticationRequired();
   }
 
   const invoice = await getOrCreateOrderInvoice(orderId, { userId, isAdmin });

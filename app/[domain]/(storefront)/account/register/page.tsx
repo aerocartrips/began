@@ -1,26 +1,12 @@
-import CustomerAuthForm from "@/components/auth/customer-auth-form";
-import Link from "next/link";
-import { Suspense } from "react";
-import { ProfileSkeleton } from "@/components/ui/loaders/order-list-skeleton";
+import type { Metadata } from "next";
+import AuthPage, { type AuthSearchParams } from "@/components/auth/auth-page";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Register",
   description: "Create a wholesale buyer account.",
+  robots: { index: false, follow: true },
 };
 
-export default function AccountRegisterPage() {
-  return (
-    <main className="commerce-page content-width">
-      <div className="commerce-heading">
-        <div>
-          <p className="eyebrow">Wholesale account</p>
-          <h1>Create account</h1>
-        </div>
-        <Link className="text-button" href="/products">Back to catalog</Link>
-      </div>
-      <Suspense fallback={<ProfileSkeleton />}>
-        <CustomerAuthForm mode="register" />
-      </Suspense>
-    </main>
-  );
+export default function AccountRegisterPage({ searchParams }: { searchParams: AuthSearchParams }) {
+  return <AuthPage mode="register" searchParams={searchParams} />;
 }

@@ -42,7 +42,8 @@ const toKey = (value: string | undefined) => (value === undefined ? undefined : 
 
 /**
  * Searchable single-select (ARIA combobox). Use it for long or data-driven
- * lists; short fixed lists stay native <select>, which is better on phones.
+ * lists (categories, products, attributes); fixed lists use Select. Both share
+ * the field, popover and listbox styles in app/form-controls.css.
  */
 export default function Combobox({
   label,

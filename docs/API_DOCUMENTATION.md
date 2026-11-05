@@ -62,13 +62,27 @@ Body: `{ "email": "...", "password": "..." }`
 
 Clears auth cookies.
 
-### `GET /auth/me`
+### `GET /auth/user`
 
-Requires auth. Returns current user profile (password omitted).
+Requires auth. Returns the current user's profile (password omitted). Replaces the former `GET /auth/me`.
+
+### `GET /auth/user-check`
+
+No auth required; always `200`, so signed-out visitors don't log errors. Returns:
+
+```json
+{ "authenticated": true, "user": { "id": "...", "name": "...", "email": "...", "avatarUrl": "" } }
+```
+
+It also repairs the session cookies: an expired access token is renewed from a valid refresh token, and the cookies of a revoked or expired session are cleared. The storefront calls it only when the server-rendered header reports such a session, never on a timer.
 
 ### `POST /auth/refresh`
 
 Requires refresh cookie. Rotates access/refresh cookies.
+
+### Expired sessions
+
+Access tokens live 15 minutes and refresh tokens 7 days. When a request needs a signed-in customer but the access token has expired while a refresh cookie is still present, the `401` body carries `"code": "session_expired"`. Clients should call `POST /auth/refresh` once and repeat the request (`lib/api/api-client.js` does this for every call). A plain `401` without the code means the visitor is signed out.
 
 ---
 

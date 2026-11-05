@@ -11,6 +11,7 @@ import ErrorCard from "@/components/ui/feedback/error-card";
 import Button from "@/components/ui/button";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import { DateRangePicker, todayIso } from "@/components/ui/form/date-picker";
+import Select, { type SelectOption } from "@/components/ui/form/select";
 import DownloadInvoiceButton from "@/components/orders/download-invoice-button";
 import { OrderListSkeleton } from "@/components/ui/loaders/order-list-skeleton";
 import OrderProductReviewAction from "@/components/reviews/order-product-review-action";
@@ -19,10 +20,16 @@ import OrderStatusBadge from "@/features/orders/order-status-badge";
 import type { OrderListItem, OrderSummaryStats } from "@/features/orders/types";
 import { fetchOrderReviewContext } from "@/features/reviews/review-api";
 import type { OrderReviewContextMap } from "@/features/reviews/types";
-import { fetchCurrentCustomer } from "@/features/checkout/submit-checkout-order";
+import { isUnauthorizedError } from "@/lib/api/api-error";
+import { authHref } from "@/lib/auth/redirect";
 import { formatDate, formatRupees } from "@/lib/format";
 
-const FILTER_OPTIONS = [
+const SORT_OPTIONS: SelectOption[] = [
+  { id: "desc", label: "Newest first" },
+  { id: "asc", label: "Oldest first" },
+];
+
+const FILTER_OPTIONS: SelectOption[] = [
   { id: "all", label: "All orders" },
   { id: "pending_payment", label: "Pending payment" },
   { id: "confirmed", label: "Confirmed" },
@@ -77,11 +84,7 @@ export default function CustomerOrdersPageClient() {
       setLoading(true);
       setError("");
       try {
-        const customer = await fetchCurrentCustomer();
-        if (!customer) {
-          router.push("/account/login?next=/account/orders");
-          return;
-        }
+        // The account layout verified the session on the server; the API answers 401 if it ends.
         const queryParams = {
           page: String(targetPage),
           limit: "10",
@@ -109,7 +112,11 @@ export default function CustomerOrdersPageClient() {
           const contextResult = await fetchOrderReviewContext(deliveredIds);
           setReviewContext((current) => ({ ...current, ...(contextResult.data ?? {}) }));
         }
-      } catch {
+      } catch (failure) {
+        if (isUnauthorizedError(failure)) {
+          router.replace(authHref("/account/orders"));
+          return;
+        }
         setError("We could not load your orders right now.");
         feedback.error("Orders unavailable", "Please try again in a moment.");
       } finally {
@@ -186,21 +193,8 @@ export default function CustomerOrdersPageClient() {
           Filters
           {extraFilters ? <span className="catalog-toolbar__badge" aria-hidden="true">{extraFilters}</span> : null}
         </button>
-        <label className="account-field">
-          Status
-          <select value={bucket} onChange={(event) => setBucket(event.currentTarget.value)}>
-            {FILTER_OPTIONS.map((option) => (
-              <option key={option.id} value={option.id}>{option.label}</option>
-            ))}
-          </select>
-        </label>
-        <label className="account-field">
-          Sort
-          <select value={sort} onChange={(event) => setSort(event.currentTarget.value as "asc" | "desc")}>
-            <option value="desc">Newest first</option>
-            <option value="asc">Oldest first</option>
-          </select>
-        </label>
+        <Select className="account-field" label="Status" options={FILTER_OPTIONS} value={bucket} onChange={setBucket} />
+        <Select className="account-field" label="Sort" options={SORT_OPTIONS} value={sort} onChange={(next) => setSort(next as "asc" | "desc")} />
         <DateRangePicker
           className="account-field"
           label="Order date"

@@ -7,6 +7,7 @@ import AdminStatusChip from "@/components/admin/admin-status-chip";
 import AdminCard from "@/components/admin/admin-card";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import { DatePicker, todayIso } from "@/components/ui/form/date-picker";
+import Select, { toSelectOptions } from "@/components/ui/form/select";
 import ErrorCard from "@/components/ui/feedback/error-card";
 import TableSkeleton from "@/components/ui/loaders/table-skeleton";
 import { useFeedback } from "@/components/feedback/feedback-provider";
@@ -34,6 +35,7 @@ type AdminQuote = CustomerQuote & {
 };
 
 const label = (status: string) => QUOTE_STATUS_LABELS[status as keyof typeof QUOTE_STATUS_LABELS] ?? status;
+const STATUS_FILTER_OPTIONS = toSelectOptions([["", "All statuses"], ...Object.entries(QUOTE_STATUS_LABELS)]);
 
 export function AdminQuoteList() {
   const [status, setStatus] = useState("");
@@ -46,13 +48,16 @@ export function AdminQuoteList() {
     <>
       <AdminPageHeading eyebrow="Sales" title="Quotes" description="Wholesale quote requests from buyers." />
       <div className="admin-product-filters">
-        <label>
-          <span className="sr-only">Filter by status</span>
-          <select value={status} onChange={(event) => { setStatus(event.currentTarget.value); setPage(1); }}>
-            <option value="">All statuses</option>
-            {Object.entries(QUOTE_STATUS_LABELS).map(([value, text]) => <option key={value} value={value}>{text}</option>)}
-          </select>
-        </label>
+        <Select
+          label="Filter by status"
+          hideLabel
+          options={STATUS_FILTER_OPTIONS}
+          value={status}
+          onChange={(next) => {
+            setStatus(next);
+            setPage(1);
+          }}
+        />
       </div>
       {error ? <ErrorCard title="Unable to load quotes" description={error} action={<LoadingButton onClick={() => void refetch()}>Retry</LoadingButton>} /> : null}
       {loading && !data ? (

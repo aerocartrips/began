@@ -8,6 +8,7 @@ import EmptyState from "@/components/ui/empty-state";
 import ErrorCard from "@/components/ui/feedback/error-card";
 import Button from "@/components/ui/button";
 import LoadingButton from "@/components/ui/buttons/loading-button";
+import Select, { type SelectOption } from "@/components/ui/form/select";
 import ReviewCard from "@/components/reviews/review-card";
 import ReviewStatusBadge from "@/components/reviews/review-status-badge";
 import ReviewModal from "@/components/reviews/review-modal";
@@ -15,17 +16,18 @@ import { ReviewListSkeleton } from "@/components/reviews/review-skeleton";
 import { apiRequest } from "@/lib/api/api-client";
 import { deleteReview } from "@/features/reviews/review-api";
 import type { PublicReview } from "@/features/reviews/types";
-import { fetchCurrentCustomer } from "@/features/checkout/submit-checkout-order";
 import { useFeedback } from "@/components/feedback/feedback-provider";
+import { isUnauthorizedError } from "@/lib/api/api-error";
+import { authHref } from "@/lib/auth/redirect";
 
-const FILTERS = [
+const FILTERS: SelectOption[] = [
   { id: "", label: "All reviews" },
   { id: "pending", label: "Pending approval" },
   { id: "approved", label: "Approved" },
   { id: "rejected", label: "Rejected" },
 ];
 
-const SORTS = [
+const SORTS: SelectOption[] = [
   { id: "newest", label: "Newest" },
   { id: "oldest", label: "Oldest" },
   { id: "highest", label: "Highest rated" },
@@ -60,11 +62,7 @@ export default function CustomerReviewsPageClient() {
       setLoading(true);
       setError("");
       try {
-        const customer = await fetchCurrentCustomer();
-        if (!customer) {
-          router.push("/account/login?next=/account/reviews");
-          return;
-        }
+        // The account layout verified the session on the server; the API answers 401 if it ends.
         const result = await fetchMyReviews({
           page: String(targetPage),
           limit: "10",
@@ -81,7 +79,11 @@ export default function CustomerReviewsPageClient() {
         setTotal(meta?.total ?? next.length);
         if (meta?.page && meta?.totalPages) setHasMore(meta.page < meta.totalPages);
         else setHasMore(next.length >= 10);
-      } catch {
+      } catch (failure) {
+        if (isUnauthorizedError(failure)) {
+          router.replace(authHref("/account/reviews"));
+          return;
+        }
         setError("We could not load your reviews.");
       } finally {
         setLoading(false);
@@ -122,22 +124,8 @@ export default function CustomerReviewsPageClient() {
       </div>
 
       <div className="account-filters account-filters--compact">
-        <label className="account-field">
-          Status
-          <select value={moderationStatus} onChange={(event) => setModerationStatus(event.currentTarget.value)}>
-            {FILTERS.map((filter) => (
-              <option key={filter.id || "all"} value={filter.id}>{filter.label}</option>
-            ))}
-          </select>
-        </label>
-        <label className="account-field">
-          Sort
-          <select value={sort} onChange={(event) => setSort(event.currentTarget.value)}>
-            {SORTS.map((option) => (
-              <option key={option.id} value={option.id}>{option.label}</option>
-            ))}
-          </select>
-        </label>
+        <Select className="account-field" label="Status" options={FILTERS} value={moderationStatus} onChange={setModerationStatus} />
+        <Select className="account-field" label="Sort" options={SORTS} value={sort} onChange={setSort} />
       </div>
 
       {loading && reviews.length === 0 ? <ReviewListSkeleton /> : null}

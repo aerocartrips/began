@@ -1,11 +1,28 @@
 /* ==========================================================================
-   Shared searchable select + date pickers (components/ui/form/*)
+   Shared select, searchable select and date pickers (components/ui/form/*)
    They take their box look from the surrounding field context so they match
    the native inputs next to them; only the context variables differ.
    ========================================================================== */
 .admin-field { --field-height: 38px; --field-radius: 5px; --field-border: #dfe4ea; --field-color: #344052; --field-font: 10px; --field-pad: 10px; --field-ring: 0 0 0 2px rgba(104, 99, 237, .12); }
 .contact-field { --field-height: 41px; --field-radius: 6px; --field-border: #dfe4ea; --field-color: #253041; --field-font: 10px; --field-pad: 11px; --field-ring: 0 0 0 3px rgba(104, 99, 237, .11); }
 .account-field { --field-height: 42px; --field-radius: var(--radius-control); --field-border: var(--color-border); --field-color: var(--color-text); --field-font: 12px; --field-pad: 12px; --field-ring: 0 0 0 3px rgba(104, 99, 237, .12); }
+/* Compact admin filters and inline controls (toolbars, page-heading actions, table cells). */
+.admin-toolbar, .admin-product-filters, .admin-heading-actions, .admin-home-trust-row, .admin-table { --field-height: 36px; --field-radius: 6px; --field-border: #dfe4ea; --field-color: #394556; --field-font: 10px; --field-pad: 10px; --field-ring: 0 0 0 2px rgba(104, 99, 237, .12); }
+.catalog-sort { --field-height: 38px; --field-radius: var(--radius-control); --field-border: var(--color-border); --field-color: var(--color-text); --field-font: 12px; --field-pad: 10px; --field-ring: 0 0 0 3px rgba(104, 99, 237, .12); }
+
+/* Select (components/ui/form/select.tsx): a button drawn like the fields around it. */
+.ui-select { min-width: 0; }
+.ui-select__trigger { display: flex; width: 100%; min-height: var(--field-height, 42px); align-items: center; gap: 8px; padding: 0 calc(var(--field-pad, 12px) - 4px) 0 var(--field-pad, 12px); border: 1px solid var(--field-border, var(--color-border)); border-radius: var(--field-radius, var(--radius-control)); outline: 0; background: #fff; color: var(--field-color, var(--color-text)); font: inherit; font-size: var(--field-font, 12px); font-weight: 400; letter-spacing: normal; text-align: left; text-transform: none; cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease; }
+.ui-select__trigger[data-hovered] { border-color: #c9ceda; }
+.ui-select__trigger[data-focus-visible],
+.ui-select[data-open] .ui-select__trigger { border-color: var(--color-brand); box-shadow: var(--field-ring, 0 0 0 3px rgba(104, 99, 237, .12)); }
+.ui-select__trigger[data-disabled] { background: #f6f7f9; color: var(--color-text-subtle); cursor: not-allowed; }
+.ui-select[data-invalid] .ui-select__trigger { border-color: #b54747; }
+.ui-select__value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-select__value[data-placeholder] { color: #a3abb8; }
+.ui-select__value .ui-swatch { display: inline-block; margin-right: 8px; vertical-align: -2px; }
+.ui-select__chevron { flex: none; color: var(--color-text-muted); transition: transform .16s ease; }
+.ui-select[data-open] .ui-select__chevron { transform: rotate(180deg); }
 
 .ui-field-control { position: relative; display: flex; align-items: center; }
 /* The text input keeps the context's own input styling; room for the button. */
@@ -35,7 +52,8 @@
 
 /* Popover: list and calendar */
 .ui-popover { z-index: 60; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); box-shadow: var(--shadow-overlay); outline: 0; }
-.ui-popover--list { width: var(--trigger-width); max-height: min(320px, var(--visual-viewport-height, 60vh)); }
+/* At least as wide as its field; long option labels may widen it. */
+.ui-popover--list { width: max-content; min-width: var(--trigger-width); max-width: min(420px, calc(100vw - 24px)); max-height: min(320px, var(--visual-viewport-height, 60vh)); }
 .ui-popover[data-entering] { animation: ui-popover-in .14s ease-out; }
 @keyframes ui-popover-in { from { opacity: 0; transform: translateY(-4px); } }
 
@@ -84,6 +102,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .ui-popover[data-entering] { animation: none; }
+  .ui-select__chevron { transition: none; }
 }
 
 /* The order filters had separate From/To fields; the range picker takes both columns. */

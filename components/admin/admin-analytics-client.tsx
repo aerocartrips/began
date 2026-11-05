@@ -5,9 +5,16 @@ import AdminPageHeading from "@/components/admin/admin-page-heading";
 import AdminCard from "@/components/admin/admin-card";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import ErrorCard from "@/components/ui/feedback/error-card";
+import Select, { type SelectOption } from "@/components/ui/form/select";
 import TableSkeleton from "@/components/ui/loaders/table-skeleton";
 import { useApiRequest } from "@/hooks/use-api-request";
 import { formatNumber } from "@/lib/format";
+
+const PERIOD_OPTIONS: SelectOption[] = [
+  { id: "7", label: "Last 7 days" },
+  { id: "30", label: "Last 30 days" },
+  { id: "90", label: "Last 90 days" },
+];
 
 type Ranked = { target: string; label: string; count: number };
 type Insights = {
@@ -59,11 +66,9 @@ export default function AdminAnalyticsClient() {
         title="Home page insights"
         description="How shoppers use the home page: which rows they see and click, and what they do next. Counts only; no visitor is tracked individually."
         action={
-          <select aria-label="Period" value={days} onChange={(event) => setDays(Number(event.currentTarget.value))}>
-            <option value={7}>Last 7 days</option>
-            <option value={30}>Last 30 days</option>
-            <option value={90}>Last 90 days</option>
-          </select>
+          <div className="admin-heading-actions">
+            <Select label="Period" hideLabel options={PERIOD_OPTIONS} value={String(days)} onChange={(id) => setDays(Number(id))} />
+          </div>
         }
       />
       {error ? <ErrorCard title="Unable to load insights" description={error} action={<LoadingButton onClick={() => void refetch()}>Retry</LoadingButton>} /> : null}

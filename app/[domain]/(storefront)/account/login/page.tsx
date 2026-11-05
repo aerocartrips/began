@@ -1,26 +1,12 @@
-import CustomerAuthForm from "@/components/auth/customer-auth-form";
-import Link from "next/link";
-import { Suspense } from "react";
-import { ProfileSkeleton } from "@/components/ui/loaders/order-list-skeleton";
+import type { Metadata } from "next";
+import AuthPage, { type AuthSearchParams } from "@/components/auth/auth-page";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Sign in",
   description: "Sign in to place wholesale saree orders.",
+  robots: { index: false, follow: true },
 };
 
-export default function AccountLoginPage() {
-  return (
-    <main className="commerce-page content-width">
-      <div className="commerce-heading">
-        <div>
-          <p className="eyebrow">Wholesale account</p>
-          <h1>Sign in</h1>
-        </div>
-        <Link className="text-button" href="/products">Back to catalog</Link>
-      </div>
-      <Suspense fallback={<ProfileSkeleton />}>
-        <CustomerAuthForm mode="login" />
-      </Suspense>
-    </main>
-  );
+export default function AccountLoginPage({ searchParams }: { searchParams: AuthSearchParams }) {
+  return <AuthPage mode="login" searchParams={searchParams} />;
 }

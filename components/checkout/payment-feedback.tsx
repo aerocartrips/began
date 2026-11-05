@@ -103,12 +103,14 @@ export default function PaymentFeedback({
       <ErrorCard
         title="Payment could not be completed"
         description={
-          message ??
-          "We could not confirm a successful payment. You have not been charged again by this page."
+          <>
+            {message ??
+              "We could not confirm a successful payment. You have not been charged again by this page."}
+            {paymentReference ? <span className="notice-card__meta">Reference: {paymentReference}</span> : null}
+          </>
         }
         action={
           <>
-            {paymentReference ? <p className="feedback-card__meta">Reference: {paymentReference}</p> : null}
             {onRetry ? (
               <Button type="button" onClick={onRetry}>
                 Retry payment

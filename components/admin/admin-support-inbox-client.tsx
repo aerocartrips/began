@@ -7,6 +7,7 @@ import { Search } from "lucide-react";
 import AdminPageHeading from "@/components/admin/admin-page-heading";
 import AdminStatusChip from "@/components/admin/admin-status-chip";
 import AdminSummaryGrid from "@/components/admin/admin-summary-grid";
+import Select, { toSelectOptions } from "@/components/ui/form/select";
 import { categoryLabel, SUPPORT_CATEGORY_OPTIONS } from "@/features/support/support-labels";
 import { formatDateTime, formatNumber } from "@/lib/format";
 
@@ -41,20 +42,22 @@ type InboxProps = {
   filters: InboxFilters;
 };
 
-const STATUS_OPTIONS = [
+const STATUS_OPTIONS = toSelectOptions([
   ["", "All statuses"],
   ["open", "Open"],
   ["in_progress", "In progress"],
   ["waiting_customer", "Waiting for customer"],
   ["resolved", "Resolved"],
   ["closed", "Closed"],
-] as const;
+]);
 
-const VIEW_OPTIONS = [
+const VIEW_OPTIONS = toSelectOptions([
   ["", "All conversations"],
   ["awaiting", "Awaiting reply"],
   ["unread", "Unread"],
-] as const;
+]);
+
+const TOPIC_OPTIONS = toSelectOptions([["", "All topics"], ...SUPPORT_CATEGORY_OPTIONS.map((option) => [option.value, option.label] as const)]);
 
 /** Re-fetch the server-rendered inbox periodically so new customer messages show up. */
 const INBOX_REFRESH_MS = 30_000;
@@ -118,25 +121,9 @@ export default function AdminSupportInboxClient({ conversations, meta, counts, f
             placeholder="Search name, email, subject… (Enter)"
           />
         </label>
-        <label>
-          <span className="sr-only">View</span>
-          <select value={filters.view} onChange={(event) => apply({ view: event.currentTarget.value })}>
-            {VIEW_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-        </label>
-        <label>
-          <span className="sr-only">Status</span>
-          <select value={filters.status} onChange={(event) => apply({ status: event.currentTarget.value })}>
-            {STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-        </label>
-        <label>
-          <span className="sr-only">Topic</span>
-          <select value={filters.category} onChange={(event) => apply({ category: event.currentTarget.value })}>
-            <option value="">All topics</option>
-            {SUPPORT_CATEGORY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-          </select>
-        </label>
+        <Select label="View" hideLabel options={VIEW_OPTIONS} value={filters.view} onChange={(view) => apply({ view })} />
+        <Select label="Status" hideLabel options={STATUS_OPTIONS} value={filters.status} onChange={(status) => apply({ status })} />
+        <Select label="Topic" hideLabel options={TOPIC_OPTIONS} value={filters.category} onChange={(category) => apply({ category })} />
       </form>
 
       {conversations.length === 0 ? (

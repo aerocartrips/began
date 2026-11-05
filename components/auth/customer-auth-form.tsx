@@ -2,11 +2,13 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import ErrorCard from "@/components/ui/feedback/error-card";
 import LoadingButton from "@/components/ui/buttons/loading-button";
+import { useCompleteSignIn } from "@/features/account/session-transitions";
+import { authHref, LOGIN_PATH, REGISTER_PATH, safeRedirectPath } from "@/lib/auth/redirect";
 
-type AuthMode = "login" | "register";
+export type AuthMode = "login" | "register";
 
 type AuthResponse = {
   success?: boolean;
@@ -14,10 +16,16 @@ type AuthResponse = {
   errors?: { field: string; message: string }[];
 };
 
+const ENDPOINTS: Record<AuthMode, string> = {
+  login: "/api/v1/auth/login",
+  register: "/api/v1/auth/register",
+};
+
 export default function CustomerAuthForm({ mode }: { mode: AuthMode }) {
-  const router = useRouter();
+  const completeSignIn = useCompleteSignIn();
   const searchParams = useSearchParams();
-  const nextPath = searchParams.get("next") || "/checkout";
+  // Back to the page that sent the shopper here (validated: same-site paths only), else home.
+  const nextPath = safeRedirectPath(searchParams.get("next"), "/");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
@@ -27,29 +35,24 @@ export default function CustomerAuthForm({ mode }: { mode: AuthMode }) {
     setPending(true);
     setError("");
 
-    const formData = new FormData(event.currentTarget);
-    const payload = Object.fromEntries(formData.entries());
-    const endpoint = mode === "login" ? "/api/v1/auth/login" : "/api/v1/auth/register";
-
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetch(ENDPOINTS[mode], {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget))),
       });
-      const result = (await response.json()) as AuthResponse;
+      const result = (await response.json().catch(() => ({}))) as AuthResponse;
       if (response.ok && result.success) {
-        router.push(nextPath);
-        router.refresh();
+        // Stays pending while the destination loads, so the form can't be sent twice.
+        completeSignIn(nextPath);
         return;
       }
-      setError(result.message ?? "Unable to authenticate. Check your details and try again.");
+      setError(result.errors?.[0]?.message ?? result.message ?? "Unable to authenticate. Check your details and try again.");
     } catch {
       setError("Unable to reach the authentication service.");
-    } finally {
-      setPending(false);
     }
+    setPending(false);
   }
 
   return (
@@ -89,16 +92,16 @@ export default function CustomerAuthForm({ mode }: { mode: AuthMode }) {
       <LoadingButton
         type="submit"
         loading={pending}
-        loadingText="Please wait..."
+        loadingText={mode === "login" ? "Signing in…" : "Creating account…"}
         className="checkout-submit"
       >
         {mode === "login" ? "Sign in" : "Create account"}
       </LoadingButton>
       <p className="checkout-boundary">
         {mode === "login" ? (
-          <>Need a wholesale account? <Link href={`/account/register?next=${encodeURIComponent(nextPath)}`}>Register</Link></>
+          <>Need a wholesale account? <Link href={authHref(nextPath, REGISTER_PATH)}>Register</Link></>
         ) : (
-          <>Already registered? <Link href={`/account/login?next=${encodeURIComponent(nextPath)}`}>Sign in</Link></>
+          <>Already registered? <Link href={authHref(nextPath, LOGIN_PATH)}>Sign in</Link></>
         )}
       </p>
     </form>

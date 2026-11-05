@@ -7,6 +7,7 @@ import { Plus, Trash2 } from "lucide-react";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import ImageUploader, { type ManagedImage } from "@/components/images/image-uploader";
 import Combobox from "@/components/ui/form/combobox";
+import Select, { toSelectOptions } from "@/components/ui/form/select";
 import { useFeedback } from "@/components/feedback/feedback-provider";
 import { useTenant } from "@/features/tenant/tenant-provider";
 import {
@@ -16,6 +17,12 @@ import {
   type AdminProductDraft,
   type VariantDraft,
 } from "@/features/products/admin-product";
+
+const STATUS_OPTIONS = toSelectOptions([
+  ["draft", "Draft (hidden)"],
+  ["active", "Active (listed)"],
+  ["inactive", "Inactive (hidden)"],
+]);
 
 type Option = { label: string; hex?: string };
 type AttributeOptions = Record<"fabric" | "weave" | "occasion" | "pattern" | "color", Option[]>;
@@ -164,14 +171,7 @@ export default function ProductForm({ initial }: { initial?: AdminProductDraft }
             onChange={(id) => set("categoryId", id)}
             error={errors.category}
           />
-          <label className="admin-field">
-            Status
-            <select value={draft.status} onChange={(event) => set("status", event.currentTarget.value)}>
-              <option value="draft">Draft (hidden)</option>
-              <option value="active">Active (listed)</option>
-              <option value="inactive">Inactive (hidden)</option>
-            </select>
-          </label>
+          <Select className="admin-field" label="Status" options={STATUS_OPTIONS} value={draft.status} onChange={(status) => set("status", status)} />
           <label className="admin-checkbox">
             <input type="checkbox" checked={draft.featured} onChange={(event) => set("featured", event.currentTarget.checked)} />
             Feature on the home page

@@ -62,7 +62,7 @@ The older collection-level `PATCH`/`POST` (with `conversationId` in the body) st
 - Polling only, no websockets. The open thread polls `?after=<newest cursor>` every `NEXT_PUBLIC_SUPPORT_POLL_INTERVAL_MS` (default 8000). The conversation list refreshes every `NEXT_PUBLIC_SUPPORT_LIST_POLL_INTERVAL_MS` (default 30000).
 - Polling stops while the tab is hidden and backs off up to 60s on errors. In-flight requests are aborted on unmount.
 - Sends are optimistic. A failed send can be retried with the same `clientMessageId`, so the server never stores it twice.
-- On a 401 the client calls `/api/v1/auth/refresh` once, then retries.
+- An expired access token is renewed by the shared API client (`lib/api/api-client.js`): a `401` with `code: "session_expired"` triggers one `/api/v1/auth/refresh` and a retry. Any other `401` sends the customer to sign in.
 
 ## Contact form
 

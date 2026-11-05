@@ -1,7 +1,8 @@
+import { Suspense } from "react";
 import BrandLink from "@/components/ui/brand-link";
 import Button from "@/components/ui/button";
 import CartCount from "@/features/cart/components/cart-count";
-import CustomerAccountMenu from "@/components/layout/customer-account-menu";
+import HeaderAccount, { HeaderAccountFallback } from "@/components/layout/header-account";
 import MobileMenu from "@/components/layout/mobile-menu";
 import MobileSearch from "@/components/layout/mobile-search";
 import StorefrontSearch from "@/components/layout/storefront-search";
@@ -16,7 +17,7 @@ export default async function SiteHeader() {
   const isWholesale = tenant.salesMode === "wholesale";
 
   return (
-    <header className="site-nav">
+    <header className="site-nav ">
       <div className="nav-brand-group">
         <MobileMenu />
         <BrandLink href="/" />
@@ -36,7 +37,10 @@ export default async function SiteHeader() {
           <ShoppingCart size={19} strokeWidth={1.8} aria-hidden="true" />
           <CartCount />
         </Link>
-        <CustomerAccountMenu />
+        {/* The only per-visitor part of the header: the rest stays in the static shell. */}
+        <Suspense fallback={<HeaderAccountFallback />}>
+          <HeaderAccount />
+        </Suspense>
         {isWholesale ? (
           <Button href="/request-quote" variant="portal">Request a quote</Button>
         ) : null}

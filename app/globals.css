@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Tailwind's preflight sets `margin: 0` on every element, which also removes the browser's
+   `margin: auto` that centres modal <dialog>s. Restore it in the same layer, so components
+   that place their own dialogs (drawers, sheets, the photo viewer) still win. */
+@layer base {
+  dialog:modal { margin: auto; }
+}
+
 :root {
   color-scheme: light;
   --color-text: #1d2433;
@@ -830,44 +837,22 @@ button, a { -webkit-tap-highlight-color: transparent; }
   color: #fff;
 }
 
-.feedback-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 16px;
-  padding: 18px 20px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-card);
-}
-.feedback-card__icon { color: var(--color-brand); margin-top: 2px; }
-.feedback-card__body h2 {
-  margin: 0 0 8px;
-  font-family: var(--heading-font);
-  font-size: 22px;
-  font-weight: 400;
-}
-.feedback-card__body p {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: 12px;
-  line-height: 1.75;
-}
-.feedback-card__detail { margin-top: 12px; color: var(--color-text); font-size: 12px; }
-.feedback-card__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 16px;
-}
-.feedback-card__meta { margin: 0 0 8px; color: var(--color-text-muted); font-size: 11px; }
-.feedback-card--success { border-color: rgba(50, 153, 120, .35); background: #f6fffb; }
-.feedback-card--success .feedback-card__icon { color: var(--color-success); }
-.feedback-card--error { border-color: rgba(180, 35, 58, .28); background: #fff7f8; }
-.feedback-card--error .feedback-card__icon { color: #b4233a; }
-.feedback-card--warning { border-color: rgba(232, 199, 170, .9); background: #fff8f1; }
-.feedback-card--warning .feedback-card__icon { color: #9a6a3d; }
-.feedback-card--pending { border-color: rgba(104, 99, 237, .25); background: rgba(104, 99, 237, .04); }
+/* Notice card: the one inline message style (components/ui/feedback/notice-card.tsx).
+   The tone colours the left edge and the icon; the action sits on the right. */
+.notice-card { --notice-tone: var(--color-brand); display: flex; align-items: center; gap: 14px; padding: 15px 18px; border: 1px solid var(--color-border); border-left: 3px solid var(--notice-tone); border-radius: var(--radius-control); background: var(--color-surface); }
+.notice-card--warning { --notice-tone: #d98a1c; }
+.notice-card--danger { --notice-tone: #d14343; }
+.notice-card--success { --notice-tone: var(--color-success); }
+.notice-card__icon { flex: none; color: var(--notice-tone); }
+.notice-card__body { display: grid; flex: 1; gap: 3px; min-width: 0; }
+.notice-card__title { margin: 0; color: var(--color-text); font-family: var(--body-font); font-size: 12px; font-weight: 700; line-height: 1.45; }
+.notice-card__text { margin: 0; color: var(--color-text-muted); font-size: 11px; line-height: 1.55; }
+.notice-card__meta { display: block; margin-top: 4px; font-size: 10px; }
+.notice-card__detail { display: grid; gap: 2px; margin-top: 6px; color: var(--color-text); font-size: 11px; line-height: 1.6; }
+.notice-card__detail p { margin: 0; }
+.notice-card__action { display: flex; flex: none; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
+.notice-link { display: inline-flex; align-items: center; gap: 5px; padding: 4px 0; color: var(--color-brand); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.notice-link:hover { text-decoration: underline; text-underline-offset: 3px; }
 .feedback-inline-status { display: inline-flex; align-items: center; gap: 8px; }
 
 .empty-state__icon {
@@ -972,13 +957,6 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .text-button--danger { color: var(--color-danger); }
 .text-button--danger:hover { color: #8e1a2c; }
 
-/* Compact feedback cards for notices that sit inside page flow. */
-.feedback-card--compact { gap: 12px; padding: 14px 16px; border-radius: var(--radius-control); box-shadow: none; }
-.feedback-card--compact .feedback-card__icon svg { width: 18px; height: 18px; }
-.feedback-card--compact .feedback-card__body h2 { margin-bottom: 4px; font-family: var(--body-font); font-size: 12px; font-weight: 700; }
-.feedback-card--compact .feedback-card__body p { font-size: 11px; line-height: 1.65; }
-.feedback-card--compact .feedback-card__actions { margin-top: 10px; }
-
 .ui-detail-skeleton { display: grid; gap: 14px; }
 .ui-skeleton-stat-card { min-height: 104px; }
 
@@ -997,13 +975,11 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .admin-content .ui-loading-button--destructive.is-quiet:hover:not(:disabled) { background: #fff7f8; }
 .admin-content .admin-form-actions .button { min-height: 36px; }
 
-/* Feedback + empty states adopt admin card styling. */
-.admin-content .feedback-card { gap: 12px; padding: 16px 18px; border-radius: var(--admin-radius); box-shadow: none; }
-.admin-content .feedback-card__icon svg { width: 20px; height: 20px; }
-.admin-content .feedback-card__body h2 { margin-bottom: 5px; color: var(--admin-text); font-family: var(--body-font); font-size: 13px; font-weight: 700; }
-.admin-content .feedback-card__body p { font-size: 10px; line-height: 1.7; }
-.admin-content .feedback-card__actions { margin-top: 12px; }
-.admin-content .feedback-card + * { margin-top: 16px; }
+/* Notices + empty states adopt admin card styling. */
+.admin-content .notice-card { border-radius: var(--admin-radius); }
+.admin-content .notice-card__title { color: var(--admin-text); }
+.admin-content .notice-card__text { font-size: 10px; line-height: 1.7; }
+.admin-content .notice-card + * { margin-top: 16px; }
 .admin-content .empty-state { justify-items: center; gap: 8px; padding: 32px; border: 1px dashed #dfe4ea; border-radius: var(--admin-radius); background: #fff; text-align: center; }
 .admin-content .empty-state h1 { font-family: var(--body-font); font-size: 13px; font-weight: 700; }
 .admin-content .empty-state p { margin: 0; font-size: 10px; }
@@ -1038,7 +1014,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
 
 /* Filters toolbar. */
 .admin-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-bottom: 14px; }
-.admin-toolbar > label { display: block; min-width: 160px; }
+.admin-toolbar > label,
+.admin-toolbar > .ui-select { display: block; min-width: 160px; }
 .admin-toolbar input,
 .admin-toolbar select { width: 100%; min-height: 36px; padding: 0 10px; border: 1px solid #dfe4ea; border-radius: var(--admin-radius-control); outline: 0; background: #fff; color: #394556; font: inherit; font-size: 10px; transition: border-color .16s ease, box-shadow .16s ease; }
 .admin-toolbar input:focus,
@@ -1167,7 +1144,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 
 @media (max-width: 640px) {
   .admin-page-heading { flex-direction: column; align-items: flex-start; }
-  .admin-toolbar > label, .admin-toolbar .ui-loading-button { flex: 1 1 100%; }
+  .admin-toolbar > label, .admin-toolbar > .ui-select, .admin-toolbar .ui-loading-button { flex: 1 1 100%; }
   .admin-tabs { display: flex; width: 100%; }
   .admin-tabs button { flex: 1 1 auto; }
   .admin-card { padding: 15px; }
@@ -1268,7 +1245,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .account-panel-head > span { color: var(--color-text-muted); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .account-panel .account-field + .account-field { margin-top: 12px; }
 .account-panel-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
-.account-panel .feedback-card { margin-top: 12px; }
+.account-panel .notice-card { margin-top: 12px; }
 .account-address { display: grid; gap: 4px; color: var(--color-text-muted); font-size: 12px; font-style: normal; line-height: 1.6; }
 .account-address strong { color: var(--color-text); font-size: 13px; }
 .account-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin: 0 0 14px; }
@@ -1475,7 +1452,7 @@ a.account-menu-trigger { padding-left: 13px; }
 .account-menu-trigger:hover,
 .account-menu-trigger[aria-expanded="true"] { border-color: rgba(104,99,237,.3); background: #fff; color: var(--color-brand); }
 .account-menu-trigger--icon { width: 38px; justify-content: center; padding: 0; }
-.account-menu-avatar { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 50%; background: linear-gradient(135deg, var(--color-brand), var(--color-brand-secondary)); color: #fff; font-size: 10px; letter-spacing: 0; }
+.account-menu-avatar { position: relative; overflow: hidden; display: grid; width: 26px; height: 26px; place-items: center; border-radius: 50%; background: linear-gradient(135deg, var(--color-brand), var(--color-brand-secondary)); color: #fff; font-size: 10px; letter-spacing: 0; }
 .account-menu-panel { position: absolute; z-index: 40; top: calc(100% + 10px); right: 0; display: grid; gap: 2px; min-width: 230px; padding: 8px; border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface); box-shadow: var(--shadow-overlay); animation: review-rise .16s ease-out; }
 .account-menu-identity { display: grid; gap: 3px; margin-bottom: 4px; padding: 10px 10px 12px; border-bottom: 1px solid var(--color-border); }
 .account-menu-identity strong { font-size: 12px; }
@@ -1547,15 +1524,23 @@ a.account-menu-trigger { padding-left: 13px; }
 /* Keep absolutely positioned descendants (e.g. .sr-only labels) inside the scroll container. */
 .admin-table-wrap { position: relative; }
 
-/* Customer sign-in / register card. */
-.customer-auth-form { width: min(100%, 480px); padding: 26px; border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface); box-shadow: var(--shadow-card); gap: 16px; }
+/* Customer sign-in / register: one card, centred on the page (components/auth/auth-page.tsx). */
+.auth-page { display: grid; justify-items: center; align-content: start; gap: 18px; width: min(calc(100% - var(--content-inset)), var(--container-width)); min-height: 60vh; margin-inline: auto; padding: 56px 0 80px; }
+.auth-card { display: grid; gap: 24px; width: min(100%, 460px); padding: 32px; border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface); box-shadow: var(--shadow-card); }
+.auth-card__head { display: grid; justify-items: center; gap: 10px; text-align: center; }
+.auth-card__head .eyebrow { margin: 0; }
+.auth-card__head h1 { margin: 0; font-family: var(--heading-font); font-size: 32px; font-weight: 400; line-height: 1.15; }
+.auth-card__lead { max-width: 36ch; margin: 0; color: var(--color-text-muted); font-size: 12px; line-height: 1.7; }
+.customer-auth-form { gap: 16px; }
 .customer-auth-form .checkout-submit { width: 100%; margin-top: 4px; }
 .customer-auth-form .checkout-boundary { text-align: center; }
 .customer-auth-form .checkout-boundary a { color: var(--color-brand); font-weight: 700; }
-.customer-auth-form .feedback-card { gap: 12px; padding: 14px 16px; border-radius: var(--radius-control); box-shadow: none; }
-.customer-auth-form .feedback-card__body h2 { font-family: var(--body-font); font-size: 12px; font-weight: 700; }
-.customer-auth-form .feedback-card__body p { font-size: 11px; }
-@media (max-width: 520px) { .customer-auth-form { padding: 18px; } }
+.auth-form-skeleton { display: grid; gap: 16px; }
+.auth-form-skeleton__field { display: grid; gap: 7px; }
+.auth-form-skeleton__label { width: 34%; height: 10px; }
+.auth-form-skeleton__input { height: 44px; }
+.auth-form-skeleton__button { height: 48px; margin-top: 4px; }
+@media (max-width: 520px) { .auth-card { padding: 24px 18px; } }
 
 /* Customer support chat (/account/support) and shared thread used by /admin/messages */
 .support-page .commerce-heading { margin-bottom: 22px; }
@@ -1797,16 +1782,6 @@ a.account-menu-trigger { padding-left: 13px; }
 
 /* Overview */
 .account-actions { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
-.account-action { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid var(--color-border); border-left: 3px solid var(--color-brand); border-radius: var(--radius-control); background: var(--color-surface); }
-.account-action > svg { flex: 0 0 auto; color: var(--color-brand); }
-.account-action > div { display: grid; flex: 1; gap: 3px; min-width: 0; }
-.account-action strong { font-size: 12px; }
-.account-action span { color: var(--color-text-muted); font-size: 11px; line-height: 1.55; }
-.account-action.is-warning { border-left-color: #d98a1c; }
-.account-action.is-warning > svg { color: #d98a1c; }
-.account-action.is-danger { border-left-color: #d14343; }
-.account-action.is-danger > svg { color: #d14343; }
-.account-action .account-link-button { flex: 0 0 auto; }
 
 .account-progress { height: 6px; overflow: hidden; margin-bottom: 16px; border-radius: var(--radius-pill); background: #eef0f5; }
 .account-progress > span { display: block; height: 100%; border-radius: inherit; background: var(--color-brand); transition: width .3s ease; }
@@ -1877,7 +1852,7 @@ a.account-menu-trigger { padding-left: 13px; }
 .account-danger-button.button-glass:hover { background: #fff5f5; }
 .account-panel textarea { min-height: 88px; }
 
-.account-verify-page .feedback-card, .account-verify { max-width: 560px; }
+.account-verify-page .notice-card, .account-verify { max-width: 560px; }
 .account-verify h2 { margin: 0 0 10px; font-family: var(--heading-font); font-size: 19px; font-weight: 400; }
 
 /* Dialog */
@@ -1935,7 +1910,6 @@ body:has(.account-dialog[open]) { overflow: hidden; }
   .account-stats--four article:first-child { grid-column: auto; }
   .account-order-list a { grid-template-columns: minmax(0, 1fr) auto; }
   .account-order-list .order-status-badge { grid-row: 2; grid-column: 1; justify-self: start; }
-  .account-action { flex-wrap: wrap; }
   .account-dialog-body { padding: 20px 18px; }
   .account-dialog-foot > * { flex: 1 1 auto; }
   .address-card-actions { gap: 4px 12px; }

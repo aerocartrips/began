@@ -7,6 +7,7 @@ import { BellPlus, BellRing } from "lucide-react";
 import { useFeedback } from "@/components/feedback/feedback-provider";
 import { apiRequest } from "@/lib/api/api-client";
 import { isClientApiError } from "@/lib/api/api-error";
+import { authHref } from "@/lib/auth/redirect";
 
 type State = "loading" | "signed-out" | "subscribed" | "unsubscribed";
 
@@ -51,7 +52,7 @@ export default function StockAlertButton({ productId }: { productId: string }) {
 
   if (state === "signed-out") {
     return (
-      <Link className="stock-alert-button" href={`/account/login?next=${encodeURIComponent(pathname ?? "/")}`}>
+      <Link className="stock-alert-button" href={authHref(pathname)}>
         <BellPlus size={14} aria-hidden="true" /> Sign in to get notified when available
       </Link>
     );

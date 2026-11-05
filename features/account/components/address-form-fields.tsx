@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { ADDRESS_LABELS, ADDRESS_LABEL_TEXT, DEFAULT_COUNTRY, INDIAN_STATES } from "@/lib/constants/account";
-import { FieldShell, TextField } from "@/features/account/components/form-field";
+import Select, { type SelectOption } from "@/components/ui/form/select";
+import { TextField } from "@/features/account/components/form-field";
 import type { AddressInput, AddressLabel, FieldErrors } from "@/features/account/types";
 
 export const EMPTY_ADDRESS: AddressInput = {
@@ -20,6 +21,7 @@ export const EMPTY_ADDRESS: AddressInput = {
 };
 
 const ADDRESS_KEYS = Object.keys(EMPTY_ADDRESS) as (keyof AddressInput)[];
+const STATE_OPTIONS: SelectOption[] = INDIAN_STATES.map((state: string) => ({ id: state, label: state }));
 
 /** Reads an address written by <AddressFormFields prefix={prefix} /> out of a form. */
 export function readAddressForm(formData: FormData, prefix = ""): AddressInput {
@@ -94,24 +96,17 @@ export default function AddressFormFields({ prefix = "", defaults = {}, errors =
       <TextField label="Landmark" name={name("landmark")} defaultValue={initial.landmark} maxLength={120} error={errors.landmark} optional />
       <TextField label="City" name={name("city")} defaultValue={initial.city} autoComplete="address-level2" maxLength={80} error={errors.city} />
       {india ? (
-        <FieldShell label="State" error={errors.state}>
-          {({ id, describedBy, invalid }) => (
-            <select
-              id={id}
-              name={name("state")}
-              defaultValue={INDIAN_STATES.find((state) => state.toLowerCase() === initial.state.toLowerCase()) ?? ""}
-              autoComplete="address-level1"
-              aria-describedby={describedBy}
-              aria-invalid={invalid || undefined}
-              required
-            >
-              <option value="" disabled>Select state</option>
-              {INDIAN_STATES.map((state) => (
-                <option key={state} value={state}>{state}</option>
-              ))}
-            </select>
-          )}
-        </FieldShell>
+        <Select
+          className="account-field"
+          label="State"
+          name={name("state")}
+          autoComplete="address-level1"
+          options={STATE_OPTIONS}
+          defaultValue={INDIAN_STATES.find((state) => state.toLowerCase() === initial.state.toLowerCase()) ?? ""}
+          placeholder="Select state"
+          error={errors.state}
+          required
+        />
       ) : (
         <TextField label="State / region" name={name("state")} defaultValue={initial.state} autoComplete="address-level1" maxLength={80} error={errors.state} />
       )}

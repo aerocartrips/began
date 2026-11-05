@@ -96,10 +96,16 @@
 .product-gallery__track { display: flex; margin: 0; padding: 0; overflow-x: auto; list-style: none; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
 .product-gallery__track::-webkit-scrollbar { display: none; }
 .product-gallery__slide { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; }
-.product-gallery__stage { position: relative; display: block; width: 100%; aspect-ratio: 4 / 5; overflow: hidden; padding: 0; border: 0; background: var(--color-background); cursor: zoom-in; }
+.product-gallery__stage { --zoom-scale: 2.4; position: relative; display: block; width: 100%; aspect-ratio: 4 / 5; overflow: hidden; padding: 0; border: 0; background: var(--color-background); cursor: zoom-in; }
 .product-gallery__stage .ui-image-frame { position: absolute; inset: 0; }
-.product-gallery__stage img { transition: transform .2s ease; }
-.product-gallery__stage.is-zoomed img { transform: scale(1.9); transform-origin: var(--zoom-origin, center); }
+/* Hover zoom (mouse): the photo scales around the cursor at once, and the sharp
+   high-resolution layer fades in on top when loaded. Both are cover-fitted to the
+   same box, so they line up exactly. */
+.product-gallery__stage img { transform-origin: var(--zoom-x, 50%) var(--zoom-y, 50%); transition: transform .22s ease; }
+.product-gallery__stage[data-zooming] img { transform: scale(var(--zoom-scale)); }
+.product-gallery__zoom { object-fit: cover; opacity: 0; transition: opacity .2s ease, transform .22s ease; pointer-events: none; }
+.product-gallery__stage[data-zooming] .product-gallery__zoom[data-loaded] { opacity: 1; }
+.product-gallery__stage[data-zooming] ~ .product-gallery__expand { opacity: 0; }
 .product-gallery__expand { position: absolute; right: 14px; bottom: 14px; display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: rgba(255, 255, 255, .9); pointer-events: none; }
 .product-gallery__counter { position: absolute; top: 12px; right: 12px; padding: 4px 10px; border-radius: var(--radius-pill); background: rgba(17, 24, 39, .6); color: #fff; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; pointer-events: none; }
 .product-gallery__dots { position: absolute; bottom: 14px; left: 50%; display: none; gap: 6px; transform: translateX(-50%); pointer-events: none; }
@@ -109,21 +115,29 @@
 .product-gallery__thumbs button { position: relative; width: 72px; height: 90px; overflow: hidden; padding: 0; border: 2px solid transparent; border-radius: var(--radius-control); background: var(--color-background); cursor: pointer; }
 .product-gallery__thumbs button[aria-current="true"] { border-color: var(--color-brand); }
 .product-gallery__thumbs .ui-image-frame { position: absolute; inset: 0; }
-/* Full-screen viewer: the same swipeable track, one photo per screen. */
-.product-lightbox { width: 100vw; max-width: 100vw; height: 100vh; height: 100dvh; max-height: none; margin: 0; padding: 0; border: 0; background: rgba(10, 12, 18, .96); color: #fff; overscroll-behavior: contain; }
-.product-lightbox::backdrop { background: rgba(10, 12, 18, .96); }
-.product-lightbox__track { display: flex; height: 100%; margin: 0; padding: 0; overflow-x: auto; list-style: none; scroll-snap-type: x mandatory; scrollbar-width: none; }
-.product-lightbox__track::-webkit-scrollbar { display: none; }
-.product-lightbox__slide { position: relative; flex: 0 0 100%; height: 100%; scroll-snap-align: start; scroll-snap-stop: always; }
-.product-lightbox__slide .ui-image-frame { position: absolute; inset: max(56px, env(safe-area-inset-top)) 0 max(56px, env(safe-area-inset-bottom)); background: transparent; }
-.product-lightbox__image { object-fit: contain; }
-.product-lightbox__close,
-.product-lightbox__nav { position: absolute; z-index: 1; display: grid; width: 44px; height: 44px; place-items: center; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .14); color: #fff; cursor: pointer; }
-.product-lightbox__close { top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); }
-.product-lightbox__nav { top: 50%; transform: translateY(-50%); }
-.product-lightbox__nav.is-prev { left: max(16px, env(safe-area-inset-left)); }
-.product-lightbox__nav.is-next { right: max(16px, env(safe-area-inset-right)); }
-.product-lightbox__counter { position: absolute; bottom: max(16px, env(safe-area-inset-bottom)); left: 50%; margin: 0; padding: 5px 12px; border-radius: var(--radius-pill); background: rgba(255, 255, 255, .14); font-size: 13px; font-variant-numeric: tabular-nums; transform: translateX(-50%); }
+/* Full-screen viewer (components/catalog/product-lightbox.tsx, yet-another-react-lightbox). */
+.product-lightbox {
+  --yarl__color_backdrop: rgba(10, 12, 18, .96);
+  --yarl__button_filter: none;
+  --yarl__counter_filter: none;
+  --yarl__counter_color: rgba(255, 255, 255, .85);
+  --yarl__thumbnails_container_background_color: transparent;
+  --yarl__thumbnails_container_padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+  --yarl__thumbnails_thumbnail_background: rgba(255, 255, 255, .06);
+  --yarl__thumbnails_thumbnail_border_color: transparent;
+  --yarl__thumbnails_thumbnail_active_border_color: #fff;
+  font-family: var(--body-font);
+}
+.product-lightbox .yarl__toolbar { padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) 8px 8px; }
+.product-lightbox .yarl__button { border-radius: 50%; }
+.product-lightbox .yarl__counter { font-size: 13px; font-variant-numeric: tabular-nums; }
+.product-lightbox .yarl__slide_image { cursor: zoom-in; }
+.product-lightbox .yarl__thumbnails_thumbnail { opacity: .6; transition: opacity .16s ease; }
+.product-lightbox .yarl__thumbnails_thumbnail_active,
+.product-lightbox .yarl__thumbnails_thumbnail:hover { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .product-gallery__stage img, .product-gallery__zoom { transition: none; }
+}
 
 .product-detail-copy { display: grid; gap: 16px; align-content: start; }
 .product-detail-copy h1 { margin: 0; font-family: var(--heading-font); font-size: clamp(26px, 3vw, 36px); font-weight: 400; line-height: 1.2; }

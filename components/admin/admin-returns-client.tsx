@@ -7,6 +7,7 @@ import AdminStatusChip from "@/components/admin/admin-status-chip";
 import AdminSummaryGrid from "@/components/admin/admin-summary-grid";
 import ErrorCard from "@/components/ui/feedback/error-card";
 import LoadingButton from "@/components/ui/buttons/loading-button";
+import Select, { toSelectOptions } from "@/components/ui/form/select";
 import TableSkeleton from "@/components/ui/loaders/table-skeleton";
 import { useApiRequest } from "@/hooks/use-api-request";
 import { formatDateTime, formatNumber, formatRupees, humanizeStatus } from "@/lib/format";
@@ -22,6 +23,12 @@ type ServiceRequestRow = {
 };
 
 const STATUS_OPTIONS = ["requested", "under_review", "approved", "rejected", "refund_pending", "refunded", "completed"];
+const TYPE_FILTER_OPTIONS = toSelectOptions([
+  ["", "All types"],
+  ["return", "Returns"],
+  ["cancellation", "Cancellations"],
+]);
+const STATUS_FILTER_OPTIONS = toSelectOptions([["", "All statuses"], ...STATUS_OPTIONS.map((value) => [value, humanizeStatus(value)] as const)]);
 
 export default function AdminReturnsClient() {
   const [type, setType] = useState("");
@@ -64,21 +71,8 @@ export default function AdminReturnsClient() {
       <AdminSummaryGrid label="Request summary" items={summaryItems} />
 
       <div className="admin-toolbar">
-        <label>
-          <span className="sr-only">Request type</span>
-          <select value={type} onChange={(event) => setType(event.currentTarget.value)}>
-            <option value="">All types</option>
-            <option value="return">Returns</option>
-            <option value="cancellation">Cancellations</option>
-          </select>
-        </label>
-        <label>
-          <span className="sr-only">Request status</span>
-          <select value={status} onChange={(event) => setStatus(event.currentTarget.value)}>
-            <option value="">All statuses</option>
-            {STATUS_OPTIONS.map((value) => <option key={value} value={value}>{humanizeStatus(value)}</option>)}
-          </select>
-        </label>
+        <Select label="Request type" hideLabel options={TYPE_FILTER_OPTIONS} value={type} onChange={setType} />
+        <Select label="Request status" hideLabel options={STATUS_FILTER_OPTIONS} value={status} onChange={setStatus} />
       </div>
 
       {listRequest.error ? (

@@ -24,8 +24,9 @@ import {
 import OrderStatusBadge from "@/features/orders/order-status-badge";
 import OrderTimeline from "@/features/orders/order-timeline";
 import type { OrderDetail, OrderPaymentInfo } from "@/features/orders/types";
-import { fetchCurrentCustomer } from "@/features/checkout/submit-checkout-order";
 import { useAsyncAction } from "@/hooks/use-async-action";
+import { isUnauthorizedError } from "@/lib/api/api-error";
+import { authHref } from "@/lib/auth/redirect";
 import { formatDate, formatDateTime, formatRupees, humanizeStatus } from "@/lib/format";
 
 export default function CustomerOrderDetailClient({ orderId }: { orderId: string }) {
@@ -45,11 +46,7 @@ export default function CustomerOrderDetailClient({ orderId }: { orderId: string
     setLoading(true);
     setError("");
     try {
-      const customer = await fetchCurrentCustomer();
-      if (!customer) {
-        router.push(`/account/login?next=/account/orders/${orderId}`);
-        return;
-      }
+      // The account layout verified the session on the server; the API answers 401 if it ends.
       const result = await fetchOrderDetail(orderId);
       setOrder(result.data?.order ?? null);
       setPayment(result.data?.payment ?? null);
@@ -65,7 +62,11 @@ export default function CustomerOrderDetailClient({ orderId }: { orderId: string
           setTrackingMessage("");
         }
       }
-    } catch {
+    } catch (failure) {
+      if (isUnauthorizedError(failure)) {
+        router.replace(authHref(`/account/orders/${encodeURIComponent(orderId)}`));
+        return;
+      }
       setError("We could not load this order.");
     } finally {
       setLoading(false);
@@ -167,7 +168,6 @@ export default function CustomerOrderDetailClient({ orderId }: { orderId: string
       <div className="account-notices">
         {order.paymentStatus === "pending" ? (
           <PendingCard
-            className="feedback-card--compact"
             title="Payment pending"
             description="This order is waiting for a confirmed payment. If you have already paid, refresh the status."
             action={
@@ -179,14 +179,12 @@ export default function CustomerOrderDetailClient({ orderId }: { orderId: string
         ) : null}
         {order.orderStatus === "cancelled" ? (
           <WarningCard
-            className="feedback-card--compact"
             title="Order cancelled"
             description={order.cancellation?.reason ? `Reason: ${order.cancellation.reason}` : "This order was cancelled."}
           />
         ) : null}
         {order.orderStatus === "cancelled" && order.cancellationRefund?.status && order.cancellationRefund.status !== "none" ? (
           <PendingCard
-            className="feedback-card--compact"
             title={`Refund ${humanizeStatus(order.cancellationRefund.status).toLowerCase()}`}
             description={order.cancellationRefund.message || "Refund status updates automatically once our payment provider confirms it."}
           />
@@ -253,7 +251,7 @@ export default function CustomerOrderDetailClient({ orderId }: { orderId: string
                   ) : null}
                 </dl>
                 {trackingMessage ? (
-                  <WarningCard className="feedback-card--compact" title="Tracking unavailable" description={trackingMessage} />
+                  <WarningCard title="Tracking unavailable" description={trackingMessage} />
                 ) : null}
                 {trackingEvents.length > 0 ? (
                   <ol className="order-tracking-events">

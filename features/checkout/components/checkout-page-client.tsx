@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -11,7 +11,7 @@ import LoadingButton from "@/components/ui/buttons/loading-button";
 import Button from "@/components/ui/button";
 import CheckoutSkeleton from "@/components/ui/loaders/checkout-skeleton";
 import ErrorCard from "@/components/ui/feedback/error-card";
-import WarningCard from "@/components/ui/feedback/warning-card";
+import NoticeCard, { NoticeLink } from "@/components/ui/feedback/notice-card";
 import CartSummary from "@/features/cart/components/cart-summary";
 import { buyNowStore, cartActions, useCartItems } from "@/features/cart/cart-store";
 import { useCartPricing } from "@/features/cart/use-cart-pricing";
@@ -22,7 +22,6 @@ import { useHydrated } from "@/lib/client/persistent-store";
 import { openRazorpayCheckout } from "@/features/checkout/razorpay-checkout";
 import {
   createPaymentOrder,
-  fetchCurrentCustomer,
   verifyPayment,
   type AddressSelection,
 } from "@/features/checkout/submit-checkout-order";
@@ -32,9 +31,14 @@ import { accountApi, toFieldErrors } from "@/features/account/account-api";
 import type { AddressBook, FieldErrors } from "@/features/account/types";
 import { usePaymentStatusPoll } from "@/hooks/use-payment-status-poll";
 import { useTenant } from "@/features/tenant/tenant-provider";
+import { authHref } from "@/lib/auth/redirect";
+import type { SessionUser } from "@/lib/auth/session-user";
 
 type CheckoutPageClientProps = {
   buyNow: boolean;
+  /** Signed-in shopper, from the server-rendered page (null for guests). */
+  customer: SessionUser | null;
+  initialAddressBook: AddressBook | null;
 };
 
 type LegacyPaymentPhase =
@@ -97,7 +101,7 @@ function CheckoutLine({ item }: { item: PricedCartLine }) {
   );
 }
 
-export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) {
+export default function CheckoutPageClient({ buyNow, customer, initialAddressBook }: CheckoutPageClientProps) {
   const tenant = useTenant();
   const router = useRouter();
   const feedback = useOptionalFeedback();
@@ -110,13 +114,12 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
   const clearBuyNow = cartActions.clearBuyNow;
   const [notice, setNotice] = useState("");
   const [phase, setPhase] = useState<LegacyPaymentPhase>("idle");
-  const [customer, setCustomer] = useState<Awaited<ReturnType<typeof fetchCurrentCustomer>>>(null);
   const [confirmedOrderNumber, setConfirmedOrderNumber] = useState("");
   const [lastPaymentReference, setLastPaymentReference] = useState("");
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
-  const [addressBook, setAddressBook] = useState<AddressBook | null>(null);
-  const [shippingChoice, setShippingChoice] = useState(NEW_ADDRESS);
-  const [billingChoice, setBillingChoice] = useState(NEW_ADDRESS);
+  const [addressBook, setAddressBook] = useState(initialAddressBook);
+  const [shippingChoice, setShippingChoice] = useState(initialAddressBook?.defaultShippingId ?? NEW_ADDRESS);
+  const [billingChoice, setBillingChoice] = useState(initialAddressBook?.defaultBillingId ?? NEW_ADDRESS);
   const [billingSameAsShipping, setBillingSameAsShipping] = useState(true);
   const [addressErrors, setAddressErrors] = useState<{ shipping: FieldErrors; billing: FieldErrors }>({ shipping: {}, billing: {} });
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -154,22 +157,12 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
     },
   });
 
-  useEffect(() => {
-    let cancelled = false;
-    void fetchCurrentCustomer().then(async (current) => {
-      if (cancelled) return;
-      setCustomer(current);
-      if (!current) return;
-      const book = await accountApi.fetchAddresses().then((result) => result.data).catch(() => null);
-      if (cancelled || !book) return;
-      setAddressBook(book);
-      setShippingChoice(book.defaultShippingId ?? NEW_ADDRESS);
-      setBillingChoice(book.defaultBillingId ?? NEW_ADDRESS);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const signInHref = authHref(buyNow ? "/checkout?intent=buy-now" : "/checkout");
+
+  function requireSignIn() {
+    feedback?.warning("Sign in required", "Sign in to place your order.");
+    router.push(signInHref);
+  }
 
   /**
    * Turns the picker state into an order address. A new address the customer
@@ -213,13 +206,11 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
     if (pending || paymentStartedRef.current) return;
 
     setNotice("");
-    const currentCustomer = await fetchCurrentCustomer();
-    if (!currentCustomer) {
-      feedback?.warning("Sign in required", "Sign in to place a wholesale order.");
-      router.push(`/account/login?next=${encodeURIComponent(buyNow ? "/checkout?intent=buy-now" : "/checkout")}`);
+    // The session was verified when the page rendered; if it has ended since, the API answers 401 below.
+    if (!customer) {
+      requireSignIn();
       return;
     }
-    setCustomer(currentCustomer);
 
     if (!razorpayEnabled) {
       setNotice("Online payment is not configured. Set Razorpay environment variables to enable Pay Now.");
@@ -247,6 +238,13 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
 
     try {
       const { response, payload } = await createPaymentOrder(checkoutItems, shipping, billing);
+      if (response.status === 401) {
+        // Signed out elsewhere (an expired access token was already renewed by fetchWithSession).
+        paymentStartedRef.current = false;
+        setPhase("idle");
+        requireSignIn();
+        return;
+      }
       if (!response.ok || !payload.success || !payload.data) {
         paymentStartedRef.current = false;
         setAddressErrors(mapAddressErrors(payload.errors));
@@ -265,8 +263,8 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
         currency: payload.data.currency,
         orderId: payload.data.razorpayOrderId,
         customer: {
-          name: contact?.fullName ?? currentCustomer.name,
-          email: currentCustomer.email,
+          name: contact?.fullName ?? customer.name,
+          email: customer.email,
           phone: contact?.phone ?? "",
         },
         description: `Order ${payload.data.orderNumber}`,
@@ -342,17 +340,10 @@ export default function CheckoutPageClient({ buyNow }: CheckoutPageClientProps) 
         {!buyNow && <Link className="text-button" href="/cart">Edit cart</Link>}
       </div>
       {!customer && (
-        <WarningCard
-          title="Sign in to continue"
-          description={tenant.salesMode === "wholesale" ? "Wholesale checkout requires a signed-in business account." : "Sign in or create an account to place your order."}
-          action={
-            <Button
-              href={`/account/login?next=${encodeURIComponent(buyNow ? "/checkout?intent=buy-now" : "/checkout")}`}
-              variant="secondary"
-            >
-              Sign in
-            </Button>
-          }
+        <NoticeCard
+          title="Sign in to place your order"
+          description={tenant.salesMode === "wholesale" ? "Checkout uses your business account: saved addresses, GST details and order tracking." : "Sign in or create an account to check out with saved addresses and order tracking."}
+          action={<NoticeLink href={signInHref}>Sign in</NoticeLink>}
         />
       )}
       {paymentUiPhase !== "idle" && paymentUiPhase !== "success" ? (

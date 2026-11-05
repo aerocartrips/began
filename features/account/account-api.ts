@@ -47,7 +47,6 @@ export const accountApi = {
   confirmEmail: (token: string) =>
     send<{ email: string; changed: boolean }>("/api/v1/account/email/verify", "POST", { token }),
 
-  fetchAddresses: () => apiRequest<AddressBook>("/api/v1/account/addresses"),
   createAddress: (body: AddressInput & { makeDefaultShipping?: boolean; makeDefaultBilling?: boolean }) =>
     send<{ address: SavedAddress; book: AddressBook }>("/api/v1/account/addresses", "POST", body),
   updateAddress: (id: string, body: AddressInput & { makeDefaultShipping?: boolean; makeDefaultBilling?: boolean }) =>

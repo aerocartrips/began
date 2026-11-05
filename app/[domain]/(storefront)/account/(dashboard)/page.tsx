@@ -1,8 +1,9 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, CheckCircle2, Circle, Info, Package } from "lucide-react";
+import { ArrowRight, CheckCircle2, Circle, Package } from "lucide-react";
 import Button from "@/components/ui/button";
 import EmptyState from "@/components/ui/empty-state";
+import NoticeCard, { NoticeLink } from "@/components/ui/feedback/notice-card";
 import AccountHeading from "@/features/account/components/account-heading";
 import AccountSignOut from "@/features/account/components/account-sign-out";
 import { AddressSummary } from "@/features/account/components/address-card";
@@ -20,7 +21,7 @@ export const metadata = {
   description: "Manage your account, orders and addresses.",
 };
 
-const ACTION_ICONS = { warning: AlertTriangle, danger: AlertTriangle, info: Info };
+const NOTICE_TONES = { warning: "warning", danger: "danger", info: "info" } as const;
 
 async function AccountOverview() {
   const user = await requireAccountUser();
@@ -39,21 +40,16 @@ async function AccountOverview() {
 
       {actions.length ? (
         <ul className="account-actions" aria-label="Things that need your attention">
-          {actions.map((action) => {
-            const Icon = ACTION_ICONS[action.tone as keyof typeof ACTION_ICONS] ?? Info;
-            return (
-              <li key={action.key} className={`account-action is-${action.tone}`}>
-                <Icon size={16} aria-hidden="true" />
-                <div>
-                  <strong>{action.title}</strong>
-                  <span>{action.description}</span>
-                </div>
-                <Link href={action.href} className="account-link-button">
-                  {action.cta} <ArrowRight size={13} aria-hidden="true" />
-                </Link>
-              </li>
-            );
-          })}
+          {actions.map((action) => (
+            <li key={action.key}>
+              <NoticeCard
+                tone={NOTICE_TONES[action.tone as keyof typeof NOTICE_TONES] ?? "info"}
+                title={action.title}
+                description={action.description}
+                action={<NoticeLink href={action.href}>{action.cta}</NoticeLink>}
+              />
+            </li>
+          ))}
         </ul>
       ) : null}
 
