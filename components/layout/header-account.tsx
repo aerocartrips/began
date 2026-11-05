@@ -19,5 +19,5 @@ export default async function HeaderAccount() {
 }
 
 export function HeaderAccountFallback() {
-  return <span className="account-menu-placeholder" aria-hidden="true" />;
+  return <span className="account-menu-placeholder account-menu-placeholder--icon" aria-hidden="true" />;
 }

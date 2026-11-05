@@ -341,6 +341,7 @@ export default function CheckoutPageClient({ buyNow, customer, initialAddressBoo
       </div>
       {!customer && (
         <NoticeCard
+          className="checkout-sign-in-notice"
           title="Sign in to place your order"
           description={tenant.salesMode === "wholesale" ? "Checkout uses your business account: saved addresses, GST details and order tracking." : "Sign in or create an account to check out with saved addresses and order tracking."}
           action={<NoticeLink href={signInHref}>Sign in</NoticeLink>}

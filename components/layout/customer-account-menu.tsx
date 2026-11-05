@@ -79,9 +79,13 @@ function SignedOutControls() {
           <Bell size={18} strokeWidth={1.8} aria-hidden="true" />
         </Link>
       </div>
-      <Link className="account-menu-trigger" href={authHref(returnPathFor(pathname, searchParams))}>
-        <User size={15} aria-hidden="true" />
-        <span>Sign in</span>
+      <Link
+        className="account-menu-trigger account-menu-trigger--icon"
+        href={authHref(returnPathFor(pathname, searchParams))}
+        aria-label="Sign in"
+        title="Sign in"
+      >
+        <User size={16} strokeWidth={1.85} aria-hidden="true" />
       </Link>
     </>
   );
