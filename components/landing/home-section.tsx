@@ -30,7 +30,7 @@ export default function HomeSection({ section, title, description, viewAll, clas
           {description ? <p>{description}</p> : null}
         </div>
         {viewAll?.href ? (
-          <Link className="home-section__more" href={viewAll.href}>
+          <Link className="home-section__more" href={viewAll.href} data-view-all="header">
             {viewAll.label ?? "View all"}
             <ArrowRight size={14} aria-hidden="true" />
             <span className="sr-only"> {title}</span>

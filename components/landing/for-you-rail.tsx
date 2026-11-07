@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import HomeSection from "@/components/landing/home-section";
-import ProductRail from "@/components/landing/product-rail";
+import ProductRail from "@/components/catalog/product-rail";
 import { recentlyViewedStore } from "@/features/catalog/recently-viewed";
 import { wishlistStore } from "@/features/wishlist/wishlist-store";
 import { cartStore } from "@/features/cart/cart-store";
@@ -10,6 +10,7 @@ import type { ProductCardData, Recommendations } from "@/features/catalog/types"
 import type { HomeSection as HomeSectionConfig } from "@/features/homepage/types";
 
 const POPULAR_TITLE = "Popular right now";
+const POPULAR_HREF = "/products?sort=popular";
 
 /**
  * "Picked for you". The server renders the store's popular products, so the
@@ -17,9 +18,11 @@ const POPULAR_TITLE = "Popular right now";
  * history (views, wishlist, cart), the row is swapped for personal picks of
  * the same size, so nothing on the page moves.
  */
-export default function ForYouRail({ section, initialProducts, salesMode }: {
+export default function ForYouRail({ section, initialProducts, catalogueTotal, salesMode }: {
   section: HomeSectionConfig;
   initialProducts: ProductCardData[];
+  /** Products the "View all" page lists (the whole catalogue, most popular first). */
+  catalogueTotal: number;
   salesMode: "wholesale" | "retail";
 }) {
   const [picks, setPicks] = useState<Recommendations | null>(null);
@@ -49,14 +52,11 @@ export default function ForYouRail({ section, initialProducts, salesMode }: {
 
   const products = picks?.items ?? initialProducts;
   if (!products.length) return null;
+  const label = picks ? section.title || "Picked for you" : POPULAR_TITLE;
+  const viewAll = { href: section.viewAllHref || POPULAR_HREF, count: section.viewAllHref ? null : catalogueTotal };
   return (
-    <HomeSection
-      section={section}
-      title={picks ? section.title || "Picked for you" : POPULAR_TITLE}
-      description={picks ? picks.reason : section.description}
-      viewAll={{ href: section.viewAllHref || "/products?sort=popular" }}
-    >
-      <ProductRail products={products} salesMode={salesMode} label={picks ? "Picked for you" : POPULAR_TITLE} />
+    <HomeSection section={section} title={label} description={picks ? picks.reason : section.description} viewAll={viewAll}>
+      <ProductRail products={products} salesMode={salesMode} label={label} viewAll={viewAll} />
     </HomeSection>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import HomeSection from "@/components/landing/home-section";
-import ProductRail from "@/components/landing/product-rail";
+import ProductRail from "@/components/catalog/product-rail";
 import { useProductCards } from "@/components/catalog/product-strip";
 import { recentlyViewedStore } from "@/features/catalog/recently-viewed";
 import { useHydrated } from "@/lib/client/persistent-store";
@@ -19,9 +19,10 @@ export default function RecentlyViewedRail({ section, salesMode }: {
   const ids = recentlyViewedStore.use().slice(0, section.limit);
   const { cards } = useProductCards(hydrated ? ids : []);
   if (!hydrated || cards.length === 0) return null;
+  const title = section.title || "Recently viewed";
   return (
-    <HomeSection section={section} title={section.title || "Recently viewed"} description={section.description}>
-      <ProductRail products={cards} salesMode={salesMode} label={section.title || "Recently viewed"} />
+    <HomeSection section={section} title={title} description={section.description}>
+      <ProductRail products={cards} salesMode={salesMode} label={title} />
     </HomeSection>
   );
 }

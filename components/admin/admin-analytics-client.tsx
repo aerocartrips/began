@@ -19,11 +19,24 @@ const PERIOD_OPTIONS: SelectOption[] = [
 type Ranked = { target: string; label: string; count: number };
 type Insights = {
   days: number;
-  sections: { key: string; label: string; enabled: boolean; views: number; clicks: number; clickRate: number | null }[];
+  sections: {
+    key: string;
+    label: string;
+    enabled: boolean;
+    views: number;
+    clicks: number;
+    clickRate: number | null;
+    /** Product rows only (null otherwise). */
+    halfwayRate: number | null;
+    endRate: number | null;
+  }[];
   topBanners: Ranked[];
   topCategories: Ranked[];
   topProducts: Ranked[];
-  actions: Record<"searches" | "suggestionClicks" | "wishlistAdds" | "cartAdds" | "feedLoads" | "newsletterSignups", number>;
+  actions: Record<
+    "searches" | "suggestionClicks" | "wishlistAdds" | "cartAdds" | "feedLoads" | "viewAllHeader" | "viewAllEnd" | "newsletterSignups",
+    number
+  >;
 };
 
 const ACTION_LABELS: Record<keyof Insights["actions"], string> = {
@@ -32,8 +45,12 @@ const ACTION_LABELS: Record<keyof Insights["actions"], string> = {
   wishlistAdds: "Wishlist adds",
   cartAdds: "Add to cart",
   feedLoads: "Feed pages loaded",
+  viewAllHeader: "“View all” in a row heading",
+  viewAllEnd: "“View all” at a row’s end",
   newsletterSignups: "Newsletter sign-ups",
 };
+
+const percent = (value: number | null) => (value === null ? "—" : `${value}%`);
 
 function RankedList({ title, rows, empty }: { title: string; rows: Ranked[]; empty: string }) {
   return (
@@ -84,7 +101,10 @@ export default function AdminAnalyticsClient() {
               </div>
             ))}
           </div>
-          <AdminCard title="Sections" description="Views count each time a row is scrolled into view; clicks are links followed inside it.">
+          <AdminCard
+            title="Sections"
+            description="Views count each time a row is scrolled into view; clicks are links followed inside it. For product rows, the last two columns show how many viewers swiped half way and all the way to the “View all” card."
+          >
             <div className="admin-table-wrap is-flush">
               <table className="admin-table">
                 <thead>
@@ -93,6 +113,8 @@ export default function AdminAnalyticsClient() {
                     <th scope="col" className="is-numeric">Views</th>
                     <th scope="col" className="is-numeric">Clicks</th>
                     <th scope="col" className="is-numeric">Click rate</th>
+                    <th scope="col" className="is-numeric">Swiped half way</th>
+                    <th scope="col" className="is-numeric">Swiped to the end</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -101,7 +123,9 @@ export default function AdminAnalyticsClient() {
                       <td>{section.label}{section.enabled ? "" : " (hidden)"}</td>
                       <td className="is-numeric">{formatNumber(section.views)}</td>
                       <td className="is-numeric">{formatNumber(section.clicks)}</td>
-                      <td className="is-numeric">{section.clickRate === null ? "—" : `${section.clickRate}%`}</td>
+                      <td className="is-numeric">{percent(section.clickRate)}</td>
+                      <td className="is-numeric">{percent(section.halfwayRate)}</td>
+                      <td className="is-numeric">{percent(section.endRate)}</td>
                     </tr>
                   ))}
                 </tbody>

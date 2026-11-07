@@ -50,7 +50,8 @@
 .catalog-card__body { display: grid; gap: 8px; align-content: start; padding: 14px 16px 18px; }
 /* Two lines at most, so cards in a row line up whatever the product name length. */
 .catalog-card__title { display: -webkit-box; margin: 0; overflow: hidden; font-size: 14px; font-weight: 600; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.catalog-card__flags { position: absolute; top: 10px; left: 10px; display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; }
+/* Max width: flags wrap before they reach the wishlist button. */
+.catalog-card__flags { position: absolute; top: 10px; left: 10px; display: flex; max-width: calc(100% - 64px); flex-wrap: wrap; gap: 6px; pointer-events: none; }
 .catalog-card__flag { padding: 4px 8px; border-radius: var(--radius-pill); background: var(--color-surface); color: var(--color-text); font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; box-shadow: var(--shadow-card); }
 .catalog-card__flag.is-offer { background: var(--color-brand); color: #fff; }
 .catalog-card__sku { margin: -4px 0 0; color: var(--color-text-subtle); font-size: 10.5px; letter-spacing: .03em; }
@@ -68,6 +69,87 @@
 .wishlist-toggle { position: absolute; top: 10px; right: 10px; display: inline-grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .92); color: var(--color-text); cursor: pointer; box-shadow: var(--shadow-card); }
 .wishlist-toggle[aria-pressed="true"] { color: #d6336c; }
 .wishlist-toggle--labelled { position: static; display: inline-flex; width: auto; height: auto; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-pill); box-shadow: none; font: inherit; font-size: 13px; font-weight: 600; }
+
+/* Compact card (home page rows and feed, product page rows): the photo carries
+   the card; one-line name, price with MOQ, best quantity price, then colours
+   and rating. About half the text height of the full card. */
+.catalog-card--compact .catalog-card__body { gap: 3px; padding: 8px 10px 10px; }
+.catalog-card--compact .catalog-card__title { display: block; overflow: hidden; font-size: 13px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.catalog-card--compact .catalog-price { gap: 0 4px; line-height: 1.3; }
+.catalog-card--compact .catalog-price strong { font-size: 15px; }
+.catalog-card--compact .catalog-price del { font-size: 11px; }
+.catalog-card--compact .catalog-card__tier { margin: 0; font-size: 11.5px; line-height: 1.3; }
+/* Colours on the left; MOQ and rating on the right (they wrap below on the narrowest cards). */
+.catalog-card--compact .catalog-card__meta { display: flex; min-height: 14px; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px 8px; margin-top: 2px; font-size: 11px; line-height: 1.3; }
+.catalog-card__facts { display: inline-flex; gap: 6px; white-space: nowrap; }
+.catalog-card--compact .swatch-list { gap: 4px; }
+.catalog-card--compact .swatch { width: 12px; height: 12px; }
+.catalog-card--compact .catalog-card__flags { top: 8px; left: 8px; max-width: calc(100% - 52px); gap: 4px; }
+.catalog-card--compact .catalog-card__flag { padding: 3px 6px; font-size: 9.5px; }
+.catalog-card--compact .catalog-card__badge { bottom: 8px; left: 8px; }
+.catalog-card--compact .wishlist-toggle { top: 8px; right: 8px; width: 32px; height: 32px; }
+
+/* Product rail (components/catalog/product-rail.tsx): one line of cards.
+   --rail-visible cards fit the width; the fraction is the next card peeking
+   in, the cue that the row scrolls. Desktop shows whole cards and arrows. */
+.rail { position: relative; }
+.product-rail {
+  --rail-visible: 6;
+  --rail-gap: 16px;
+  /* Keeps absolutely positioned descendants (the .sr-only label in the "View all"
+     card) inside the scroll container; otherwise they escape to .rail and widen the page. */
+  position: relative;
+  display: grid;
+  grid-auto-columns: calc((100% - (var(--rail-visible) - 1) * var(--rail-gap)) / var(--rail-visible));
+  grid-auto-flow: column;
+  gap: var(--rail-gap);
+  margin: 0;
+  padding: 2px 2px 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  list-style: none;
+  /* Snap to the padding edge, so the row rests at scrollLeft 0 (and "previous" stays hidden). */
+  scroll-padding-inline: 2px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.product-rail::-webkit-scrollbar { display: none; }
+.product-rail > li { min-width: 0; scroll-snap-align: start; }
+/* Previous / next: mouse and trackpad only (touch swipes). Hidden (and out of the
+   tab order) until components/catalog/rail-scroller.tsx marks the row as able to
+   move that way, so neither shows on a row that fits or at its ends. */
+.rail__arrow { position: absolute; top: 38%; z-index: 2; display: none; width: 40px; height: 40px; place-items: center; padding: 0; border: 1px solid var(--color-border); border-radius: 50%; background: var(--color-surface); box-shadow: 0 6px 18px rgba(17, 24, 39, .14); color: var(--color-text); cursor: pointer; opacity: 0; visibility: hidden; transform: translateY(-50%); transition: opacity .2s ease, visibility .2s; }
+.rail__arrow--prev { left: -20px; }
+.rail__arrow--next { right: -20px; }
+.rail__arrow:hover { border-color: var(--color-brand); color: var(--color-brand); }
+.rail__arrow:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }
+.rail[data-can-prev] .rail__arrow--prev,
+.rail[data-can-next] .rail__arrow--next { opacity: 1; visibility: visible; }
+@media (hover: hover) and (pointer: fine) {
+  .rail__arrow { display: grid; }
+}
+/* The row's last card: the same size as a product card, so the swipe ends on it. */
+.rail-view-all { display: flex; height: 100%; min-height: 200px; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 16px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-card); background: color-mix(in srgb, var(--color-brand) 6%, var(--color-surface)); color: var(--color-text); text-align: center; transition: border-color .2s ease, background .2s ease; }
+.rail-view-all:hover { border-color: var(--color-brand); background: color-mix(in srgb, var(--color-brand) 11%, var(--color-surface)); }
+.rail-view-all__icon { display: grid; width: 44px; height: 44px; place-items: center; margin-bottom: 6px; border-radius: 50%; background: var(--color-brand); color: #fff; transition: transform .2s ease; }
+.rail-view-all:hover .rail-view-all__icon { transform: translateX(3px); }
+.rail-view-all strong { font-size: 14px; }
+.rail-view-all__count { color: var(--color-text-muted); font-size: 12px; }
+@media (max-width: 1100px) {
+  .product-rail { --rail-visible: 4.3; --rail-gap: 14px; }
+}
+@media (max-width: 760px) {
+  .product-rail { --rail-visible: 3.3; --rail-gap: 10px; }
+  .rail__arrow--prev { left: 4px; }
+  .rail__arrow--next { right: 4px; }
+}
+@media (max-width: 480px) {
+  .product-rail { --rail-visible: 2.3; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rail__arrow, .rail-view-all, .rail-view-all__icon { transition: none; }
+}
 
 .catalog-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; margin-top: 36px; }
 .catalog-pagination a,
@@ -217,7 +299,8 @@
   .catalog-filters-backdrop[data-open] { opacity: 1; visibility: visible; }
   .catalog-filters-panel { position: fixed; z-index: 61; right: 0; bottom: 0; left: 0; display: flex; max-height: min(88vh, 760px); max-height: min(88dvh, 760px); flex-direction: column; border-radius: 20px 20px 0 0; background: var(--color-surface); box-shadow: 0 -20px 50px rgba(17, 24, 39, .18); visibility: hidden; transform: translateY(100%); transition: transform .3s cubic-bezier(.2, .8, .2, 1), visibility .3s; }
   .catalog-filters-panel[data-open] { visibility: visible; transform: none; }
-  html:has(.catalog-filters-panel[data-open]) { overflow: hidden; }
+  /* Page scroll lock while open: components/catalog/catalog-filters-panel.tsx (not html:has(),
+     which would keep matching the sheet on a page Next has hidden). */
   .catalog-filters-panel__head { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 8px 8px 20px; border-bottom: 1px solid var(--color-border); }
   .catalog-filters-panel__head::before { position: absolute; top: 6px; left: 50%; width: 36px; height: 4px; border-radius: var(--radius-pill); background: var(--color-border); content: ""; transform: translateX(-50%); }
   .catalog-filters-panel__head h2 { margin: 0; font-size: 17px; font-weight: 700; }

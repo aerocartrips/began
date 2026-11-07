@@ -10,7 +10,7 @@ import TrustStrip from "@/components/landing/trust-strip";
 import ForYouRail from "@/components/landing/for-you-rail";
 import CatalogueOverview from "@/components/landing/catalogue-overview";
 import ProductTabs from "@/components/landing/product-tabs";
-import ProductRail from "@/components/landing/product-rail";
+import ProductRail from "@/components/catalog/product-rail";
 import QuickPicks from "@/components/landing/quick-picks";
 import RecentlyViewedRail from "@/components/landing/recently-viewed-rail";
 import HomeReviews from "@/components/landing/home-reviews";
@@ -25,6 +25,7 @@ import { getLiveBanners } from "@/lib/content/banners";
 import { getHomepageSections } from "@/lib/content/homepage";
 import { defaultCta, defaultHomeSections, defaultTrustItems } from "@/lib/content/homepage-defaults";
 import {
+  getCatalogueTotal,
   getCategoryOverview,
   getCollectionProducts,
   getFeedPage,
@@ -97,7 +98,8 @@ function StoreHero({ tenant }: { tenant: PublicTenant }) {
                 src={heroImageUrl}
                 alt=""
                 fill
-                priority
+                loading="eager"
+                fetchPriority="high"
                 sizes="(max-width: 760px) 92vw, (max-width: 1100px) 70vw, 45vw"
                 className="cover-image hero-image"
               />
@@ -127,11 +129,14 @@ export default async function Home() {
   const forYouSection = find(T.FOR_YOU);
   const reviewsSection = find(T.REVIEWS);
   const guidesSection = find(T.GUIDES);
+  const feedSection = find(T.FEED);
   const collectionSections = sections.filter((section) => section.type === T.COLLECTION && section.source);
-  const needsCategories = Boolean(find(T.CATEGORY_NAV) || find(T.CATALOGUE) || find(T.FEED));
+  const needsCategories = Boolean(find(T.CATEGORY_NAV) || find(T.CATALOGUE) || feedSection);
+  // "View all" counts for rows that lead to the whole catalogue.
+  const needsTotal = Boolean(tabsSection || forYouSection || feedSection);
 
   // Everything is fetched in parallel, and only for sections the store shows.
-  const [banners, categories, tabs, popular, quickPicks, reviews, guides, feed, collections] = await Promise.all([
+  const [banners, categories, tabs, popular, quickPicks, reviews, guides, feed, catalogueTotal, collections] = await Promise.all([
     find(T.HERO) ? safely("banners", () => getLiveBanners(tenant.id), []) : [],
     needsCategories ? safely("categories", () => getCategoryOverview(tenant.id, salesMode), []) : [],
     tabsSection ? safely("product tabs", () => getProductTabs(tenant.id, salesMode, tabsSection.limit), null) : null,
@@ -139,10 +144,11 @@ export default async function Home() {
     find(T.QUICK_PICKS) ? safely("quick picks", () => getQuickPicks(tenant.id, salesMode), []) : [],
     reviewsSection ? safely("reviews", () => getHomeReviews(tenant.id, reviewsSection.limit), []) : [],
     guidesSection ? safely("guides", () => getPublishedGuides(tenant.id, { limit: guidesSection.limit, withCover: true }), []) : [],
-    find(T.FEED) ? safely("feed", () => getFeedPage(tenant.id, salesMode, "", null), null) : null,
+    feedSection ? safely("feed", () => getFeedPage(tenant.id, salesMode, "", null), null) : null,
+    needsTotal ? safely("catalogue total", () => getCatalogueTotal(tenant.id), 0) : 0,
     Promise.all(
       collectionSections.map((section) =>
-        safely(`collection ${section.key}`, () => getCollectionProducts(tenant.id, salesMode, section.source!, section.limit), []),
+        safely(`collection ${section.key}`, () => getCollectionProducts(tenant.id, salesMode, section.source!, section.limit), { items: [], total: 0 }),
       ),
     ),
   ]);
@@ -166,7 +172,7 @@ export default async function Home() {
         return <TrustStrip section={section} items={section.items?.length ? section.items : defaultTrustItems(salesMode)} storeName={tenant.name} />;
 
       case T.FOR_YOU:
-        return <ForYouRail section={section} initialProducts={popular} salesMode={salesMode} />;
+        return <ForYouRail section={section} initialProducts={popular} catalogueTotal={catalogueTotal} salesMode={salesMode} />;
 
       case T.CATALOGUE:
         return categories.length ? (
@@ -198,7 +204,14 @@ export default async function Home() {
                 key,
                 label: PRODUCT_TAB_LABELS[key],
                 href: TAB_HREFS[key],
-                panel: <ProductRail products={tabs[key]} salesMode={salesMode} label={PRODUCT_TAB_LABELS[key]} />,
+                panel: (
+                  <ProductRail
+                    products={tabs[key]}
+                    salesMode={salesMode}
+                    label={PRODUCT_TAB_LABELS[key]}
+                    viewAll={{ href: TAB_HREFS[key], count: catalogueTotal }}
+                  />
+                ),
               }))}
             />
           </section>
@@ -213,11 +226,13 @@ export default async function Home() {
         ) : null;
 
       case T.COLLECTION: {
-        const products = collectionProducts.get(section.key) ?? [];
+        const products = collectionProducts.get(section.key);
         const href = collectionViewAll(section);
-        return products.length ? (
-          <HomeSection section={section} title={section.title} description={section.description} viewAll={href ? { href } : null}>
-            <ProductRail products={products} salesMode={salesMode} label={section.title} />
+        // A custom link may list something else, so only the collection's own page gets a count.
+        const viewAll = href ? { href, count: section.viewAllHref ? null : products?.total } : null;
+        return products?.items.length ? (
+          <HomeSection section={section} title={section.title} description={section.description} viewAll={viewAll}>
+            <ProductRail products={products.items} salesMode={salesMode} label={section.title} viewAll={viewAll} />
           </HomeSection>
         ) : null;
       }
@@ -280,6 +295,7 @@ export default async function Home() {
             description={section.description || "Most popular first. Pick a category to narrow it down."}
             initialPage={feed}
             categories={categories.map(({ slug, name, productCount }) => ({ slug, name, count: productCount }))}
+            catalogueTotal={catalogueTotal}
             salesMode={salesMode}
           />
         ) : null;

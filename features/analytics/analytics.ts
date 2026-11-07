@@ -16,7 +16,9 @@ export type AnalyticsEventName =
   | "wishlist_add"
   | "cart_add"
   | "feed_load"
-  | "newsletter_signup";
+  | "newsletter_signup"
+  | "rail_scroll"
+  | "view_all_click";
 
 type QueuedEvent = { event: AnalyticsEventName; section: string; target: string };
 

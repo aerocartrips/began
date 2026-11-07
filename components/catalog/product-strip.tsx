@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import ProductGrid from "@/components/catalog/product-grid";
+import ProductRail from "@/components/catalog/product-rail";
 import type { ProductCardData } from "@/features/catalog/types";
 
 /**
@@ -37,7 +37,7 @@ export default function ProductStrip({ ids, title, salesMode }: {
   return (
     <section className="product-strip" aria-label={title}>
       <h2>{title}</h2>
-      <ProductGrid products={cards} salesMode={salesMode} label={title} />
+      <ProductRail products={cards} salesMode={salesMode} label={title} />
     </section>
   );
 }

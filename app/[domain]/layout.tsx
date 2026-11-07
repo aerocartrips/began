@@ -58,6 +58,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       data-scroll-behavior="smooth"
     >
       <body>
+        {/* Product photos load straight from Cloudinary (components/images/product-image.tsx): open the
+            connection while the page is still loading. React moves this into <head>. */}
+        {process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ? <link rel="preconnect" href="https://res.cloudinary.com" /> : null}
         <TenantProvider
           tenant={{
             name: tenant.name,

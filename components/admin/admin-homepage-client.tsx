@@ -16,7 +16,15 @@ import { useApiRequest } from "@/hooks/use-api-request";
 import { apiRequest } from "@/lib/api/api-client";
 import { sendJson } from "@/lib/api/send-json";
 import { formatDateTime } from "@/lib/format";
-import { HOME_SECTION_META, MAX_COLLECTIONS, PRODUCT_TAB_KEYS, PRODUCT_TAB_LABELS, TRUST_ICONS } from "@/lib/constants/homepage";
+import {
+  DEFAULT_SECTION_PRODUCTS,
+  HOME_SECTION_META,
+  MAX_COLLECTIONS,
+  MAX_SECTION_PRODUCTS,
+  PRODUCT_TAB_KEYS,
+  PRODUCT_TAB_LABELS,
+  TRUST_ICONS,
+} from "@/lib/constants/homepage";
 import type { AdminHomepageLayout, CollectionSource, HomeSection, ProductTabKey, TrustItem } from "@/features/homepage/types";
 
 type CategoryOption = { _id: string; name: string; slug: string };
@@ -50,7 +58,7 @@ function newCollection(): HomeSection {
     enabled: true,
     title: "",
     description: "",
-    limit: 10,
+    limit: DEFAULT_SECTION_PRODUCTS,
     viewAllHref: "",
     showOnMobile: true,
     showOnDesktop: true,
@@ -169,7 +177,13 @@ function SectionEditor({ section, categories, onChange }: {
       {PRODUCT_ROWS.has(section.type) ? (
         <label className="admin-field">
           {section.type === "reviews" ? "Reviews to show" : section.type === "guides" ? "Guides to show" : "Products to show"}
-          <input type="number" min={4} max={24} value={section.limit} onChange={(event) => onChange({ limit: Math.min(24, Math.max(4, Number(event.currentTarget.value) || 4)) })} />
+          <input
+            type="number"
+            min={4}
+            max={MAX_SECTION_PRODUCTS}
+            value={section.limit}
+            onChange={(event) => onChange({ limit: Math.min(MAX_SECTION_PRODUCTS, Math.max(4, Number(event.currentTarget.value) || 4)) })}
+          />
         </label>
       ) : null}
       {["for-you", "catalogue", "collection", "guides", "feed"].includes(section.type) ? (
@@ -388,23 +402,22 @@ export default function AdminHomepageClient() {
         >
           <ol className="admin-home-list">
             {current.map((section, index) => {
-              const pinned = section.type === "feed";
-              const last = index === current.length - 1 || current[index + 1]?.type === "feed";
+              const last = index === current.length - 1;
               const expanded = open === section.key;
               return (
                 <li key={section.key} className={`admin-home-row${section.enabled ? "" : " is-off"}`}>
                   <div className="admin-home-row__main">
                     <div className="admin-banner-row__order">
-                      <button type="button" className="icon-button" aria-label={`Move ${meta(section).label} up`} disabled={pinned || index === 0} onClick={() => move(index, -1)}>
+                      <button type="button" className="icon-button" aria-label={`Move ${meta(section).label} up`} disabled={index === 0} onClick={() => move(index, -1)}>
                         <ArrowUp size={15} />
                       </button>
-                      <button type="button" className="icon-button" aria-label={`Move ${meta(section).label} down`} disabled={pinned || last} onClick={() => move(index, 1)}>
+                      <button type="button" className="icon-button" aria-label={`Move ${meta(section).label} down`} disabled={last} onClick={() => move(index, 1)}>
                         <ArrowDown size={15} />
                       </button>
                     </div>
                     <div className="admin-home-row__copy">
                       <strong>{section.type === "collection" ? section.title || "New collection" : meta(section).label}</strong>
-                      <small>{pinned ? `${meta(section).help}` : section.type === "collection" ? `Collection · ${SOURCE_LABELS[section.source?.kind ?? "category"]}` : meta(section).help}</small>
+                      <small>{section.type === "collection" ? `Collection · ${SOURCE_LABELS[section.source?.kind ?? "category"]}` : meta(section).help}</small>
                     </div>
                     <AdminStatusChip status={section.enabled ? "active" : "draft"} label={section.enabled ? "Shown" : "Hidden"} />
                     <div className="admin-home-row__toggles" role="group" aria-label={`Where ${meta(section).label} shows`}>

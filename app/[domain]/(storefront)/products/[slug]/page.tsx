@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ProductDetailClient from "@/components/catalog/product-detail-client";
-import ProductGrid from "@/components/catalog/product-grid";
+import ProductRail from "@/components/catalog/product-rail";
 import RecentlyViewed from "@/components/catalog/recently-viewed";
 import ProductReviewsSection from "@/components/reviews/product-reviews-section";
 import JsonLd from "@/components/seo/json-ld";
@@ -125,7 +125,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
       {related.length > 0 ? (
         <section className="product-strip" aria-labelledby="related-heading">
           <h2 id="related-heading">You may also like</h2>
-          <ProductGrid products={related} salesMode={tenant.salesMode} label="Related products" />
+          <ProductRail
+            products={related}
+            salesMode={tenant.salesMode}
+            label="Related products"
+            viewAll={product.category ? { href: `/categories/${product.category.slug}` } : null}
+          />
         </section>
       ) : null}
       <RecentlyViewed excludeId={product.id} salesMode={tenant.salesMode} />

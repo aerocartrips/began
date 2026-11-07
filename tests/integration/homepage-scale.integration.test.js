@@ -7,6 +7,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
+import { FEED_PAGE_SIZE } from "@/lib/constants/homepage";
 
 const PRODUCTS = 20000;
 const CATEGORIES = 20;
@@ -90,7 +91,7 @@ describe("feed on 20,000 products", () => {
     const explain = await m.runWithTenant(String(tenantId), () =>
       m.Product.find({ status: "active", ...m.feedCursorFilter(position) })
         .sort({ popularityScore: -1, _id: -1 })
-        .limit(13)
+        .limit(FEED_PAGE_SIZE + 1)
         .explain("executionStats"),
     );
     const plan = JSON.stringify(explain.queryPlanner.winningPlan);
@@ -103,7 +104,7 @@ describe("feed on 20,000 products", () => {
     const started = performance.now();
     const page = await m.getFeedPage(String(tenantId), "retail", "category-3", null);
     expect(performance.now() - started).toBeLessThan(1000);
-    expect(page.items).toHaveLength(12);
+    expect(page.items).toHaveLength(FEED_PAGE_SIZE);
   });
 });
 

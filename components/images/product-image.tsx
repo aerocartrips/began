@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { buildClientDeliveryUrl } from "@/lib/cloudinary/transformations";
+import { CLOUDINARY_LOADERS } from "@/lib/cloudinary/transformations";
 import ImageSkeleton from "@/components/ui/loaders/image-skeleton";
 
 export type ProductImageSource = {
@@ -20,6 +20,7 @@ export type ImagePreset = "thumbnail" | "productCard" | "productDetail" | "highR
 type ProductImageProps = {
   image: ProductImageSource;
   preset?: ImagePreset;
+  /** Above the fold (first cards, first gallery photo): load now, ahead of other images. */
   priority?: boolean;
   sizes?: string;
   className?: string;
@@ -28,6 +29,13 @@ type ProductImageProps = {
   height?: number;
 };
 
+const HAS_CLOUDINARY = Boolean(process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME?.trim());
+
+/**
+ * A catalogue photo with a loading skeleton and an error state. Cloudinary
+ * assets are resized by Cloudinary's CDN for every srcset width (the Next
+ * server does no image work); other URLs go through the Next optimizer.
+ */
 export default function ProductImage({
   image,
   preset = "productCard",
@@ -40,8 +48,8 @@ export default function ProductImage({
 }: ProductImageProps) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
-  const transformed = image.publicId ? buildClientDeliveryUrl(image.publicId, preset) : null;
-  const src = transformed || image.secureUrl || image.src || image.url;
+  const cloudinary = HAS_CLOUDINARY && Boolean(image.publicId);
+  const src = cloudinary ? image.publicId : image.secureUrl || image.src || image.url;
 
   if (!src) return null;
 
@@ -53,40 +61,26 @@ export default function ProductImage({
     );
   }
 
-  const frameClass = ["ui-image-frame", loaded ? "is-loaded" : ""].filter(Boolean).join(" ");
-
-  if (fill) {
-    return (
-      <div className={frameClass}>
-        {!loaded ? <ImageSkeleton /> : null}
-        <Image
-          src={src}
-          alt={image.alt || "Product image"}
-          fill
-          priority={priority}
-          sizes={sizes}
-          className={className}
-          onLoad={() => setLoaded(true)}
-          onError={() => setFailed(true)}
-        />
-      </div>
-    );
-  }
+  const alt = image.alt || "Product image";
+  // `priority` is deprecated in Next 16; eager + high fetch priority is the documented replacement.
+  const common = {
+    src,
+    loader: cloudinary ? CLOUDINARY_LOADERS[preset] : undefined,
+    sizes,
+    className,
+    ...(priority ? { loading: "eager" as const, fetchPriority: "high" as const } : {}),
+    onLoad: () => setLoaded(true),
+    onError: () => setFailed(true),
+  };
 
   return (
-    <div className={frameClass}>
-      {!loaded ? <ImageSkeleton className="ui-image-skeleton--fixed" /> : null}
-      <Image
-        src={src}
-        alt={image.alt || "Product image"}
-        width={width || image.width || 600}
-        height={height || image.height || 800}
-        priority={priority}
-        sizes={sizes}
-        className={className}
-        onLoad={() => setLoaded(true)}
-        onError={() => setFailed(true)}
-      />
+    <div className={["ui-image-frame", loaded ? "is-loaded" : ""].filter(Boolean).join(" ")}>
+      {!loaded ? <ImageSkeleton className={fill ? undefined : "ui-image-skeleton--fixed"} /> : null}
+      {fill ? (
+        <Image {...common} alt={alt} fill />
+      ) : (
+        <Image {...common} alt={alt} width={width || image.width || 600} height={height || image.height || 800} />
+      )}
     </div>
   );
 }

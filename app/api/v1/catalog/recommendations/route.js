@@ -2,6 +2,7 @@ import { withDatabase } from "@/lib/api/with-database";
 import { successResponse } from "@/lib/utils/api-response";
 import { getAuthUser } from "@/lib/auth/session";
 import { getRecommendations } from "@/lib/catalog/recommendations";
+import { DEFAULT_SECTION_PRODUCTS, MAX_SECTION_PRODUCTS } from "@/lib/constants/homepage";
 
 const ids = (params, key) => (params.get(key) ?? "").split(",").filter(Boolean).slice(0, 20);
 
@@ -13,7 +14,8 @@ const ids = (params, key) => (params.get(key) ?? "").split(",").filter(Boolean).
 export const GET = withDatabase(async (request, { tenant }) => {
   const params = new URL(request.url).searchParams;
   const user = await getAuthUser();
-  const limit = Math.min(Math.max(Number.parseInt(params.get("limit") ?? "10", 10) || 10, 4), 24);
+  const requested = Number.parseInt(params.get("limit") ?? "", 10) || DEFAULT_SECTION_PRODUCTS;
+  const limit = Math.min(Math.max(requested, 4), MAX_SECTION_PRODUCTS);
   const result = await getRecommendations(tenant.id, tenant.salesMode, {
     viewedIds: ids(params, "viewed"),
     wishlistIds: ids(params, "wished"),

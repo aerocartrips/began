@@ -38,7 +38,7 @@ export default function ProductTabs({ headingId, title, description, tabs }: {
           <h2 id={headingId}>{title}</h2>
           {description ? <p>{description}</p> : null}
         </div>
-        <Link className="home-section__more" href={current.href}>
+        <Link className="home-section__more" href={current.href} data-view-all="header">
           View all
           <ArrowRight size={14} aria-hidden="true" />
           <span className="sr-only"> {current.label}</span>

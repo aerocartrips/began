@@ -10,7 +10,7 @@ import { isAutomatedRequest } from "@/lib/security/bot-detection";
 import { homepageLayoutSchema } from "@/lib/validators/homepage.validator";
 import { defaultHomeSections, normalizeHomeSections } from "@/lib/content/homepage-defaults";
 import { PERMISSIONS, roleHasPermission } from "@/lib/auth/permissions";
-import { TRENDING_MIN_POINTS } from "@/lib/constants/homepage";
+import { MAX_SECTION_PRODUCTS, TRENDING_MIN_POINTS } from "@/lib/constants/homepage";
 
 const id = (n) => n.toString(16).padStart(24, "0");
 const silk = { category: "cat-silk", fabric: "Silk", weavingType: "Banarasi", occasion: "Wedding", colors: ["Red"], price: 3000 };
@@ -129,19 +129,30 @@ describe("home page layout", () => {
     expect(homepageLayoutSchema.safeParse({ sections: [{ ...collection, title: "", source: { kind: "fabric", value: "Silk" } }] }).success).toBe(false);
   });
 
-  it("always places the endless feed last", () => {
+  it("keeps the admin's order: the feed ends after 60 products, so it need not be last", () => {
     const reversed = defaultHomeSections().reverse();
-    expect(reversed[0].type).toBe("feed");
-    const normalized = normalizeHomeSections(reversed);
-    expect(normalized.at(-1).type).toBe("feed");
-    expect(normalized.slice(0, -1)).toEqual(reversed.slice(1));
+    expect(normalizeHomeSections(reversed)).toEqual(reversed);
+    // By default the feed comes before the reassurance and sign-up sections.
+    const types = defaultHomeSections().map((section) => section.type);
+    expect(types.indexOf("feed")).toBeLessThan(types.indexOf("newsletter"));
   });
 
   it("adds section types a saved layout predates, without duplicating any", () => {
     const saved = defaultHomeSections().filter((section) => !["guides", "newsletter"].includes(section.type));
     const types = normalizeHomeSections(saved).map((section) => section.type);
-    expect(types.slice(-3)).toEqual(["guides", "newsletter", "feed"]);
+    expect(types.slice(-2)).toEqual(["guides", "newsletter"]);
     expect(new Set(types).size).toBe(types.length);
+    // Older layouts kept the feed last; additions still go above it there.
+    const feedLast = [...saved.filter((section) => section.type !== "feed"), saved.find((section) => section.type === "feed")];
+    expect(normalizeHomeSections(feedLast).map((section) => section.type).slice(-3)).toEqual(["guides", "newsletter", "feed"]);
+  });
+
+  it("caps product rows at 20 and shows the category overview on desktop only by default", () => {
+    const sections = defaultHomeSections();
+    expect(sections.find((section) => section.type === "for-you")?.limit).toBe(MAX_SECTION_PRODUCTS);
+    expect(sections.find((section) => section.type === "catalogue")).toMatchObject({ showOnMobile: false, showOnDesktop: true });
+    const tooMany = { sections: sections.map((section) => (section.type === "for-you" ? { ...section, limit: MAX_SECTION_PRODUCTS + 1 } : section)) };
+    expect(homepageLayoutSchema.safeParse(tooMany).success).toBe(false);
   });
 
   it("is editable by owners and managers, not staff", () => {

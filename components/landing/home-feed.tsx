@@ -3,10 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import Button from "@/components/ui/button";
 import ProductCard from "@/components/catalog/product-card";
 import CatalogCardSkeleton from "@/components/ui/loaders/catalog-card-skeleton";
 import { visibilityClass } from "@/components/landing/home-section";
 import { trackEvent } from "@/features/analytics/analytics";
+import { PHONE_QUERY } from "@/lib/constants/breakpoints";
+import { FEED_MAX_PAGES, FEED_PAGE_SIZE } from "@/lib/constants/homepage";
+import { formatNumber } from "@/lib/format";
 import type { FeedPage, ProductCardData } from "@/features/catalog/types";
 import type { HomeSection } from "@/features/homepage/types";
 
@@ -17,30 +21,48 @@ const SKELETONS = 4;
 /** Start loading this far before the shopper reaches the end. */
 const PRELOAD_MARGIN = "900px 0px";
 const FEED_SIZES = "(max-width: 640px) 50vw, (max-width: 1100px) 33vw, 20vw";
+/**
+ * Batches that load on their own as the shopper scrolls; the rest wait for a
+ * tap. On phones the third batch waits, so 40 products arrive without asking
+ * (Baymard: 15–30 per load on mobile) and the page below stays reachable.
+ */
+const AUTO_PAGES = { phone: 2, other: FEED_MAX_PAGES };
 
 /**
- * The whole catalogue, most popular first, loading more as the shopper
- * scrolls. The first page is server-rendered (crawlable); later pages use
- * keyset cursors, so batches never overlap, and ids are de-duplicated as a
- * second guard. One request at a time; "Load more" works without scrolling.
+ * The catalogue, most popular first: 20 products at a time, at most three
+ * times, then "View all" leads to the full listing (filters, sorting, pages).
+ * The first page is server-rendered (crawlable); later pages use keyset
+ * cursors, so batches never overlap, and ids are de-duplicated as a second
+ * guard. One request at a time; the button works without scrolling.
  */
-export default function HomeFeed({ section, title, description, initialPage, categories, salesMode }: {
+export default function HomeFeed({ section, title, description, initialPage, categories, catalogueTotal, salesMode }: {
   section: HomeSection;
   title: string;
   description: string;
   initialPage: FeedPage;
   categories: CategoryChip[];
+  /** Active products in the store: the "All" count. */
+  catalogueTotal: number;
   salesMode: "wholesale" | "retail";
 }) {
   const [category, setCategory] = useState("");
   const [items, setItems] = useState<ProductCardData[]>(initialPage.items);
+  const [pages, setPagesState] = useState(1);
   const [status, setStatusState] = useState<Status>(initialPage.nextCursor ? "idle" : "done");
+  const [announcement, setAnnouncement] = useState("");
+
+  // Mirrors for the observer callback, which outlives renders.
   const statusRef = useRef<Status>(status);
+  const pagesRef = useRef(1);
+  const autoPages = useRef(AUTO_PAGES.other);
   const setStatus = (next: Status) => {
     statusRef.current = next;
     setStatusState(next);
   };
-  const [announcement, setAnnouncement] = useState("");
+  const setPages = (next: number) => {
+    pagesRef.current = next;
+    setPagesState(next);
+  };
 
   const cursor = useRef<string | null>(initialPage.nextCursor);
   const categoryRef = useRef("");
@@ -51,7 +73,7 @@ export default function HomeFeed({ section, title, description, initialPage, cat
 
   /** `reset` starts over (category change); otherwise continues from the cursor. */
   const load = useCallback(async (reset = false) => {
-    if (!reset && (inFlight.current || !cursor.current)) return;
+    if (!reset && (inFlight.current || !cursor.current || pagesRef.current >= FEED_MAX_PAGES)) return;
     inFlight.current?.abort();
     const controller = new AbortController();
     inFlight.current = controller;
@@ -70,6 +92,7 @@ export default function HomeFeed({ section, title, description, initialPage, cat
       fresh.forEach((item) => seen.current.add(item.id));
       cursor.current = page.nextCursor;
       setItems((current) => (reset ? fresh : [...current, ...fresh]));
+      setPages(reset ? 1 : pagesRef.current + 1);
       setStatus(page.nextCursor ? "idle" : "done");
       setAnnouncement(page.nextCursor ? `${fresh.length} more products loaded.` : "All products loaded.");
       trackEvent("feed_load", { section: section.key, target: categoryRef.current || "all" });
@@ -83,13 +106,25 @@ export default function HomeFeed({ section, title, description, initialPage, cat
     }
   }, [section.key]);
 
+  // How many batches load without a tap depends on the screen; follows rotation and resizing.
+  useEffect(() => {
+    const phone = window.matchMedia(PHONE_QUERY);
+    const update = () => {
+      autoPages.current = phone.matches ? AUTO_PAGES.phone : AUTO_PAGES.other;
+    };
+    update();
+    phone.addEventListener("change", update);
+    return () => phone.removeEventListener("change", update);
+  }, []);
+
   // Auto-load when the sentinel nears the viewport.
   useEffect(() => {
     const element = sentinel.current;
     if (!element || typeof IntersectionObserver === "undefined") return;
     observer.current = new IntersectionObserver((entries) => {
       // After an error, wait for the shopper to press "Try again" instead of retrying on every scroll.
-      if (statusRef.current === "idle" && entries.some((entry) => entry.isIntersecting)) void load();
+      if (statusRef.current !== "idle" || pagesRef.current >= autoPages.current) return;
+      if (entries.some((entry) => entry.isIntersecting)) void load();
     }, { rootMargin: PRELOAD_MARGIN });
     observer.current.observe(element);
     return () => observer.current?.disconnect();
@@ -115,7 +150,10 @@ export default function HomeFeed({ section, title, description, initialPage, cat
 
   const headingId = `home-${section.key}`;
   const activeChip = categories.find((chip) => chip.slug === category);
+  const total = activeChip ? activeChip.count : catalogueTotal;
+  const remaining = Math.max(0, total - items.length);
   const catalogueHref = category ? `/categories/${category}` : section.viewAllHref || "/products?sort=popular";
+  const capped = status === "idle" && pages >= FEED_MAX_PAGES;
 
   return (
     <section className={["home-section home-feed content-width", visibilityClass(section)].filter(Boolean).join(" ")} aria-labelledby={headingId} data-home-section={section.key}>
@@ -124,7 +162,7 @@ export default function HomeFeed({ section, title, description, initialPage, cat
           <h2 id={headingId}>{title}</h2>
           {description ? <p>{description}</p> : null}
         </div>
-        <Link className="home-section__more" href={catalogueHref}>
+        <Link className="home-section__more" href={catalogueHref} data-view-all="header">
           See full catalogue
           <ArrowRight size={14} aria-hidden="true" />
         </Link>
@@ -153,7 +191,7 @@ export default function HomeFeed({ section, title, description, initialPage, cat
       <ul className="catalog-grid home-feed__grid" aria-label={activeChip ? `${activeChip.name} products` : "All products"} aria-busy={status === "loading"}>
         {items.map((product) => (
           <li key={product.id}>
-            <ProductCard product={product} salesMode={salesMode} sizes={FEED_SIZES} />
+            <ProductCard product={product} salesMode={salesMode} sizes={FEED_SIZES} variant="compact" />
           </li>
         ))}
         {status === "loading"
@@ -178,9 +216,13 @@ export default function HomeFeed({ section, title, description, initialPage, cat
               Try again
             </button>
           </div>
+        ) : capped ? (
+          <Button href={catalogueHref} icon={<ArrowRight size={16} aria-hidden="true" />} data-view-all="end">
+            View all {formatNumber(total)} {total === 1 ? "design" : "designs"}
+          </Button>
         ) : status === "idle" ? (
           <button type="button" className="button button-glass" onClick={() => void load()}>
-            Load more
+            Show {formatNumber(Math.min(FEED_PAGE_SIZE, remaining || FEED_PAGE_SIZE))} more
           </button>
         ) : status === "done" ? (
           <p className="home-feed__end">

@@ -33,11 +33,11 @@
     --action-bar-h: 72px;
     --radius-card: 14px;
     --radius-panel: 18px;
-    --bottom-ui: env(safe-area-inset-bottom, 0px);
+    /* The bars declare themselves while on screen (--tabbar-space from components/layout/mobile-tab-bar.tsx,
+       --action-bar-space from mobile-action-bar.tsx); a page's action bar wins. Not html:has(): Next keeps
+       recently visited pages in the DOM, hidden, and :has() would still match their bars. */
+    --bottom-ui: var(--action-bar-space, var(--tabbar-space, env(safe-area-inset-bottom, 0px)));
   }
-  html:has(.mobile-tabbar) { --bottom-ui: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); }
-  /* A page with its own action bar (product, cart, checkout) takes the bottom edge from the tab bar. */
-  html:has(.mobile-action-bar) { --bottom-ui: calc(var(--action-bar-h) + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* 2. Base & touch ------------------------------------------------------------ */
@@ -195,8 +195,7 @@ html:has(dialog[open]) { overflow: hidden; }
 .footer-column__toggle { display: none; }
 
 @media (max-width: 760px) {
-  .mobile-tabbar { position: fixed; z-index: 40; right: 0; bottom: 0; left: 0; display: grid; height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); border-top: 1px solid var(--color-border); background: #fff; box-shadow: 0 -6px 24px rgba(35, 42, 61, .06); }
-  html:has(.mobile-action-bar) .mobile-tabbar { display: none; }
+  .mobile-tabbar { position: fixed; z-index: 40; right: 0; bottom: 0; left: 0; display: var(--tabbar-display, grid); height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); border-top: 1px solid var(--color-border); background: #fff; box-shadow: 0 -6px 24px rgba(35, 42, 61, .06); }
   .mobile-tabbar__item { display: grid; min-width: 0; align-content: center; justify-items: center; gap: 2px; color: #6f7888; font-size: 11px; font-weight: 600; }
   .mobile-tabbar__item[aria-current] { color: var(--color-brand); }
   .mobile-tabbar__icon { position: relative; display: grid; width: 52px; height: 30px; place-items: center; border-radius: var(--radius-pill); transition: background .2s ease, transform .12s ease; }
@@ -290,11 +289,7 @@ html:has(dialog[open]) { overflow: hidden; }
   .category-rail__name { font-size: 12px; }
 
   .hero-banner { padding-top: 12px; }
-  .hero-banner__eyebrow { font-size: 10px; }
-  /* Labels are written in the admin, so a long pair wraps instead of being clipped. */
-  .hero-banner__actions { flex-wrap: wrap; }
-  .hero-banner__cta { min-height: 44px; padding: 0 14px; font-size: 11px; letter-spacing: .06em; }
-  .hero-banner__arrow { width: 36px; height: 36px; }
+  /* The banner's phone sizes (height, copy, buttons, controls) are set as one budget in app/landing.css. */
   .hero { padding: 32px 0 44px; }
   .hero h1 { font-size: clamp(34px, 10vw, 46px); }
   .hero-description { font-size: 15px; line-height: 1.7; }

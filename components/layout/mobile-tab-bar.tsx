@@ -3,9 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Heart, Home, LayoutGrid, ShoppingCart, UserRound, type LucideIcon } from "lucide-react";
+import VisibleStyle from "@/components/ui/visible-style";
 import { useCartCount } from "@/features/cart/cart-store";
 import { useHydrated } from "@/lib/client/persistent-store";
+import { PHONE_QUERY } from "@/lib/constants/breakpoints";
 import { formatNumber } from "@/lib/format";
+
+/** Read by --bottom-ui in app/mobile.css: content and toasts stay clear of the bar. */
+const RESERVE_BOTTOM_EDGE = ":root { --tabbar-space: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); }";
 
 type Tab = { href: string; label: string; icon: LucideIcon; section: (pathname: string) => boolean };
 
@@ -24,33 +29,36 @@ function TabBar({ pathname }: { pathname: string | null }) {
   const cartBadge = hydrated && cartCount > 0 ? (cartCount > 99 ? "99+" : formatNumber(cartCount)) : null;
 
   return (
-    <nav className="mobile-tabbar" aria-label="Quick navigation">
-      {TABS.map(({ href, label, icon: Icon, section }) => {
-        const inSection = pathname !== null && section(pathname);
-        const badge = href === "/cart" ? cartBadge : null;
-        return (
-          <Link
-            key={href}
-            href={href}
-            className="mobile-tabbar__item"
-            aria-current={inSection ? (pathname === href ? "page" : "true") : undefined}
-            aria-label={badge ? `${label}, ${badge} in cart` : undefined}
-          >
-            <span className="mobile-tabbar__icon">
-              <Icon size={22} strokeWidth={inSection ? 2.2 : 1.7} aria-hidden="true" />
-              {badge ? <span className="mobile-tabbar__badge" aria-hidden="true">{badge}</span> : null}
-            </span>
-            <span className="mobile-tabbar__label">{label}</span>
-          </Link>
-        );
-      })}
-    </nav>
+    <>
+      <VisibleStyle css={RESERVE_BOTTOM_EDGE} media={PHONE_QUERY} />
+      <nav className="mobile-tabbar" aria-label="Quick navigation">
+        {TABS.map(({ href, label, icon: Icon, section }) => {
+          const inSection = pathname !== null && section(pathname);
+          const badge = href === "/cart" ? cartBadge : null;
+          return (
+            <Link
+              key={href}
+              href={href}
+              className="mobile-tabbar__item"
+              aria-current={inSection ? (pathname === href ? "page" : "true") : undefined}
+              aria-label={badge ? `${label}, ${badge} in cart` : undefined}
+            >
+              <span className="mobile-tabbar__icon">
+                <Icon size={22} strokeWidth={inSection ? 2.2 : 1.7} aria-hidden="true" />
+                {badge ? <span className="mobile-tabbar__badge" aria-hidden="true">{badge}</span> : null}
+              </span>
+              <span className="mobile-tabbar__label">{label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+    </>
   );
 }
 
 /**
  * App-style bottom navigation for phones. Hidden by CSS on wider screens and
- * on pages that put their own action bar at the bottom (product, cart, checkout).
+ * while a page's own action bar is on screen (components/layout/mobile-action-bar.tsx).
  * Reading the URL can suspend (Cache Components), so SiteShell wraps this in
  * <Suspense> with <MobileTabBarFallback />.
  */

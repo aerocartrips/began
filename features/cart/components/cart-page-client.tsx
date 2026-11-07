@@ -10,6 +10,7 @@ import { useTenant } from "@/features/tenant/tenant-provider";
 import { useHydrated } from "@/lib/client/persistent-store";
 import { formatNumber, formatRupees } from "@/lib/format";
 import CartSkeleton from "@/components/ui/loaders/cart-skeleton";
+import MobileActionBar from "@/components/layout/mobile-action-bar";
 import EmptyState from "@/components/ui/empty-state";
 import Button from "@/components/ui/button";
 
@@ -72,7 +73,7 @@ export default function CartPageClient() {
         />
       </div>
       {/* Phones: the total and the way forward stay on screen while the cart scrolls. */}
-      <div className="cart-checkout-bar mobile-action-bar">
+      <MobileActionBar className="cart-checkout-bar">
         <p className="cart-checkout-bar__total">
           <span>Total · {formatNumber(itemCount)} pcs</span>
           <strong>{loading || !pricing ? "…" : formatRupees(pricing.totals.totalAmount)}</strong>
@@ -86,7 +87,7 @@ export default function CartPageClient() {
             Checkout
           </Button>
         )}
-      </div>
+      </MobileActionBar>
     </main>
   );
 }

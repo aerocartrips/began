@@ -11,7 +11,8 @@ function Cta({ link, variant }: { link: BannerLink; variant: "primary" | "second
   const className = `hero-banner__cta hero-banner__cta--${variant}`;
   const content = (
     <>
-      {link.label}
+      {/* Its own element, so a long label can end in "…" instead of growing the banner. */}
+      <span className="hero-banner__cta-label">{link.label}</span>
       {variant === "primary" ? <ArrowRight size={16} aria-hidden="true" /> : null}
     </>
   );
@@ -24,14 +25,16 @@ function Cta({ link, variant }: { link: BannerLink; variant: "primary" | "second
 
 /** Art-directed image: a portrait crop on phones when the store provides one. */
 function SlideImage({ banner, priority }: { banner: StorefrontBanner; priority: boolean }) {
-  // First slide is the LCP image (high priority). Later slides load eagerly at low
+  // First slide is the LCP image: fetched first. Later slides load eagerly at low
   // priority: they download after the critical content but are ready before autoplay
-  // reaches them, so a slide never arrives blank.
+  // reaches them, so a slide never arrives blank. Not `preload`: with art direction the
+  // phone and desktop files differ, and a preload would fetch the wrong one too (next/image docs).
   const common = {
     alt: banner.imageAlt,
     sizes: "(max-width: 1320px) 100vw, 1280px",
     quality: 80,
-    ...(priority ? { priority: true } : { loading: "eager" as const, fetchPriority: "low" as const }),
+    loading: "eager" as const,
+    fetchPriority: priority ? ("high" as const) : ("low" as const),
   };
   const { props: desktop } = getImageProps({ ...common, src: banner.image.url, width: banner.image.width, height: banner.image.height });
   const mobile = banner.mobileImage
@@ -52,8 +55,10 @@ function SlideImage({ banner, priority }: { banner: StorefrontBanner; priority: 
  * controller adds autoplay, navigation and keyboard support.
  */
 export default function HeroBanner({ banners, storeName }: { banners: StorefrontBanner[]; storeName: string }) {
+  // The slide controls widen with every dot; app/landing.css keeps the copy clear of them.
+  const style = { "--hero-slides": banners.length > 1 ? banners.length : 0 } as CSSProperties;
   return (
-    <section className="hero-banner content-width" aria-roledescription="carousel" aria-label={`${storeName} highlights`}>
+    <section className="hero-banner content-width" style={style} aria-roledescription="carousel" aria-label={`${storeName} highlights`}>
       <HeroBannerController count={banners.length}>
         {banners.map((banner, index) => {
           const Heading = index === 0 ? "h1" : "h2";

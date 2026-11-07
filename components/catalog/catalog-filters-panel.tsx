@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { SlidersHorizontal, X } from "lucide-react";
+import VisibleStyle from "@/components/ui/visible-style";
 import { formatNumber } from "@/lib/format";
 
 const SHEET_QUERY = "(max-width: 900px)";
+/** The page behind an open sheet doesn't scroll; switched off at once if the page is hidden. */
+const LOCK_PAGE_SCROLL = "html { overflow: hidden; }";
 const FOCUSABLE = "a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled)";
 
 type CatalogFiltersPanelProps = {
@@ -30,6 +33,10 @@ export default function CatalogFiltersPanel({ total, activeCount, clearHref, chi
   const toolbarRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<HTMLButtonElement | null>(null);
   const products = `${formatNumber(total)} ${total === 1 ? "product" : "products"}`;
+
+  // Next keeps this page mounted, hidden, after a link inside the sheet is followed: close the
+  // sheet then, so coming back shows the results (preserving-ui-state guide, transient UI).
+  useLayoutEffect(() => () => setOpen(false), []);
 
   useEffect(() => {
     const toolbar = toolbarRef.current;
@@ -112,6 +119,7 @@ export default function CatalogFiltersPanel({ total, activeCount, clearHref, chi
         <SlidersHorizontal size={16} aria-hidden="true" /> Filter &amp; sort {badge}
       </button>
 
+      {open ? <VisibleStyle css={LOCK_PAGE_SCROLL} media={SHEET_QUERY} /> : null}
       <div className="catalog-filters-backdrop" data-open={open || undefined} aria-hidden="true" onClick={() => setOpen(false)} />
       <div
         ref={panelRef}

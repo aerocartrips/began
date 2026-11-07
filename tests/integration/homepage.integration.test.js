@@ -234,12 +234,14 @@ describe("recommendations", () => {
 
 describe("home page layout", () => {
   it("uses the default layout until the store saves its own", async () => {
-    const sections = await m.getHomepageSections(storeA);
-    expect(sections.at(-1).type).toBe("feed");
+    const types = (await m.getHomepageSections(storeA)).map((section) => section.type);
+    // Products first; reassurance and sign-up after the feed, which ends after 60 products.
+    expect(types.slice(0, 4)).toEqual(["category-nav", "hero", "for-you", "product-tabs"]);
+    expect(types.indexOf("feed")).toBeLessThan(types.indexOf("newsletter"));
     await m.runWithTenant(storeA, async () => expect((await m.getAdminHomepageLayout()).isDefault).toBe(true));
   });
 
-  it("saves order, visibility and collections per store, keeping the feed last", async () => {
+  it("saves order, visibility and collections per store, in the admin's order", async () => {
     await m.runWithTenant(storeA, async () => {
       const { sections } = await m.getAdminHomepageLayout();
       const feed = sections.find((section) => section.type === "feed");
@@ -257,14 +259,14 @@ describe("home page layout", () => {
 
     const visible = await m.getHomepageSections(storeA);
     const types = visible.map((section) => section.type);
-    // Saved order first; section types the store never saw are added (enabled) before the feed.
-    expect(types.slice(0, 2)).toEqual(["collection", "hero"]);
-    expect(types.at(-1)).toBe("feed");
+    // Saved order first (the feed may lead); section types the store never saw are added (enabled) after it.
+    expect(types.slice(0, 3)).toEqual(["feed", "collection", "hero"]);
     expect(types).not.toContain("reviews"); // hidden by the admin
     expect(types).toEqual(expect.arrayContaining(["guides", "newsletter", "for-you"]));
-    expect(visible[0]).toMatchObject({ showOnDesktop: false, showOnMobile: true });
-    const picks = await m.getCollectionProducts(storeA, "retail", visible[0].source, 10);
-    expect(picks.map((item) => item.name)).toEqual(["Saree 2", "Saree 1"]);
+    expect(visible[1]).toMatchObject({ showOnDesktop: false, showOnMobile: true });
+    const picks = await m.getCollectionProducts(storeA, "retail", visible[1].source, 10);
+    expect(picks.items.map((item) => item.name)).toEqual(["Saree 2", "Saree 1"]);
+    expect(picks.total).toBe(2);
 
     // Store B is unaffected.
     expect((await m.getHomepageSections(storeB)).length).toBeGreaterThan(3);
@@ -276,11 +278,15 @@ describe("home page layout", () => {
     expect((await m.getHomepageSections(storeA)).length).toBeGreaterThan(3);
   });
 
-  it("builds collections from categories and attributes", async () => {
+  it("builds collections from categories and attributes, with the full count for View all", async () => {
     const byCategory = await m.getCollectionProducts(storeA, "retail", { kind: "category", value: "silk", productIds: [], sort: "newest" }, 30);
-    expect(byCategory).toHaveLength(25);
+    expect(byCategory.items).toHaveLength(25);
+    const capped = await m.getCollectionProducts(storeA, "retail", { kind: "category", value: "silk", productIds: [], sort: "newest" }, 10);
+    expect(capped.items).toHaveLength(10);
+    expect(capped.total).toBe(25);
     const byWeave = await m.getCollectionProducts(storeA, "retail", { kind: "weave", value: "Banarasi", productIds: [], sort: "price-asc" }, 10);
-    expect(byWeave.map((item) => item.name)).toEqual(["Saree 21", "Saree 22", "Saree 23", "Saree 24", "Saree 25"]);
+    expect(byWeave.items.map((item) => item.name)).toEqual(["Saree 21", "Saree 22", "Saree 23", "Saree 24", "Saree 25"]);
+    expect(await m.getCatalogueTotal(storeA)).toBe(30);
   });
 });
 

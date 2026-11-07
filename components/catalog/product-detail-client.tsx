@@ -7,6 +7,7 @@ import { FileText, Share2, ShoppingBag, Zap } from "lucide-react";
 import ProductGallery from "@/components/catalog/product-gallery";
 import Price from "@/components/catalog/price";
 import WishlistButton from "@/components/catalog/wishlist-button";
+import MobileActionBar from "@/components/layout/mobile-action-bar";
 import QuantitySelector from "@/components/ui/quantity-selector";
 import StockAlertButton from "@/features/notifications/components/stock-alert-button";
 import { useFeedback } from "@/components/feedback/feedback-provider";
@@ -191,7 +192,7 @@ export default function ProductDetailClient({ product, salesMode }: ProductDetai
 
         {purchasable ? (
           // Phones: the purchase buttons stay within thumb reach while the shopper scrolls.
-          <div className="product-buy-bar mobile-action-bar">
+          <MobileActionBar className="product-buy-bar">
             <p className="product-buy-bar__price">
               <strong>
                 {formatRupees(unitPrice)}
@@ -211,7 +212,7 @@ export default function ProductDetailClient({ product, salesMode }: ProductDetai
             <button type="button" className="button button-primary" onClick={addToCart}>
               <ShoppingBag size={16} aria-hidden="true" /> Add to cart
             </button>
-          </div>
+          </MobileActionBar>
         ) : null}
 
         <div className="product-secondary-actions">

@@ -1,8 +1,10 @@
+// Whole rupees read short (₹11,270); paise still show when there are any (₹1,234.50).
 const rupeeFormatter = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
+  trailingZeroDisplay: "stripIfInteger",
 });
 
 const compactRupeeFormatter = new Intl.NumberFormat("en-IN", {

@@ -249,8 +249,16 @@ function BannerPreview({ draft, device }: { draft: Draft; device: "desktop" | "m
               {draft.subtitle ? <p className="hero-banner__subtitle">{draft.subtitle}</p> : null}
               {draft.primaryCta.label || draft.secondaryCta.label ? (
                 <div className="hero-banner__actions">
-                  {draft.primaryCta.label ? <span className="hero-banner__cta hero-banner__cta--primary">{draft.primaryCta.label}</span> : null}
-                  {draft.secondaryCta.label ? <span className="hero-banner__cta hero-banner__cta--secondary">{draft.secondaryCta.label}</span> : null}
+                  {draft.primaryCta.label ? (
+                    <span className="hero-banner__cta hero-banner__cta--primary">
+                      <span className="hero-banner__cta-label">{draft.primaryCta.label}</span>
+                    </span>
+                  ) : null}
+                  {draft.secondaryCta.label ? (
+                    <span className="hero-banner__cta hero-banner__cta--secondary">
+                      <span className="hero-banner__cta-label">{draft.secondaryCta.label}</span>
+                    </span>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -341,9 +349,9 @@ export function AdminBannerForm({ initial }: { initial?: AdminBanner }) {
 
         <AdminCard title="Images & style">
           <div className="admin-form-grid">
-            <ImageField label="Desktop image" required hint="Wide image, at least 1920 × 800 px. Keep the subject away from the text side." value={draft.image} onChange={(image) => set("image", image)} />
+            <ImageField label="Desktop image" required hint="Wide image, at least 1920 × 500 px. The banner is a wide strip (about 4 : 1), so keep the subject in the middle band, away from the text side." value={draft.image} onChange={(image) => set("image", image)} />
             {error("image")}
-            <ImageField label="Mobile image" hint="Optional crop for phones, about 1200 × 750 px. Uses the desktop image when empty." value={draft.mobileImage} onChange={(image) => set("mobileImage", image)} />
+            <ImageField label="Mobile image" hint="Optional crop for phones, about 1200 × 450 px (a short strip). Uses the desktop image when empty." value={draft.mobileImage} onChange={(image) => set("mobileImage", image)} />
             <label className="admin-field admin-field-wide">Image description (for screen readers)<input value={draft.imageAlt} maxLength={160} placeholder="Model in a red Banarasi silk saree" onChange={(event) => set("imageAlt", event.currentTarget.value)} /></label>
             <Select
               className="admin-field"

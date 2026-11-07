@@ -8,6 +8,7 @@ import { ChevronDown, ShoppingBag } from "lucide-react";
 import PaymentFeedback, { type PaymentUiPhase } from "@/components/checkout/payment-feedback";
 import { useOptionalFeedback } from "@/components/feedback/feedback-provider";
 import LoadingButton from "@/components/ui/buttons/loading-button";
+import MobileActionBar from "@/components/layout/mobile-action-bar";
 import Button from "@/components/ui/button";
 import CheckoutSkeleton from "@/components/ui/loaders/checkout-skeleton";
 import ErrorCard from "@/components/ui/feedback/error-card";
@@ -436,7 +437,7 @@ export default function CheckoutPageClient({ buyNow, customer, initialAddressBoo
           {notice && phase !== "failed" && paymentUiPhase === "idle" ? (
             <p className="commerce-notice" role="status">{notice}</p>
           ) : null}
-          <div className="checkout-submit-bar mobile-action-bar">
+          <MobileActionBar className="checkout-submit-bar">
             <p className="checkout-submit-bar__total">
               <span>To pay</span>
               <strong>{totalLabel}</strong>
@@ -456,7 +457,7 @@ export default function CheckoutPageClient({ buyNow, customer, initialAddressBoo
             >
               {razorpayEnabled ? "Pay now with Razorpay" : pricingBlocked ? "Fix your cart to pay" : tenant.paymentsEnabled ? "Preparing order…" : "Payment unavailable"}
             </LoadingButton>
-          </div>
+          </MobileActionBar>
         </form>
 
         <aside

@@ -110,6 +110,9 @@ export type CategoryOverview = {
 
 export type FeedPage = { items: ProductCardData[]; nextCursor: string | null };
 
+/** A home page row's products, and how many its "View all" page lists. */
+export type ProductList = { items: ProductCardData[]; total: number };
+
 export type QuickPickLink = { label: string; href: string; count?: number };
 
 export type QuickPickGroup = { key: string; title: string; links: QuickPickLink[] };

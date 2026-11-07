@@ -1,7 +1,17 @@
 /* ==========================================================================
    Home page hero banner carousel (components/landing/hero-banner*.tsx)
+   A short strip, so products start higher up the page: 212–280px on desktop,
+   192px on tablets, 120–150px on phones. Each height is a budget: every piece
+   of copy has a cap (lines, or one line ending in "…"), so whatever the admin
+   writes fits without growing the banner. The controls get their own corner,
+   which the copy never enters.
    ========================================================================== */
-.hero-banner { padding: 28px 0 8px; }
+.hero-banner {
+  /* Width of the controls' corner: pill (arrows, a dot per slide, pause) plus
+     inset and breathing room. --hero-slides is set by hero-banner.tsx (0 = no controls). */
+  --hero-controls-zone: calc(var(--hero-slides, 0) * 14px + min(var(--hero-slides, 0), 1) * 150px);
+  padding: 20px 0 0;
+}
 .hero-banner__viewport { position: relative; overflow: hidden; border-radius: var(--radius-panel); background: var(--color-night); box-shadow: 0 30px 80px rgba(17, 24, 39, .18); isolation: isolate; }
 .hero-banner__track { display: flex; overflow-x: auto; margin: 0; padding: 0; list-style: none; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none; overscroll-behavior-x: contain; }
 .hero-banner__track::-webkit-scrollbar { display: none; }
@@ -11,10 +21,11 @@
   position: relative;
   display: grid;
   flex: 0 0 100%;
-  /* A minimum, not a fixed height: long copy grows the slide instead of being clipped.
-     The flex track stretches every slide to the tallest one, so slides never jump.
-     Sized from the width (a banner is a shape), not the viewport height. */
-  min-height: clamp(340px, 28.5vw, 420px);
+  /* Sized from the width (a banner is a shape), not the viewport height. A minimum,
+     not a fixed height: text enlarged in the shopper's browser grows the slide
+     instead of being cut off. The flex track stretches every slide to the tallest
+     one, so slides never jump. */
+  min-height: clamp(212px, 18vw, 280px);
   overflow: hidden;
   scroll-snap-align: start;
   scroll-snap-stop: always;
@@ -33,18 +44,18 @@
 .hero-banner__slide[data-tone="dark"] { color: var(--color-text); }
 .hero-banner__slide[data-tone="dark"]::after { filter: invert(1); opacity: .9; }
 
-/* Bottom padding reserves room for the slide controls so they never cover the text. */
+/* The copy stops short of the controls' corner (both corners when centred), so
+   the controls never cover it and no height is spent keeping clear of them. */
 .hero-banner__content {
-  --controls-space: 56px;
   position: relative;
   z-index: 1;
   display: grid;
-  gap: 12px;
-  width: min(100%, 560px);
-  padding: clamp(24px, 3vw, 40px) clamp(24px, 4.5vw, 64px) calc(clamp(24px, 2.5vw, 32px) + var(--controls-space));
+  gap: clamp(6px, .55vw, 9px);
+  width: min(100%, 640px, 100% - var(--hero-controls-zone, 0px));
+  padding: clamp(14px, 1.4vw, 22px) clamp(24px, 3.5vw, 48px);
   box-sizing: border-box;
 }
-.hero-banner__slide[data-position="center"] .hero-banner__content { justify-self: center; justify-items: center; text-align: center; }
+.hero-banner__slide[data-position="center"] .hero-banner__content { width: min(100%, 640px, 100% - 2 * var(--hero-controls-zone, 0px)); justify-self: center; justify-items: center; text-align: center; }
 .hero-banner__slide[data-position="right"] .hero-banner__content { justify-self: end; justify-items: end; text-align: right; }
 .hero-banner__content > * { margin: 0; opacity: 0; transform: translateY(18px); transition: opacity .7s ease, transform .7s cubic-bezier(.2, .7, .2, 1); }
 .hero-banner__slide[data-active="true"] .hero-banner__content > * { opacity: 1; transform: none; }
@@ -52,25 +63,27 @@
 .hero-banner__slide[data-active="true"] .hero-banner__content > :nth-child(3) { transition-delay: .16s; }
 .hero-banner__slide[data-active="true"] .hero-banner__content > :nth-child(4) { transition-delay: .24s; }
 
-.hero-banner__eyebrow { display: inline-flex; width: max-content; padding: 5px 12px; border: 1px solid rgba(255, 255, 255, .35); border-radius: var(--radius-pill); background: rgba(255, 255, 255, .12); font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; backdrop-filter: blur(8px); }
+/* Caps: eyebrow and button labels one line, headline and supporting text two lines. */
+.hero-banner__eyebrow { display: block; width: fit-content; max-width: 100%; overflow: hidden; padding: 4px 11px; border: 1px solid rgba(255, 255, 255, .35); border-radius: var(--radius-pill); background: rgba(255, 255, 255, .12); font-size: 10px; font-weight: 700; letter-spacing: .14em; line-height: 1.2; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; backdrop-filter: blur(8px); }
 .hero-banner__slide[data-tone="dark"] .hero-banner__eyebrow { border-color: color-mix(in srgb, var(--color-text) 25%, transparent); background: rgba(255, 255, 255, .55); }
-.hero-banner__title { max-width: 18ch; font-family: var(--heading-font); font-size: clamp(24px, 2.6vw, 40px); font-weight: 400; line-height: 1.12; overflow-wrap: anywhere; text-wrap: balance; text-shadow: 0 2px 24px rgba(0, 0, 0, .25); }
+.hero-banner__title { display: -webkit-box; max-width: 26ch; overflow: hidden; font-family: var(--heading-font); font-size: clamp(22px, 1.95vw, 34px); font-weight: 400; line-height: 1.12; overflow-wrap: anywhere; text-wrap: balance; text-shadow: 0 1px 12px rgba(0, 0, 0, .25); -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 .hero-banner__slide[data-tone="dark"] .hero-banner__title { text-shadow: none; }
-/* Capped at three lines so a long subtitle cannot push the buttons away. */
-.hero-banner__subtitle { display: -webkit-box; max-width: 46ch; overflow: hidden; font-size: clamp(13px, 1vw, 15px); line-height: 1.55; opacity: .92; text-wrap: pretty; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; }
-.hero-banner__actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.hero-banner__subtitle { display: -webkit-box; max-width: 62ch; overflow: hidden; font-size: clamp(13px, .95vw, 15px); line-height: 1.5; opacity: .92; text-wrap: pretty; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.hero-banner__actions { display: flex; max-width: 100%; flex-wrap: nowrap; gap: 10px; }
 .hero-banner__slide[data-position="center"] .hero-banner__actions { justify-content: center; }
 .hero-banner__slide[data-position="right"] .hero-banner__actions { justify-content: flex-end; }
-.hero-banner__cta { display: inline-flex; min-height: 42px; align-items: center; gap: 8px; padding: 0 20px; border-radius: var(--radius-pill); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; transition: transform .2s ease, background .2s ease, box-shadow .2s ease; }
+.hero-banner__cta { display: inline-flex; min-width: 0; min-height: clamp(34px, 2.6vw, 40px); align-items: center; gap: 8px; padding: 0 clamp(14px, 1.3vw, 20px); border-radius: var(--radius-pill); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; transition: transform .2s ease, background .2s ease, box-shadow .2s ease; }
+.hero-banner__cta svg { flex: none; }
+.hero-banner__cta-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .hero-banner__cta:hover { transform: translateY(-2px); }
-.hero-banner__cta--primary { background: var(--color-brand); color: #fff; box-shadow: 0 12px 30px color-mix(in srgb, var(--color-brand) 40%, transparent); }
+.hero-banner__cta--primary { background: var(--color-brand); color: #fff; box-shadow: 0 8px 20px color-mix(in srgb, var(--color-brand) 40%, transparent); }
 .hero-banner__cta--primary:hover { background: var(--color-brand-hover); }
 .hero-banner__cta--secondary { border: 1px solid rgba(255, 255, 255, .6); background: rgba(255, 255, 255, .1); color: inherit; backdrop-filter: blur(8px); }
 .hero-banner__slide[data-tone="dark"] .hero-banner__cta--secondary { border-color: var(--color-text); }
 .hero-banner__cta:focus-visible, .hero-banner__arrow:focus-visible, .hero-banner__dot:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 
-.hero-banner__controls { position: absolute; right: 16px; bottom: 16px; z-index: 2; display: flex; align-items: center; gap: 6px; padding: 5px; border-radius: var(--radius-pill); background: rgba(10, 12, 20, .38); backdrop-filter: blur(10px); }
-.hero-banner__arrow { display: grid; width: 32px; height: 32px; place-items: center; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .14); color: #fff; cursor: pointer; transition: background .2s ease; }
+.hero-banner__controls { position: absolute; right: 12px; bottom: 12px; z-index: 2; display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: var(--radius-pill); background: rgba(10, 12, 20, .38); backdrop-filter: blur(10px); }
+.hero-banner__arrow { display: grid; width: 28px; height: 28px; place-items: center; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .14); color: #fff; cursor: pointer; transition: background .2s ease; }
 .hero-banner__arrow:hover { background: rgba(255, 255, 255, .28); }
 .hero-banner__dots { display: flex; gap: 6px; padding: 0 4px; }
 .hero-banner__dot { position: relative; width: 8px; height: 8px; overflow: hidden; padding: 0; border: 0; border-radius: var(--radius-pill); background: rgba(255, 255, 255, .45); cursor: pointer; transition: width .35s ease, background .35s ease; }
@@ -79,30 +92,59 @@
 .hero-banner__progress[data-running="true"] { animation: hero-banner-progress linear forwards; }
 @keyframes hero-banner-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
+@media (min-width: 768px) {
+  /* Right-aligned copy owns the right corner, so the controls take the left one. */
+  .hero-banner__viewport:has(.hero-banner__slide[data-active="true"][data-position="right"]) .hero-banner__controls { right: auto; left: 12px; }
+}
+
+/* Below desktop: dots and pause only (swipe or tap a dot), so the corner is narrower. */
+@media (max-width: 1023px) {
+  .hero-banner { --hero-controls-zone: calc(var(--hero-slides, 0) * 14px + min(var(--hero-slides, 0), 1) * 86px); }
+  .hero-banner__arrow:not(:last-child) { display: none; }
+}
+
 @media (min-width: 768px) and (max-width: 1023px) {
-  .hero-banner__slide { min-height: 360px; }
+  .hero-banner__slide { min-height: 192px; }
+  .hero-banner__content { gap: 6px; padding: 14px 24px; }
+  .hero-banner__eyebrow { padding: 3px 10px; font-size: 9.5px; }
+  .hero-banner__title { font-size: 20px; }
+  .hero-banner__subtitle { font-size: 12.5px; }
+  .hero-banner__cta { min-height: 32px; padding: 0 14px; font-size: 10px; }
 }
 
 @media (max-width: 767px) {
-  .hero-banner { padding-top: 16px; }
-  /* Landscape strip (≈ 16:10), still growing for longer copy. */
-  .hero-banner__slide { min-height: min(63vw, 300px); align-items: end; }
+  .hero-banner { --hero-controls-zone: calc(var(--hero-slides, 0) * 11px + min(var(--hero-slides, 0), 1) * 65px); padding-top: 16px; }
+  /* A landscape strip (about 2.7 : 1 on a 360px phone). */
+  .hero-banner__slide { min-height: clamp(120px, 32vw, 150px); align-items: end; }
   /* Text covers most of the slide, so the scrim has a floor: a low admin
      overlay can't leave copy unreadable on a busy photo. */
   .hero-banner__slide::after,
   .hero-banner__slide[data-position]::after { background: linear-gradient(0deg, rgba(10, 12, 20, max(.75, calc(var(--banner-overlay) * 2.4))) 0%, rgba(10, 12, 20, max(.5, var(--banner-overlay))) 55%, rgba(10, 12, 20, 0) 90%); }
   .hero-banner__content,
-  .hero-banner__slide[data-position] .hero-banner__content { --controls-space: 44px; justify-self: stretch; justify-items: start; gap: 8px; width: 100%; padding: 16px 16px calc(10px + var(--controls-space)); text-align: left; }
-  .hero-banner__eyebrow { padding: 4px 10px; font-size: 9px; }
-  .hero-banner__title { max-width: none; font-size: clamp(19px, 5.2vw, 24px); }
-  /* No room for a paragraph on a short phone banner: headline and buttons carry it. */
+  .hero-banner__slide[data-position] .hero-banner__content { justify-self: stretch; justify-items: start; gap: 4px; width: 100%; padding: 10px 14px; text-align: left; }
+  .hero-banner__eyebrow { padding: 3px 8px; font-size: 8.5px; letter-spacing: .12em; }
+  .hero-banner__title { max-width: none; font-size: clamp(15px, 4.2vw, 20px); }
+  /* No room for a paragraph on a short phone banner: headline and button carry it. */
   .hero-banner__subtitle { display: none; }
-  .hero-banner__actions { flex-wrap: nowrap; gap: 8px; }
-  .hero-banner__cta { min-height: 36px; padding: 0 14px; font-size: 10px; letter-spacing: .08em; white-space: nowrap; }
-  .hero-banner__slide[data-position] .hero-banner__actions { justify-content: flex-start; }
-  .hero-banner__controls { right: 50%; bottom: 10px; padding: 4px; transform: translateX(50%); }
-  .hero-banner__arrow { width: 28px; height: 28px; }
-  .hero-banner__arrow:not(:last-child) { display: none; }
+  /* The button row shares the bottom line with the controls (right corner). */
+  .hero-banner__actions,
+  .hero-banner__slide[data-position] .hero-banner__actions { max-width: calc(100% - var(--hero-controls-zone, 0px) + 14px); justify-content: flex-start; gap: 6px; margin-top: 2px; }
+  .hero-banner__cta { min-height: 30px; padding: 0 12px; font-size: 9.5px; letter-spacing: .06em; }
+  .hero-banner__controls { right: 10px; bottom: 10px; padding: 3px; }
+  .hero-banner__arrow { width: 24px; height: 24px; }
+  .hero-banner__dots { gap: 5px; padding: 0 3px; }
+  .hero-banner__dot { width: 6px; height: 6px; }
+  .hero-banner__dot[aria-current="true"] { width: 18px; }
+}
+
+/* Narrow phones: the main button only, beside the controls. */
+@media (max-width: 479px) {
+  .hero-banner__cta--secondary { display: none; }
+}
+/* The smallest phones (320px): tighter button text, so labels like "Browse catalogue" still fit. */
+@media (max-width: 359px) {
+  .hero-banner__cta { gap: 5px; padding: 0 10px; font-size: 9px; letter-spacing: .03em; }
+  .hero-banner__cta svg { width: 14px; height: 14px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -125,15 +167,20 @@
 .admin-segmented { display: inline-flex; padding: 3px; border: 1px solid var(--admin-border, #e4e8ee); border-radius: 999px; }
 .admin-segmented button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 0; border-radius: 999px; background: none; font-size: 12px; cursor: pointer; }
 .admin-segmented button[aria-pressed="true"] { background: var(--admin-text, #202a38); color: #fff; }
-.admin-banner-preview { margin: 0 auto; }
-.admin-banner-preview .hero-banner__slide { min-height: 340px; }
-.admin-banner-preview--mobile { max-width: 360px; }
-.admin-banner-preview--mobile .hero-banner__slide { min-height: 230px; align-items: end; }
-.admin-banner-preview--mobile .hero-banner__slide::after { background: linear-gradient(0deg, rgba(10, 12, 20, calc(var(--banner-overlay) * 2.4)) 0%, rgba(10, 12, 20, var(--banner-overlay)) 45%, rgba(10, 12, 20, 0) 75%); }
-.admin-banner-preview--mobile .hero-banner__content { justify-self: stretch; justify-items: start; gap: 8px; width: 100%; padding: 16px 16px 54px; text-align: left; }
-.admin-banner-preview--mobile .hero-banner__title { font-size: 21px; }
+/* The preview uses the storefront banner styles above. Desktop: the same height and
+   copy caps at this screen width; mobile: a 360px phone. Both keep the copy out of
+   the controls' corner as a store with five banners does. */
+.admin-banner-preview { --hero-controls-zone: 220px; margin: 0 auto; }
+.admin-banner-preview--mobile { --hero-controls-zone: 120px; max-width: 360px; }
+.admin-banner-preview--mobile .hero-banner__slide { min-height: 120px; align-items: end; }
+.admin-banner-preview--mobile .hero-banner__slide[data-position]::after { background: linear-gradient(0deg, rgba(10, 12, 20, max(.75, calc(var(--banner-overlay) * 2.4))) 0%, rgba(10, 12, 20, max(.5, var(--banner-overlay))) 55%, rgba(10, 12, 20, 0) 90%); }
+.admin-banner-preview--mobile .hero-banner__slide[data-position] .hero-banner__content { justify-self: stretch; justify-items: start; gap: 4px; width: 100%; padding: 10px 14px; text-align: left; }
+.admin-banner-preview--mobile .hero-banner__eyebrow { padding: 3px 8px; font-size: 8.5px; letter-spacing: .12em; }
+.admin-banner-preview--mobile .hero-banner__title { max-width: none; font-size: 15px; }
 .admin-banner-preview--mobile .hero-banner__subtitle { display: none; }
-.admin-banner-preview--mobile .hero-banner__cta { min-height: 36px; padding: 0 14px; font-size: 10px; white-space: nowrap; }
+.admin-banner-preview--mobile .hero-banner__slide[data-position] .hero-banner__actions { max-width: calc(100% - var(--hero-controls-zone) + 14px); justify-content: flex-start; gap: 6px; margin-top: 2px; }
+.admin-banner-preview--mobile .hero-banner__cta { min-height: 30px; padding: 0 12px; font-size: 9.5px; letter-spacing: .06em; }
+.admin-banner-preview--mobile .hero-banner__cta--secondary { display: none; }
 @media (max-width: 900px) {
   .admin-banner-row { grid-template-columns: auto 110px minmax(0, 1fr); }
   .admin-banner-row__thumb { width: 110px; }
@@ -191,14 +238,13 @@
 @media (max-width: 760px) { .home-hide-mobile { display: none !important; } }
 @media (min-width: 761px) { .home-hide-desktop { display: none !important; } }
 
-/* Swipeable rows share one recipe: hidden scrollbar, touch momentum, no page overscroll. */
+/* Swipeable rows share one recipe: hidden scrollbar, touch momentum, no page overscroll.
+   Product rows: .product-rail in app/catalog.css. */
 .category-rail__list,
-.product-rail,
 .product-tabs__list,
 .home-reviews,
 .home-feed__filters { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .category-rail__list::-webkit-scrollbar,
-.product-rail::-webkit-scrollbar,
 .product-tabs__list::-webkit-scrollbar,
 .home-reviews::-webkit-scrollbar,
 .home-feed__filters::-webkit-scrollbar { display: none; }
@@ -223,12 +269,7 @@
 .trust-strip strong { display: block; font-size: 13px; }
 .trust-strip small { display: block; margin-top: 2px; color: var(--color-text-muted); font-size: 11.5px; line-height: 1.4; }
 
-/* --- Product rows ----------------------------------------------------------------- */
-.product-rail { display: grid; grid-auto-columns: calc((100% - 4 * 16px) / 5); grid-auto-flow: column; gap: 16px; margin: 0; padding: 2px 2px 8px; list-style: none; scroll-snap-type: x mandatory; }
-.product-rail > li { min-width: 0; scroll-snap-align: start; }
-.product-rail .catalog-card__body { gap: 6px; padding: 12px 12px 14px; }
-.product-rail .catalog-card__title { font-size: 13px; }
-
+/* --- Product tabs (rows themselves: .product-rail in app/catalog.css) -------------- */
 .product-tabs__list { display: flex; gap: 8px; margin: 0 0 14px; padding: 2px; }
 .product-tabs__tab { flex: none; min-height: 36px; padding: 0 16px; border: 1px solid var(--color-border); border-radius: var(--radius-pill); background: var(--color-surface); color: var(--color-text-muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .product-tabs__tab:hover { border-color: var(--color-text); color: var(--color-text); }
@@ -344,7 +385,6 @@
 .guide-article__more a { color: var(--color-brand); font-weight: 600; }
 
 @media (max-width: 1100px) {
-  .product-rail { grid-auto-columns: calc((100% - 2 * 14px) / 3.2); gap: 14px; }
   .home-reviews { grid-auto-columns: 46%; }
 }
 
@@ -382,11 +422,7 @@
 }
 
 @media (max-width: 640px) {
-  .product-rail { grid-auto-columns: 44%; gap: 10px; }
   .home-feed__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .home-page .catalog-card__body { gap: 5px; padding: 10px 10px 12px; }
-  .home-page .catalog-card__title { font-size: 12.5px; }
-  .home-page .catalog-price strong { font-size: 14px; }
 }
 
 @media (max-width: 420px) {

@@ -1,7 +1,9 @@
 import { createPersistentStore } from "@/lib/client/persistent-store";
+import { MAX_SECTION_PRODUCTS } from "@/lib/constants/homepage";
 
 const OBJECT_ID = /^[a-f\d]{24}$/i;
-const MAX_ITEMS = 12;
+/** Enough to fill the home page "Recently viewed" row. */
+const MAX_ITEMS = MAX_SECTION_PRODUCTS;
 
 /** Products this browser viewed recently, most recent first. */
 export const recentlyViewedStore = createPersistentStore<string[]>("recently-viewed:v1", [], (raw) =>
