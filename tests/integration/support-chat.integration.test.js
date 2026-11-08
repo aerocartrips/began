@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { createTestTenant, enterTenantBeforeEach } from "../helpers/tenant.js";
+import { signInto } from "../helpers/auth.js";
 
 let testTenantId;
 enterTenantBeforeEach(() => testTenantId);
@@ -20,14 +21,11 @@ vi.mock("next/headers", () => ({
   }),
 }));
 vi.mock("next/server", async (importOriginal) => ({ ...(await importOriginal()), ...(await import("../stubs/next-server.js")), after: vi.fn() }));
-vi.mock("@/lib/admin/auth", () => ({ getAdminSession: async () => null }));
 vi.mock("@/lib/services/email.service", () => ({ notifyContactMessage: vi.fn(async () => ({ sent: false })) }));
 
 let mongo;
 let routes;
 let models;
-let signAccessToken;
-let ACCESS_COOKIE;
 let userCounter = 0;
 
 async function createUser(role = "customer") {
@@ -47,7 +45,7 @@ async function createUser(role = "customer") {
  */
 async function call(handler, { as, method = "GET", path = "/api/v1/support/conversations", body, rawBody, params = {} } = {}) {
   cookieJar.clear();
-  if (as) cookieJar.set(ACCESS_COOKIE, await signAccessToken(as));
+  if (as) await signInto(cookieJar, as);
   const init = { method, headers: { "content-type": "application/json" } };
   if (rawBody !== undefined) init.body = rawBody;
   else if (body !== undefined) init.body = JSON.stringify(body);
@@ -81,9 +79,6 @@ beforeAll(async () => {
   mongo = await MongoMemoryServer.create();
   process.env.MONGODB_URI = mongo.getUri("norosilk_support_test");
 
-  const session = await import("@/lib/auth/session");
-  signAccessToken = session.signAccessToken;
-  ACCESS_COOKIE = session.ACCESS_COOKIE;
 
   const { connectDB } = await import("@/lib/db/connect");
   await connectDB();

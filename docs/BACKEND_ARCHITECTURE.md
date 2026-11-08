@@ -33,7 +33,8 @@ Route Handler (app/api/v1)
 - Customer/admin accounts are stored in MongoDB (`User` model).
 - `/api/v1/auth/*` issues HttpOnly cookies (`norosilk_access`, `norosilk_refresh`) signed with `JWT_SECRET` and `JWT_REFRESH_SECRET`.
 - Existing `/admin` dashboard login remains env-based (`AUTH_SECRET`, `ADMIN_EMAIL`) and is unchanged.
-- Admin APIs under `/api/v1` require a MongoDB user with `role: "admin"`.
+- Admin APIs under `/api/v1` require the admin session (`/admin/login`) of an active `role: "admin"` user. Storefront tokens belong to customers only: staff accounts can't sign in on the storefront, and a token stops working if its account becomes staff.
+- Customers can reset a forgotten password with a single-use emailed link (`/account/forgot-password`, 30 minutes); resetting ends every other session.
 
 ## Persistence
 

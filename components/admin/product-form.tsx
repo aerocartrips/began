@@ -277,6 +277,7 @@ export default function ProductForm({ initial }: { initial?: AdminProductDraft }
             <label className="admin-field">
               Stock (pieces)
               <input type="number" min={0} step={1} value={draft.stockQuantity} onChange={(event) => set("stockQuantity", event.currentTarget.value)} />
+              {error("stockQuantity")}
             </label>
           </div>
         ) : (
@@ -317,6 +318,7 @@ export default function ProductForm({ initial }: { initial?: AdminProductDraft }
               <label className="admin-field">
                 Stock
                 <input type="number" min={0} step={1} value={variant.stockQuantity} onChange={(event) => setVariant(variant.key, { stockQuantity: event.currentTarget.value })} />
+                {error(`variants.${index}.stockQuantity`)}
               </label>
               <button type="button" className="icon-button" aria-label={`Remove colour ${index + 1}`} onClick={() => set("variants", draft.variants.filter((entry) => entry.key !== variant.key))}>
                 <Trash2 size={15} />

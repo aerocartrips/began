@@ -23,6 +23,7 @@ import type { OrderReviewContextMap } from "@/features/reviews/types";
 import { isUnauthorizedError } from "@/lib/api/api-error";
 import { authHref } from "@/lib/auth/redirect";
 import { formatDate, formatRupees } from "@/lib/format";
+import { hasInvoice } from "@/lib/constants/order-status";
 
 const SORT_OPTIONS: SelectOption[] = [
   { id: "desc", label: "Newest first" },
@@ -229,7 +230,7 @@ export default function CustomerOrdersPageClient() {
           const firstItem = order.items[0];
           const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
           const extraLines = order.items.length - 1;
-          const canDownloadInvoice = order.paymentStatus !== "pending";
+          const canDownloadInvoice = hasInvoice(order.paymentStatus);
           return (
             <article className="orders-card" key={order._id}>
               <header className="orders-card-head">

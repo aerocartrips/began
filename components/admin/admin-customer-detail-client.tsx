@@ -70,7 +70,7 @@ export default function AdminCustomerDetailClient({ customerId }: { customerId: 
         items={[
           { label: "Orders", value: formatNumber(overview.totalOrders) },
           { label: "Units purchased", value: formatNumber(overview.totalQuantity) },
-          { label: "Total value", value: formatRupees(overview.totalRevenue) },
+          { label: "Paid revenue", value: formatRupees(overview.totalRevenue) },
           { label: "Average order", value: formatRupees(overview.averageOrderValue) },
         ]}
       />

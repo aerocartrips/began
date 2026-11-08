@@ -36,10 +36,17 @@ export function loadRazorpayScript() {
   return scriptPromise;
 }
 
+/** The store's brand colour (its theme's CSS variable), so the Razorpay window matches the store. */
+function storeBrandColor() {
+  const value = getComputedStyle(document.documentElement).getPropertyValue("--color-brand").trim();
+  return /^#[\da-f]{3,8}$/i.test(value) ? value : undefined;
+}
+
 export async function openRazorpayCheckout(input: RazorpayCheckoutInput) {
   await loadRazorpayScript();
   if (!window.Razorpay) throw new Error("Razorpay Checkout is unavailable.");
 
+  const brandColor = storeBrandColor();
   const checkout = new window.Razorpay({
     key: input.key,
     amount: input.amount,
@@ -52,7 +59,7 @@ export async function openRazorpayCheckout(input: RazorpayCheckoutInput) {
       email: input.customer.email,
       contact: input.customer.phone,
     },
-    theme: { color: "#6863ed" },
+    ...(brandColor ? { theme: { color: brandColor } } : {}),
     handler: (response: RazorpaySuccessResponse) => {
       void input.onSuccess(response);
     },

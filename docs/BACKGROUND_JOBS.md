@@ -6,7 +6,11 @@
 - **Monitoring:** `/admin/jobs`, `GET /api/v1/admin/jobs`
 - **History:** `JobRun` collection
 
-Before expiring pending payment orders, the job reconciles Razorpay via `reconcileOrderPayment`, then calls `markOrderPaymentFailed` once (`paymentExpiryProcessedAt` lock).
+For each unpaid order past its reservation window, the job first asks Razorpay for every payment on the order's Razorpay order (`reconcileOrderPayment`), so a payment the shopper completed after closing the page confirms the order instead of losing it. An order whose payment is still only `authorized` is left for a later run; the rest are cancelled and their stock released (`expireUnpaidOrder` in `order-lifecycle.service.js`).
+
+- **Claims:** each order is claimed with `paymentExpiryProcessedAt` before it is settled. A claim lasts 10 minutes, so an order whose check failed (Razorpay unreachable) is retried by a later run instead of being stuck.
+- **No overlap:** runs share the `JobRun.lockKey` lock with product metrics (`lib/jobs/run-locked-job.js`); a concurrent run returns `skipped`.
+- **Without a scheduler:** after every checkout the job also runs opportunistically (`runPaymentExpiryJobIfDue`) when overdue orders exist and no run started in the last 5 minutes, so abandoned reservations are freed when shoppers need the stock. Schedule the cron as well; it covers quiet periods.
 
 A run with failures raises a critical admin notification (`job_failed`).
 

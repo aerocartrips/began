@@ -18,7 +18,19 @@ Payment statuses:
 
 - `pending`, `paid`, `failed`, `refunded`, `partially_refunded`
 
-Paid capture (Razorpay verify/webhook) sets `paymentStatus=paid` and `orderStatus=confirmed`.
+Paid capture (Razorpay verify/webhook) sets `paymentStatus=paid` and `orderStatus=confirmed`, and numbers the invoice (see below).
+
+## Customer view and windows
+
+Customer responses are built from an allow-list (`lib/services/order-dto.js`): internal notes, staff remarks and who made each change never leave the server; admins get the full order. Each order carries `actions` computed from the store's windows (Admin → Store settings → Orders, `lib/services/order-policy.js`), which the API also enforces:
+
+- unpaid orders can be cancelled until payment;
+- paid orders within `cancellationWindowHours` of being placed, before dispatch;
+- returns within `returnWindowDays` of delivery (`deliveredAt`).
+
+## Invoices
+
+Invoice numbers are `PREFIX/FY/SERIAL` (e.g. `INV/26-27/00042`): consecutive per store and Indian financial year, at most 16 characters (GST rule 46), allocated in the payment's transaction from the `Counter` collection. Only paid (or later refunded) orders have an invoice. Paid orders from before this scheme get the next number on first download.
 
 ## Customer APIs
 
@@ -40,7 +52,7 @@ Query params for listing:
 
 | Method | Route | Auth |
 |--------|-------|------|
-| PATCH | `/api/v1/orders/:orderId/status` | Commerce admin (dashboard cookie or Mongo admin JWT) |
+| PATCH | `/api/v1/orders/:orderId/status` | Commerce admin (admin session) |
 
 Admin payload supports:
 
@@ -48,7 +60,7 @@ Admin payload supports:
 - `internalNotes`, `customerVisibleRemark`, `remarks`
 - `shipmentAwb`, `shipmentStatus`
 
-Status changes append to `order.statusHistory` with actor, source, and timestamps.
+Status changes append to `order.statusHistory` with actor, source, and timestamps. Cancelling (`orderStatus: "cancelled"`) returns the stock and refunds a paid order in full; `paymentStatus` can only be set from `pending` to `paid` (an offline payment). The admin form offers only the moves the server accepts.
 
 ## Transition rules
 

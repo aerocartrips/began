@@ -12,8 +12,8 @@ In the Razorpay dashboard, point the store's webhook at `https://<store domain>/
 
 ## Flow
 
-1. Authenticated customer submits checkout → `POST /api/v1/payments/create-order`
-2. Server creates internal order (`pending_payment`), reserves inventory, creates Razorpay order + `Payment` record
+1. Authenticated customer submits checkout → `POST /api/v1/payments/create-order` (the only way orders are created)
+2. Server creates internal order (`pending_payment`), reserves inventory, creates Razorpay order + `Payment` record. Paying again for the same cart, prices and addresses resumes that order and its Razorpay order (`Order.checkoutSignature`) instead of reserving the stock twice. If Razorpay cannot create the order, the internal order is cancelled at once and its stock released.
 3. Frontend opens Razorpay Standard Checkout
 4. Customer pays → `POST /api/v1/payments/verify` with signature
 5. Server verifies HMAC, fetches authoritative payment status from Razorpay, marks order paid only when `captured`
@@ -38,16 +38,22 @@ The handler verifies `X-Razorpay-Signature` against the raw request body.
 
 ## Admin
 
-- `GET /api/v1/payments` lists payment records (dashboard admin cookie or Mongo admin JWT)
-- `POST /api/v1/payments/refunds` initiates full/partial refunds (Mongo admin JWT)
+- `GET /api/v1/payments` lists payment records (admin session)
+- `POST /api/v1/payments/refunds` initiates full/partial refunds (admin session, `payments:refund`)
+- Order page: marking an unpaid order **paid** records an offline payment (the only manual payment change); refunds go through the refund action.
 
 ## Inventory reservation
 
-Stock is reserved when the internal order enters `pending_payment`. Failed payments release inventory. Reservation expires after the store's payment reservation window; the `payment-expiry` cron job releases expired reservations for every store.
+All order, payment and stock transitions live in `lib/services/order-lifecycle.service.js`; stock moves only through `lib/services/inventory.service.js`, which records every change in the `StockMovement` ledger.
+
+- Stock is reserved when the order enters `pending_payment` and stays held by the order (`inventoryReserved`) through payment and fulfilment, until it is cancelled before dispatch.
+- A failed attempt (`payment.failed`) only marks the `Payment`: Razorpay lets the shopper retry on the same order, so the order keeps its stock until the reservation window ends. The `payment-expiry` job then cancels unpaid orders and releases their stock.
+- A payment that arrives after the order expired reinstates the order if its stock can still be held; if the stock was sold, or a person (customer or store) had cancelled the order, the order stays cancelled and the full amount is refunded automatically.
+- Cancelling a paid order (customer within the cancellation window, or the store) returns its stock and starts a full refund.
 
 ## MongoDB transactions
 
-Order creation and inventory reservation use MongoDB transactions (requires Atlas replica set).
+Every lifecycle transition reads and writes the order inside a MongoDB transaction (`lib/db/transaction.js`, retried on write conflicts), so a webhook racing the verify call or the expiry job settles the order once. Requires a replica set (Atlas).
 
 ## Example verify request
 

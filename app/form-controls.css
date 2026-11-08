@@ -45,10 +45,10 @@
 .ui-date-segment[data-focused] { background: var(--color-brand); color: #fff; }
 .ui-date-range-dash { padding: 0 8px; color: var(--color-text-subtle); }
 
-.ui-field-hint { color: #939caa; font-size: 8px; font-weight: 400; }
-.account-field .ui-field-hint { font-size: 10px; }
-.ui-field-error { color: #b54747; font-size: 8px; font-weight: 500; line-height: 1.45; }
-.account-field .ui-field-error { color: #e5484d; font-size: 10px; }
+/* 12px: the smallest size that stays readable for help and error text. */
+.ui-field-hint { color: var(--color-text-muted); font-size: 12px; font-weight: 400; }
+.ui-field-error { color: #b54747; font-size: 12px; font-weight: 500; line-height: 1.45; }
+.account-field .ui-field-error { color: #e5484d; }
 
 /* Popover: list and calendar */
 .ui-popover { z-index: 60; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); box-shadow: var(--shadow-overlay); outline: 0; }

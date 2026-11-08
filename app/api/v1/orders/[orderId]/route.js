@@ -1,25 +1,20 @@
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { withDatabase } from "@/lib/api/with-database";
 import { successResponse } from "@/lib/utils/api-response";
-import { getAuthUser } from "@/lib/auth/session";
-import { requireAdminAccess } from "@/lib/auth/admin-access";
-import { ROLES } from "@/lib/constants/roles";
+import { resolveViewer } from "@/lib/auth/viewer";
 import { getOrderForUser } from "@/lib/services/order.service";
 import { getOrderPaymentSummary } from "@/lib/services/order-actions.service";
+import { presentOrderToCustomer, toCustomerPayment } from "@/lib/services/order-dto";
 
 export const GET = withDatabase(async (_request, context) => {
   const { orderId } = await context.params;
-  const sessionUser = await getAuthUser();
+  const { customer } = await resolveViewer(PERMISSIONS.ORDERS_MANAGE);
+  const order = await getOrderForUser(orderId, customer, !customer);
 
-  if (sessionUser) {
-    const isAdmin = sessionUser.role === ROLES.ADMIN;
-    const order = await getOrderForUser(orderId, sessionUser, isAdmin);
+  if (!customer) {
     const payment = await getOrderPaymentSummary(orderId);
     return successResponse({ order, payment }, "Order fetched successfully.");
   }
-
-  await requireAdminAccess(PERMISSIONS.ORDERS_MANAGE);
-  const order = await getOrderForUser(orderId, null, true);
-  const payment = await getOrderPaymentSummary(orderId);
-  return successResponse({ order, payment }, "Order fetched successfully.");
+  const [view, payment] = await Promise.all([presentOrderToCustomer(order), getOrderPaymentSummary(orderId)]);
+  return successResponse({ order: view, payment: toCustomerPayment(payment) }, "Order fetched successfully.");
 });

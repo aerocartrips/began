@@ -53,7 +53,7 @@ export default async function AdminOverviewPage() {
             detail={`Active of ${numbers.format(stats.totalProducts)} in catalog`}
           />
           <StatCard label="Orders" value={numbers.format(stats.orders)} detail="All orders placed" />
-          <StatCard label="Paid revenue" value={rupees.format(stats.paidRevenue)} detail="Orders with verified payment" />
+          <StatCard label="Paid revenue" value={rupees.format(stats.paidRevenue)} detail={`${numbers.format(stats.paidOrders)} paid orders, net of refunds`} />
           <StatCard label="Failed payments" value={numbers.format(stats.failedPayments)} detail="Payment attempts that failed" />
           <StatCard label="Customer messages" value={numbers.format(stats.openConversations)} detail="Open support conversations" />
           <StatCard

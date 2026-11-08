@@ -9,6 +9,7 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { createTestTenant, enterTenantBeforeEach } from "../helpers/tenant.js";
+import { signInto } from "../helpers/auth.js";
 
 let testTenantId;
 enterTenantBeforeEach(() => testTenantId);
@@ -23,7 +24,6 @@ vi.mock("next/headers", () => ({
   }),
 }));
 vi.mock("next/server", async (importOriginal) => ({ ...(await importOriginal()), ...(await import("../stubs/next-server.js")), after: vi.fn() }));
-vi.mock("@/lib/admin/auth", () => ({ getAdminSession: async () => null }));
 vi.mock("@/lib/services/email.service", () => ({
   isCustomerEmailConfigured: () => true,
   notifyContactMessage: vi.fn(async () => ({ sent: false })),
@@ -79,7 +79,7 @@ async function createUser(role = "customer", overrides = {}) {
 async function call(handler, { as, token, method = "GET", path = "/api/v1/account", body, params = {} } = {}) {
   cookieJar.clear();
   if (token) cookieJar.set(session.ACCESS_COOKIE, token);
-  else if (as) cookieJar.set(session.ACCESS_COOKIE, await session.signAccessToken(as));
+  else if (as) await signInto(cookieJar, as);
   const init = { method, headers: { "content-type": "application/json" } };
   if (body !== undefined) init.body = JSON.stringify(body);
   const response = await handler(new Request(`http://localhost${path}`, init), { params: Promise.resolve(params) });

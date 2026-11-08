@@ -25,7 +25,6 @@ type TimelineProps = {
     newOrderStatus?: string;
     newPaymentStatus?: string;
     customerVisibleRemark?: string;
-    remarks?: string;
     createdAt?: string;
   }[];
 };
@@ -66,9 +65,8 @@ export default function OrderTimeline({ orderStatus, paymentStatus, history }: T
             {entry?.createdAt ? (
               <small>{formatDateTime(entry.createdAt)}</small>
             ) : null}
-            {entry?.customerVisibleRemark || entry?.remarks ? (
-              <p>{entry.customerVisibleRemark || entry.remarks}</p>
-            ) : null}
+            {/* Shared by the customer and admin pages: only what the customer was told. */}
+            {entry?.customerVisibleRemark ? <p>{entry.customerVisibleRemark}</p> : null}
           </li>
         );
       })}

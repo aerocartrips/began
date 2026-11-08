@@ -5,13 +5,20 @@
 
 export const LOGIN_PATH = "/account/login";
 export const REGISTER_PATH = "/account/register";
+export const FORGOT_PASSWORD_PATH = "/account/forgot-password";
+export const RESET_PASSWORD_PATH = "/account/reset-password";
 
 const AUTH_PATHS: ReadonlySet<string> = new Set([LOGIN_PATH, REGISTER_PATH]);
 const PARSE_BASE = "http://localhost";
 const MAX_LENGTH = 2048;
 
-/** Account pages anyone may open: signing in, registering, and the emailed verification link. */
-const PUBLIC_ACCOUNT_PATHS: ReadonlySet<string> = new Set([...AUTH_PATHS, "/account/verify-email"]);
+/** Account pages anyone may open: signing in, registering, password reset and the emailed links. */
+const PUBLIC_ACCOUNT_PATHS: ReadonlySet<string> = new Set([
+  ...AUTH_PATHS,
+  "/account/verify-email",
+  FORGOT_PASSWORD_PATH,
+  RESET_PASSWORD_PATH,
+]);
 
 function normalizePath(pathname: string) {
   return pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;

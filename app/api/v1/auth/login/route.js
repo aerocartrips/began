@@ -3,23 +3,41 @@ import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
 import { loginUser } from "@/lib/services/auth.service";
 import { getClientIp } from "@/lib/security/client-ip";
-import { checkRateLimit, recordRateLimitHit } from "@/lib/security/rate-limit";
+import { checkRateLimit, clearRateLimit, recordRateLimitHit } from "@/lib/security/rate-limit";
 import { ApiError } from "@/lib/utils/api-error";
 
+const WINDOW_MS = 15 * 60 * 1000;
+/** Failed sign-ins allowed per window: per network address, and per account (stops slow guessing from many addresses). */
+const LIMITS = {
+  ip: { limit: 20, windowMs: WINDOW_MS },
+  account: { limit: 5, windowMs: WINDOW_MS },
+};
+
 export const POST = withDatabase(async (request) => {
-  const ip = getClientIp(request);
-  const limit = await checkRateLimit(`login:${ip}`);
-  if (!limit.allowed) {
-    throw new ApiError(429, "Too many login attempts. Please try again later.");
+  const payload = await parseJsonBody(request);
+  const email = typeof payload?.email === "string" ? payload.email.trim().toLowerCase().slice(0, 254) : "";
+  const keys = [
+    { key: `login:ip:${getClientIp(request)}`, options: LIMITS.ip },
+    ...(email ? [{ key: `login:account:${email}`, options: LIMITS.account }] : []),
+  ];
+
+  const blocked = (await Promise.all(keys.map(({ key, options }) => checkRateLimit(key, options)))).find((result) => !result.allowed);
+  if (blocked) {
+    const error = new ApiError(429, "Too many sign-in attempts. Wait a few minutes, or reset your password.");
+    error.retryAfter = blocked.retryAfter;
+    throw error;
   }
 
-  const payload = await parseJsonBody(request);
   try {
     const user = await loginUser(payload);
-    await recordRateLimitHit(`login:${ip}`);
+    // The account's failures are forgotten once its owner signs in; the address limit stays.
+    if (email) await clearRateLimit(`login:account:${email}`);
     return successResponse(user, "Login successful.");
   } catch (error) {
-    await recordRateLimitHit(`login:${ip}`);
+    // Only wrong credentials count, so shoppers who sign in often are never locked out.
+    if (error instanceof ApiError && error.statusCode === 401) {
+      await Promise.all(keys.map(({ key, options }) => recordRateLimitHit(key, options)));
+    }
     throw error;
   }
 });

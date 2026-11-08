@@ -1,6 +1,5 @@
 import "server-only";
 
-import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { forbidden, redirect } from "next/navigation";
@@ -10,6 +9,7 @@ import { User } from "@/lib/db/models/User";
 import { ROLES } from "@/lib/constants/roles";
 import { permissionsForRole, roleHasPermission } from "@/lib/auth/permissions";
 import { requireTenantId } from "@/lib/tenant/context";
+import { verifyPassword } from "@/lib/auth/password";
 
 export const ADMIN_SESSION_COOKIE = "norosilk-admin-session";
 const SESSION_LIFETIME_SECONDS = 60 * 60 * 8;
@@ -23,8 +23,6 @@ export type AdminSession = {
   permissions: string[];
 };
 
-// Compared against when the email is unknown, so response time does not reveal which admins exist.
-const DUMMY_HASH = "$2b$12$.f1Xdk2He.Br0HHwaiO1PO6mWaUmBKpLtKl5fq1B9yVnxjUPMYLxS";
 
 function getSigningKey() {
   const secret = process.env.AUTH_SECRET;
@@ -44,8 +42,8 @@ export async function verifyAdminCredentials(email: string, password: string) {
   const admin = await User.findOne({ email: email.trim().toLowerCase(), role: ROLES.ADMIN, isActive: true })
     .select("+password")
     .lean<{ _id: unknown; password?: string; sessionVersion?: number }>();
-  const matches = await bcrypt.compare(password, admin?.password ?? DUMMY_HASH);
-  return admin && matches ? admin : null;
+  // Unknown emails are checked against a dummy hash, so timing does not reveal which admins exist.
+  return (await verifyPassword(password, admin?.password)) ? admin : null;
 }
 
 export async function createAdminSessionToken(admin: { _id: unknown; sessionVersion?: number }) {

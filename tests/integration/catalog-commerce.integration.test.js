@@ -26,6 +26,9 @@ beforeAll(async () => {
     ...(await import("@/lib/catalog/query")),
     ...(await import("@/lib/services/cart-pricing.service")),
     ...(await import("@/lib/services/order.service")),
+    ...(await import("@/lib/services/inventory.service")),
+    Order: (await import("@/lib/db/models/Order")).Order,
+    StockMovement: (await import("@/lib/db/models/StockMovement")).StockMovement,
     ...(await import("@/lib/services/quote.service")),
   };
   await Promise.all([m.Product.syncIndexes(), m.Category.syncIndexes()]);
@@ -118,19 +121,35 @@ describe("cart pricing and stock", () => {
     expect(tiered.lines[0]).toMatchObject({ unitPrice: 650, lineTotal: 32500, colorName: "Red" });
   });
 
-  it("reserves and releases stock per colour atomically", async () => {
+  it("reserves and releases stock per colour atomically, once, with a ledger entry each way", async () => {
     await m.runWithTenant(wholesale, async () => {
-      await m.reserveInventoryForItems([{ productId: product._id, variantId: red(), quantity: 40 }]);
+      const address = { fullName: "Asha Buyer", phone: "9876543210", addressLine1: "12 Silk Road", city: "Bengaluru", state: "Karnataka", pincode: "560001", country: "India" };
+      const order = await m.Order.create({
+        orderNumber: `NS-STOCK-${Date.now()}`,
+        customer: new mongoose.Types.ObjectId(),
+        items: [{ product: product._id, variantId: red(), productName: product.name, sku: "NS-RED", quantity: 40, unitPrice: 650, lineTotal: 26000 }],
+        shippingAddress: address,
+        billingAddress: address,
+        subtotal: 26000,
+        totalAmount: 26000,
+        inventoryReserved: true,
+      });
+      await m.reserveStock([{ productId: product._id, variantId: red(), quantity: 40 }], { order: order._id });
       let fresh = await m.Product.findById(product._id).lean();
       expect([fresh.stockQuantity, fresh.variants[0].stockQuantity]).toEqual([20, 20]);
 
       await expect(
-        m.reserveInventoryForItems([{ productId: product._id, variantId: red(), quantity: 21 }]),
-      ).rejects.toThrow(/Inventory changed/);
+        m.reserveStock([{ productId: product._id, variantId: red(), quantity: 21 }], {}),
+      ).rejects.toMatchObject({ statusCode: 409, code: "out_of_stock" });
 
-      await m.releaseInventoryForOrder({ items: [{ product: product._id, variantId: red(), quantity: 40 }] });
+      // Concurrent releases (cancel racing expiry) return the stock exactly once.
+      const released = await Promise.all([m.releaseOrderStock(order._id, {}), m.releaseOrderStock(order._id, {})]);
+      expect(released.filter(Boolean)).toHaveLength(1);
       fresh = await m.Product.findById(product._id).lean();
       expect([fresh.stockQuantity, fresh.variants[0].stockQuantity]).toEqual([60, 60]);
+
+      const ledger = await m.StockMovement.find({ order: order._id }).sort({ createdAt: 1 }).lean();
+      expect(ledger.map((entry) => [entry.reason, entry.delta])).toEqual([["order_reserved", -40], ["order_released", 40]]);
     });
   });
 });

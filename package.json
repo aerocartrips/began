@@ -23,6 +23,7 @@
     "tenant:create": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-alias.mjs scripts/create-tenant.mjs",
     "tenant:migrate": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-alias.mjs scripts/migrate-to-multi-tenant.mjs",
     "tenant:integrations": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-alias.mjs scripts/set-tenant-integrations.mjs",
+    "orders:migrate": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-alias.mjs scripts/migrate-order-lifecycle.mjs",
     "admin:create": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-alias.mjs scripts/create-admin-user.mjs",
     "seed:test": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-alias.mjs scripts/seed-test-data.mjs",
     "seed:test-banners": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-alias.mjs scripts/seed-test-banners.mjs"

@@ -214,7 +214,7 @@ export default function CheckoutPageClient({ buyNow, customer, initialAddressBoo
     }
 
     if (!razorpayEnabled) {
-      setNotice("Online payment is not configured. Set Razorpay environment variables to enable Pay Now.");
+      setNotice("Online payment is not available right now. Please contact us to complete your order.");
       return;
     }
 

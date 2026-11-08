@@ -18,25 +18,16 @@ import { useApiRequest } from "@/hooks/use-api-request";
 import { useAsyncAction } from "@/hooks/use-async-action";
 import { apiRequest } from "@/lib/api/api-client";
 import { formatDateTime, formatNumber, formatRupees, humanizeStatus } from "@/lib/format";
+import { hasInvoice } from "@/lib/constants/order-status";
+import { FULFILLMENT_TRANSITIONS, MANUAL_PAYMENT_TRANSITIONS } from "@/lib/constants/order-transitions";
 import type { OrderDetail, OrderPaymentInfo } from "@/features/orders/types";
-
-const ORDER_STATUSES = [
-  "confirmed",
-  "processing",
-  "packed",
-  "shipped",
-  "out_for_delivery",
-  "delivered",
-  "cancelled",
-  "return_requested",
-  "returned",
-];
-
-const PAYMENT_STATUSES = ["pending", "paid", "failed", "refunded", "partially_refunded"];
 
 const statusOptions = (statuses: readonly string[]): SelectOption[] =>
   statuses.map((status) => ({ id: status, label: humanizeStatus(status) }));
-const PAYMENT_STATUS_OPTIONS = statusOptions(PAYMENT_STATUSES);
+
+/** The current status plus the moves the server accepts from it (lib/constants/order-transitions.js). */
+const nextStatuses = (current: string, transitions: Record<string, readonly string[] | undefined>) =>
+  statusOptions([current, ...(transitions[current] ?? [])]);
 
 type ShipmentAction = "create" | "manifest" | "refresh-tracking";
 
@@ -158,7 +149,11 @@ export default function AdminOrderDetailClient({ orderId }: { orderId: string })
                       <strong>{humanizeStatus(entry.newOrderStatus ?? entry.newPaymentStatus)}</strong>
                       <time>{formatDateTime(entry.createdAt, "")}</time>
                     </div>
-                    {entry.customerVisibleRemark || entry.remarks ? <p>{entry.customerVisibleRemark || entry.remarks}</p> : null}
+                    {entry.remarks ? <p>{entry.remarks}</p> : null}
+                    {entry.customerVisibleRemark && entry.customerVisibleRemark !== entry.remarks ? (
+                      <p className="admin-muted-text">Customer was told: {entry.customerVisibleRemark}</p>
+                    ) : null}
+                    {entry.changedByLabel ? <p className="admin-muted-text">By {entry.changedByLabel}</p> : null}
                   </li>
                 ))}
               </ol>
@@ -169,7 +164,7 @@ export default function AdminOrderDetailClient({ orderId }: { orderId: string })
         <aside className="admin-detail-aside">
           <AdminCard
             title="Summary"
-            action={order.paymentStatus !== "pending" ? <DownloadInvoiceButton orderId={order._id} size="sm" /> : null}
+            action={hasInvoice(order.paymentStatus) ? <DownloadInvoiceButton orderId={order._id} size="sm" /> : null}
           >
             <div className="admin-chip-row">
               <AdminStatusChip status={order.orderStatus} />
@@ -252,6 +247,14 @@ function OrderUpdateForm({ order, endpoint, onSaved }: OrderUpdateFormProps) {
   const [remarks, setRemarks] = useState("");
 
   const { run: save, loading: saving } = useAsyncAction(async () => {
+    const cancelling = orderStatus === "cancelled" && order.orderStatus !== "cancelled";
+    const markingPaid = paymentStatus === "paid" && order.paymentStatus !== "paid";
+    if (cancelling && !window.confirm(
+      order.paymentStatus === "paid"
+        ? "Cancel this order? Its stock goes back on sale and the customer is refunded in full through Razorpay."
+        : "Cancel this order? Its stock goes back on sale.",
+    )) return null;
+    if (markingPaid && !window.confirm("Mark this order as paid? Only do this for money received outside online checkout.")) return null;
     try {
       await apiRequest(`${endpoint}/status`, {
         method: "PATCH",
@@ -286,12 +289,18 @@ function OrderUpdateForm({ order, endpoint, onSaved }: OrderUpdateFormProps) {
         <Select
           className="admin-field"
           label="Fulfilment status"
-          // An order in a status outside the editable list keeps it as the first choice.
-          options={statusOptions(ORDER_STATUSES.includes(order.orderStatus) ? ORDER_STATUSES : [order.orderStatus, ...ORDER_STATUSES])}
+          options={nextStatuses(order.orderStatus, FULFILLMENT_TRANSITIONS)}
           value={orderStatus}
           onChange={setOrderStatus}
         />
-        <Select className="admin-field" label="Payment status" options={PAYMENT_STATUS_OPTIONS} value={paymentStatus} onChange={setPaymentStatus} />
+        <Select
+          className="admin-field"
+          label="Payment status"
+          // Only "paid" can be set by hand (an offline payment); refunds use the refund action.
+          options={nextStatuses(order.paymentStatus, MANUAL_PAYMENT_TRANSITIONS)}
+          value={paymentStatus}
+          onChange={setPaymentStatus}
+        />
         <label className="admin-field admin-field-wide">
           Shipment AWB
           <input value={shipmentAwb} onChange={(event) => setShipmentAwb(event.currentTarget.value)} placeholder="Assigned by courier" />

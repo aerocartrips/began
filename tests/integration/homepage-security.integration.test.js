@@ -8,6 +8,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
+import { signInto } from "../helpers/auth.js";
 
 const cookieJar = new Map();
 vi.mock("next/headers", () => ({
@@ -47,7 +48,7 @@ function request(host, pathname, { method = "GET", body, headers = {}, ip = "203
 async function signIn(user) {
   cookieJar.clear();
   if (!user) return;
-  cookieJar.set(m.session.ACCESS_COOKIE, await m.runWithTenant(String(user.tenantId), () => m.session.signAccessToken(user)));
+  await m.runWithTenant(String(user.tenantId), () => signInto(cookieJar, user));
 }
 
 beforeAll(async () => {

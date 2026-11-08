@@ -6,6 +6,7 @@ import { verifyPaymentSchema } from "@/lib/validators/payment.validator";
 import { formatZodErrors } from "@/lib/validators/auth.validator";
 import { reconcileCapturedPayment } from "@/lib/services/payment-verification.service";
 import { ApiError } from "@/lib/utils/api-error";
+import { toCustomerOrderSummary, toCustomerPayment } from "@/lib/services/order-dto";
 
 export const POST = withDatabase(async (request) => {
   const user = await requireAuthUser();
@@ -24,8 +25,8 @@ export const POST = withDatabase(async (request) => {
 
   return successResponse(
     {
-      payment: result.payment,
-      order: result.order,
+      payment: toCustomerPayment(result.payment),
+      order: result.order ? toCustomerOrderSummary(result.order) : null,
       idempotent: result.idempotent,
     },
     result.idempotent ? "Payment already verified." : "Payment verified successfully.",

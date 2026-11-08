@@ -1,6 +1,6 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import AuthCard from "@/components/auth/auth-card";
 import CustomerAuthForm, { type AuthMode } from "@/components/auth/customer-auth-form";
 import Skeleton from "@/components/ui/loaders/skeleton";
 import { getCurrentAccountUser } from "@/lib/auth/current-customer";
@@ -38,22 +38,18 @@ export default async function AuthPage({ mode, searchParams }: { mode: AuthMode;
   const copy = COPY[mode];
 
   return (
-    <main className="auth-page">
+    <AuthCard
+      eyebrow={salesMode === "wholesale" ? "Wholesale account" : "Your account"}
+      title={copy.title}
+      lead={copy.lead[salesMode]}
+    >
       <Suspense fallback={null}>
         <RedirectIfSignedIn searchParams={searchParams} />
       </Suspense>
-      <section className="auth-card" aria-labelledby="auth-title">
-        <header className="auth-card__head">
-          <p className="eyebrow">{salesMode === "wholesale" ? "Wholesale account" : "Your account"}</p>
-          <h1 id="auth-title">{copy.title}</h1>
-          <p className="auth-card__lead">{copy.lead[salesMode]}</p>
-        </header>
-        <Suspense fallback={<AuthFormSkeleton fields={FIELD_COUNT[mode]} />}>
-          <CustomerAuthForm mode={mode} />
-        </Suspense>
-      </section>
-      <Link className="text-button auth-page__back" href="/products">Back to catalog</Link>
-    </main>
+      <Suspense fallback={<AuthFormSkeleton fields={FIELD_COUNT[mode]} />}>
+        <CustomerAuthForm mode={mode} />
+      </Suspense>
+    </AuthCard>
   );
 }
 

@@ -34,7 +34,15 @@ export type OrderListItem = {
     manifestStatus?: string;
     estimatedDelivery?: string;
     trackingFetchedAt?: string;
-  };
+  } | null;
+};
+
+/** What the customer may still do, from the store's cancellation and return windows (customer view only). */
+export type OrderActions = {
+  canCancel: boolean;
+  cancelUntil: string | null;
+  canRequestReturn: boolean;
+  returnUntil: string | null;
 };
 
 export type OrderDetail = OrderListItem & {
@@ -43,8 +51,13 @@ export type OrderDetail = OrderListItem & {
   shippingCharges: number;
   tax: number;
   paymentMethod?: string;
+  paymentExpiresAt?: string | null;
+  deliveredAt?: string | null;
+  /** Admin view only. */
   internalNotes?: string;
   customerVisibleRemark?: string;
+  actions?: OrderActions;
+  invoice?: { number: string; issuedAt?: string | null } | null;
   shippingAddress: Record<string, string>;
   billingAddress: Record<string, string>;
   statusHistory?: {
@@ -53,11 +66,13 @@ export type OrderDetail = OrderListItem & {
     previousPaymentStatus?: string;
     newPaymentStatus?: string;
     customerVisibleRemark?: string;
+    /** Staff remark; admin view only. */
     remarks?: string;
+    changedByLabel?: string;
     createdAt?: string;
   }[];
-  returnRequest?: { status: string; reason?: string; remarks?: string; requestedAt?: string };
-  cancellation?: { reason?: string; cancelledAt?: string };
+  returnRequest?: { status: string; reason?: string; remarks?: string; requestedAt?: string } | null;
+  cancellation?: { reason?: string; cancelledAt?: string } | null;
   cancellationRefund?: {
     status: string;
     message?: string;

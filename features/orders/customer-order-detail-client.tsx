@@ -28,6 +28,7 @@ import { useAsyncAction } from "@/hooks/use-async-action";
 import { isUnauthorizedError } from "@/lib/api/api-error";
 import { authHref } from "@/lib/auth/redirect";
 import { formatDate, formatDateTime, formatRupees, humanizeStatus } from "@/lib/format";
+import { hasInvoice } from "@/lib/constants/order-status";
 
 export default function CustomerOrderDetailClient({ orderId }: { orderId: string }) {
   const router = useRouter();
@@ -136,10 +137,8 @@ export default function CustomerOrderDetailClient({ orderId }: { orderId: string
   }
 
   const totalQty = order.items.reduce((sum, item) => sum + item.quantity, 0);
-  const canCancel =
-    order.orderStatus !== "cancelled" &&
-    !["shipped", "out_for_delivery", "delivered", "return_requested", "returned"].includes(order.orderStatus);
-  const canReturn = order.orderStatus === "delivered";
+  // The server applies the store's cancellation and return windows.
+  const { canCancel = false, cancelUntil = null, canRequestReturn: canReturn = false, returnUntil = null } = order.actions ?? {};
   const address = order.shippingAddress ?? {};
   const trackingEvents = Array.isArray(tracking?.events)
     ? (tracking.events as { status?: string; location?: string; at?: string; remarks?: string }[])
@@ -161,7 +160,7 @@ export default function CustomerOrderDetailClient({ orderId }: { orderId: string
             <OrderStatusBadge kind="order" status={order.orderStatus} />
             <OrderStatusBadge kind="payment" status={order.paymentStatus} />
           </div>
-          {order.paymentStatus !== "pending" ? <DownloadInvoiceButton orderId={order._id} /> : null}
+          {hasInvoice(order.paymentStatus) ? <DownloadInvoiceButton orderId={order._id} /> : null}
         </div>
       </div>
 
@@ -280,7 +279,10 @@ export default function CustomerOrderDetailClient({ orderId }: { orderId: string
           {canCancel ? (
             <section className="account-panel">
               <h2>Cancel order</h2>
-              <p className="account-muted">Paid orders are refunded to the original payment method once cancellation is confirmed.</p>
+              <p className="account-muted">
+                Paid orders are refunded to the original payment method once cancellation is confirmed.
+                {cancelUntil ? ` You can cancel until ${formatDateTime(cancelUntil)}.` : ""}
+              </p>
               <label className="account-field">
                 Reason for cancelling
                 <textarea value={cancelReason} onChange={(event) => setCancelReason(event.currentTarget.value)} rows={3} maxLength={500} />
@@ -296,7 +298,10 @@ export default function CustomerOrderDetailClient({ orderId }: { orderId: string
           {canReturn ? (
             <section className="account-panel">
               <h2>Request a return</h2>
-              <p className="account-muted">Our team reviews every return request and updates you on this page.</p>
+              <p className="account-muted">
+                Our team reviews every return request and updates you on this page.
+                {returnUntil ? ` Returns can be requested until ${formatDate(returnUntil)}.` : ""}
+              </p>
               <label className="account-field">
                 Reason for return
                 <textarea value={returnReason} onChange={(event) => setReturnReason(event.currentTarget.value)} rows={3} maxLength={500} />

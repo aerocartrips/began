@@ -8,6 +8,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import mongoose from "mongoose";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import { createTestTenant, enterTenantBeforeEach } from "../helpers/tenant.js";
+import { signInto } from "../helpers/auth.js";
 
 let testTenantId;
 enterTenantBeforeEach(() => testTenantId);
@@ -33,10 +34,12 @@ vi.mock("next/server", async (importOriginal) => ({
   ...(await import("../stubs/next-server.js")),
   after: (task) => afterTasks.push(Promise.resolve().then(typeof task === "function" ? task : () => task)),
 }));
-vi.mock("@/lib/admin/auth", () => ({ getAdminSession: async () => null }));
 vi.mock("@/lib/razorpay/client", () => ({
   getRazorpayClient: () => ({
-    orders: { create: async ({ amount, currency }) => ({ id: `order_T${++razorpay.orderSeq}`, amount, currency }) },
+    orders: {
+      create: async ({ amount, currency }) => ({ id: `order_T${++razorpay.orderSeq}`, amount, currency }),
+      fetchPayments: async (orderId) => ({ items: [...razorpay.payments.values()].filter((payment) => payment.order_id === orderId) }),
+    },
     payments: {
       fetch: async (id) => {
         const payment = razorpay.payments.get(id);
@@ -69,8 +72,6 @@ let service;
 let events;
 let jobs;
 let adminRecipients;
-let signAccessToken;
-let ACCESS_COOKIE;
 let category;
 let seq = 0;
 
@@ -104,7 +105,7 @@ async function createProduct(overrides = {}) {
 
 async function call(handler, { as, method = "GET", path = "/api/v1/test", body, rawBody, headers = {}, params = {} } = {}) {
   cookieJar.clear();
-  if (as) cookieJar.set(ACCESS_COOKIE, await signAccessToken(as));
+  if (as) await signInto(cookieJar, as);
   const init = { method, headers: { "content-type": "application/json", ...headers } };
   if (rawBody !== undefined) init.body = rawBody;
   else if (body !== undefined) init.body = JSON.stringify(body);
@@ -178,9 +179,6 @@ beforeAll(async () => {
   replSet = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
   process.env.MONGODB_URI = replSet.getUri("norosilk_notifications_test");
 
-  const session = await import("@/lib/auth/session");
-  signAccessToken = session.signAccessToken;
-  ACCESS_COOKIE = session.ACCESS_COOKIE;
   await (await import("@/lib/db/connect")).connectDB();
   const { encryptSecret } = await import("@/lib/tenant/secrets");
   ({ tenantId: testTenantId } = await createTestTenant({
@@ -286,7 +284,7 @@ describe("payments and orders", () => {
     expect(await notificationsFor(customer, { type: "payment_succeeded" })).toHaveLength(0);
   });
 
-  it("notifies a confirmed payment failure once, without a success notification", async () => {
+  it("keeps the order payable after a failed attempt, then notifies once when the payment window expires", async () => {
     const [customer, product] = await Promise.all([createUser(), createProduct()]);
     const order = await checkout(customer, product);
     const failed = {
@@ -297,9 +295,21 @@ describe("payments and orders", () => {
     await webhook(`evt_fail_${order.razorpayOrderId}`, failed);
     await webhook(`evt_fail2_${order.razorpayOrderId}`, failed);
 
+    // Razorpay lets the shopper retry on the same order: nothing is cancelled or announced yet.
+    expect(await notificationsFor(customer)).toHaveLength(0);
+    expect(await models.Order.findById(order.internalOrderId).lean()).toMatchObject({ orderStatus: "pending_payment", inventoryReserved: true });
+
+    await models.Order.updateOne({ _id: order.internalOrderId }, { $set: { paymentExpiresAt: new Date(Date.now() - 1000) } });
+    const { runPaymentExpiryJob } = await import("@/lib/jobs/payment-expiry.job");
+    await runPaymentExpiryJob({ triggeredBy: "test" });
+    await runPaymentExpiryJob({ triggeredBy: "test" });
+    while (afterTasks.length) await Promise.all(afterTasks.splice(0));
+    await service.flushNotifications();
+
     const rows = await notificationsFor(customer);
     expect(rows.map((row) => row.type)).toEqual(["payment_failed"]);
-    expect(rows[0].severity).toBe("warning");
+    expect(rows[0]).toMatchObject({ severity: "warning", title: "Payment window expired" });
+    expect(await models.Order.findById(order.internalOrderId).lean()).toMatchObject({ orderStatus: "cancelled", inventoryReserved: false });
   });
 
   it("raises a finance alert when the captured amount does not match", async () => {

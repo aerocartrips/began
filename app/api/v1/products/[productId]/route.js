@@ -2,7 +2,7 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
-import { requireAdminAccess } from "@/lib/auth/admin-access";
+import { requireAdminAccess, requireAdminUser } from "@/lib/auth/admin-access";
 import { PRODUCT_STATUS } from "@/lib/constants/product-status";
 import {
   deleteProduct,
@@ -19,10 +19,10 @@ export const GET = withDatabase(async (_request, context) => {
 });
 
 export const PATCH = withDatabase(async (request, context) => {
-  await requireAdminAccess(PERMISSIONS.CATALOG_MANAGE);
+  const admin = await requireAdminUser(PERMISSIONS.CATALOG_MANAGE);
   const { productId } = await context.params;
   const payload = await parseJsonBody(request, 64 * 1024);
-  const product = await updateProduct(productId, payload);
+  const product = await updateProduct(productId, payload, admin);
   return successResponse(product, "Product updated successfully.");
 });
 

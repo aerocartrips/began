@@ -6,15 +6,10 @@ import { useSearchParams } from "next/navigation";
 import ErrorCard from "@/components/ui/feedback/error-card";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import { useCompleteSignIn } from "@/features/account/session-transitions";
-import { authHref, LOGIN_PATH, REGISTER_PATH, safeRedirectPath } from "@/lib/auth/redirect";
+import { authErrorMessage, postAuthForm } from "@/features/auth/auth-request";
+import { authHref, FORGOT_PASSWORD_PATH, LOGIN_PATH, REGISTER_PATH, safeRedirectPath } from "@/lib/auth/redirect";
 
 export type AuthMode = "login" | "register";
-
-type AuthResponse = {
-  success?: boolean;
-  message?: string;
-  errors?: { field: string; message: string }[];
-};
 
 const ENDPOINTS: Record<AuthMode, string> = {
   login: "/api/v1/auth/login",
@@ -35,23 +30,13 @@ export default function CustomerAuthForm({ mode }: { mode: AuthMode }) {
     setPending(true);
     setError("");
 
-    try {
-      const response = await fetch(ENDPOINTS[mode], {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget))),
-      });
-      const result = (await response.json().catch(() => ({}))) as AuthResponse;
-      if (response.ok && result.success) {
-        // Stays pending while the destination loads, so the form can't be sent twice.
-        completeSignIn(nextPath);
-        return;
-      }
-      setError(result.errors?.[0]?.message ?? result.message ?? "Unable to authenticate. Check your details and try again.");
-    } catch {
-      setError("Unable to reach the authentication service.");
+    const { ok, result } = await postAuthForm(ENDPOINTS[mode], Object.fromEntries(new FormData(event.currentTarget)));
+    if (ok) {
+      // Stays pending while the destination loads, so the form can't be sent twice.
+      completeSignIn(nextPath);
+      return;
     }
+    setError(authErrorMessage(result, "Unable to authenticate. Check your details and try again."));
     setPending(false);
   }
 
@@ -83,6 +68,11 @@ export default function CustomerAuthForm({ mode }: { mode: AuthMode }) {
         Password
         <input name="password" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={8} maxLength={128} />
       </label>
+      {mode === "login" ? (
+        <p className="checkout-boundary">
+          <Link href={FORGOT_PASSWORD_PATH}>Forgot your password?</Link>
+        </p>
+      ) : null}
       {error ? (
         <ErrorCard
           title={mode === "login" ? "Sign in failed" : "Registration failed"}

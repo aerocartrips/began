@@ -51,6 +51,8 @@ export type VariantDraft = {
   colorHex: string;
   sku: string;
   stockQuantity: string;
+  /** Stock as loaded, so saving never overwrites sales made while the form was open. */
+  stockBaseline?: number;
   images: ManagedImage[];
 };
 
@@ -80,6 +82,8 @@ export type AdminProductDraft = {
   wholesalePrice: string;
   minimumOrderQuantity: string;
   stockQuantity: string;
+  /** Stock as loaded, so saving never overwrites sales made while the form was open. */
+  stockBaseline?: number;
   tiers: TierDraft[];
   variants: VariantDraft[];
   hsnCode: string;
@@ -141,6 +145,7 @@ export function toDraft(record: AdminProductRecord): AdminProductDraft {
     wholesalePrice: text(record.wholesalePrice),
     minimumOrderQuantity: text(record.minimumOrderQuantity ?? 1),
     stockQuantity: text(record.stockQuantity ?? 0),
+    stockBaseline: record.stockQuantity ?? 0,
     tiers: (record.bulkPricingTiers ?? []).map((tier) => ({
       key: draftKey(),
       minQuantity: text(tier.minQuantity),
@@ -155,6 +160,7 @@ export function toDraft(record: AdminProductRecord): AdminProductDraft {
         colorHex: variant.colorHex,
         sku: variant.sku,
         stockQuantity: text(variant.stockQuantity),
+        stockBaseline: variant.stockQuantity,
         images: toManaged(variant.images),
       })),
     hsnCode: record.hsnCode ?? "",
@@ -200,6 +206,7 @@ export function toPayload(draft: AdminProductDraft) {
     wholesalePrice: Number(draft.wholesalePrice),
     minimumOrderQuantity: Number(draft.minimumOrderQuantity) || 1,
     stockQuantity: Number(draft.stockQuantity) || 0,
+    ...(draft.stockBaseline !== undefined ? { stockBaseline: draft.stockBaseline } : {}),
     bulkPricingTiers: draft.tiers
       .filter((tier) => tier.minQuantity && tier.pricePerUnit)
       .map((tier) => ({ minQuantity: Number(tier.minQuantity), pricePerUnit: Number(tier.pricePerUnit) })),
@@ -209,6 +216,7 @@ export function toPayload(draft: AdminProductDraft) {
       colorHex: variant.colorHex,
       sku: variant.sku.trim(),
       stockQuantity: Number(variant.stockQuantity) || 0,
+      ...(variant._id && variant.stockBaseline !== undefined ? { stockBaseline: variant.stockBaseline } : {}),
       images: toImagePayload(variant.images, `${draft.name} in ${variant.colorName}`),
       sortOrder: index,
     })),
