@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { useFeedback } from "@/components/feedback/feedback-provider";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import Button from "@/components/ui/button";
+import { TextAreaField, TextField } from "@/components/ui/form/text-field";
 import RatingStars from "@/components/reviews/rating-stars";
 import ReviewImageUploader from "@/components/reviews/review-image-uploader";
 import { MAX_REVIEW_IMAGES, MIN_REVIEW_COMMENT_LENGTH, MAX_REVIEW_COMMENT_LENGTH } from "@/lib/constants/review-status";
@@ -121,29 +122,28 @@ export default function ReviewModal({
           </button>
         </header>
         <form className="review-modal-form" onSubmit={(event) => void handleSubmit(event)}>
-          <div className="checkout-field">
+          <div className="account-field">
             <span>Overall rating</span>
             <RatingStars value={rating} interactive size="lg" onChange={setRating} />
           </div>
-          <label className="checkout-field">
-            <span>Headline <small className="review-optional">(optional)</small></span>
-            <input value={title} onChange={(event) => setTitle(event.currentTarget.value)} maxLength={120} placeholder="Summarise your experience" />
-          </label>
-          <label className="checkout-field">
-            Your experience
-            <textarea
-              value={comment}
-              onChange={(event) => setComment(event.currentTarget.value)}
-              placeholder="Share fabric quality, drape, color accuracy, and wholesale fulfillment experience."
-              minLength={MIN_REVIEW_COMMENT_LENGTH}
-              maxLength={MAX_REVIEW_COMMENT_LENGTH}
-              rows={5}
-              required
-            />
-            <span className="review-char-count">
-              {comment.length}/{MAX_REVIEW_COMMENT_LENGTH}
-            </span>
-          </label>
+          <TextField
+            label="Headline"
+            value={title}
+            onChange={(event) => setTitle(event.currentTarget.value)}
+            maxLength={120}
+            placeholder="Summarise your experience"
+            optional
+          />
+          <TextAreaField
+            label="Your experience"
+            value={comment}
+            onChange={(event) => setComment(event.currentTarget.value)}
+            placeholder="Share fabric quality, drape, color accuracy, and wholesale fulfillment experience."
+            minLength={MIN_REVIEW_COMMENT_LENGTH}
+            maxLength={MAX_REVIEW_COMMENT_LENGTH}
+            rows={5}
+            counter
+          />
           <ReviewImageUploader files={files} onChange={setFiles} disabled={submitting} />
           <div className="review-modal-actions">
             <Button type="button" variant="secondary" size="sm" onClick={resetAndClose} disabled={submitting}>

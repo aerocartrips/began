@@ -2,11 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ProductDetailClient from "@/components/catalog/product-detail-client";
+import ProductDetails from "@/components/catalog/product-details";
 import ProductRail from "@/components/catalog/product-rail";
 import RecentlyViewed from "@/components/catalog/recently-viewed";
 import ProductReviewsSection from "@/components/reviews/product-reviews-section";
 import JsonLd from "@/components/seo/json-ld";
+import { purchaseTerms } from "@/lib/catalog/purchase-terms";
 import { getPopularProductSlugs, getProductDetail, getRelatedProducts } from "@/lib/catalog/query";
+import { getProductReviewPreview } from "@/lib/catalog/reviews";
+import { getStorePolicies } from "@/lib/content/pages";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { BUILD_PLACEHOLDER_DOMAIN } from "@/lib/tenant/host";
 import { domain } from "next/root-params";
@@ -50,7 +54,19 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const { tenant, product } = await loadProduct(slug);
   if (!product) notFound();
 
-  const related = await getRelatedProducts(tenant.id, tenant.salesMode, product.id, product.category?.slug ?? null);
+  // All cached per store; none of them waits for another.
+  const [related, reviewPreview, policies] = await Promise.all([
+    getRelatedProducts(tenant.id, tenant.salesMode, product.id, product.category?.slug ?? null),
+    getProductReviewPreview(tenant.id, product.id),
+    getStorePolicies(tenant.id),
+  ]);
+  const terms = purchaseTerms(policies, {
+    salesMode: tenant.salesMode,
+    paymentsEnabled: Boolean(tenant.razorpayKeyId),
+    hasGstin: Boolean(tenant.business.gstin),
+  });
+
+  const url = `https://${tenant.primaryDomain}/products/${product.slug}`;
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -59,15 +75,29 @@ export default async function ProductPage({ params }: ProductPageProps) {
     description: product.seoDescription || product.shortDescription,
     image: product.images.map((image) => image.url),
     brand: { "@type": "Brand", name: tenant.name },
+    ...(product.category ? { category: product.category.name } : {}),
     offers: {
       "@type": "Offer",
       priceCurrency: "INR",
       price: product.price,
       availability: product.inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-      url: `https://${tenant.primaryDomain}/products/${product.slug}`,
+      url,
+      ...(product.minimumQuantity > 1
+        ? { eligibleQuantity: { "@type": "QuantitativeValue", minValue: product.minimumQuantity, unitCode: "C62" } }
+        : {}),
     },
     ...(product.rating.count > 0
-      ? { aggregateRating: { "@type": "AggregateRating", ratingValue: product.rating.average, reviewCount: product.rating.count } }
+      ? {
+          aggregateRating: { "@type": "AggregateRating", ratingValue: product.rating.average, reviewCount: product.rating.count },
+          review: reviewPreview.reviews.slice(0, 5).map((review) => ({
+            "@type": "Review",
+            author: { "@type": "Person", name: review.authorName ?? "Verified buyer" },
+            datePublished: review.createdAt?.slice(0, 10),
+            reviewRating: { "@type": "Rating", ratingValue: review.rating, bestRating: 5 },
+            ...(review.title ? { name: review.title } : {}),
+            reviewBody: review.comment,
+          })),
+        }
       : {}),
   };
 
@@ -86,41 +116,23 @@ export default async function ProductPage({ params }: ProductPageProps) {
         <span aria-current="page">{product.name}</span>
       </nav>
 
-      <ProductDetailClient product={product} salesMode={tenant.salesMode} />
+      <ProductDetailClient
+        product={product}
+        salesMode={tenant.salesMode}
+        lowStockThreshold={policies.lowStockThreshold}
+        terms={terms}
+      />
 
-      <div className="product-detail-sections">
-        {product.specs.length > 0 ? (
-          <section aria-labelledby="specs-heading">
-            <h2 id="specs-heading">Specifications</h2>
-            <dl className="saree-specifications">
-              {product.specs.map((spec) => (
-                <div key={spec.label}>
-                  <dt>{spec.label}</dt>
-                  <dd>{spec.value}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-        ) : null}
-        {product.description ? (
-          <section aria-labelledby="description-heading">
-            <h2 id="description-heading">Description</h2>
-            <div className="product-description">
-              {product.description.split(/\n{2,}/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
-            </div>
-          </section>
-        ) : null}
-        <section aria-labelledby="care-heading">
-          <h2 id="care-heading">Care &amp; delivery</h2>
-          <p>{product.careInstructions || "Dry clean recommended for silk and zari work. Store folded in muslin, away from damp."}</p>
-          <p>
-            See our <Link href="/care-guide">saree care guide</Link>, <Link href="/shipping">shipping</Link> and{" "}
-            <Link href="/returns">returns</Link> policies.
-          </p>
-        </section>
-      </div>
+      <ProductDetails product={product} terms={terms} />
 
-      <ProductReviewsSection productId={product.id} />
+      <ProductReviewsSection
+        key={product.id}
+        productId={product.id}
+        salesMode={tenant.salesMode}
+        summary={{ average: product.rating.average, count: product.rating.count, distribution: product.ratingDistribution }}
+        initialReviews={reviewPreview.reviews}
+        initialTotal={reviewPreview.total}
+      />
 
       {related.length > 0 ? (
         <section className="product-strip" aria-labelledby="related-heading">
@@ -133,7 +145,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
           />
         </section>
       ) : null}
-      <RecentlyViewed excludeId={product.id} salesMode={tenant.salesMode} />
+      <RecentlyViewed exclude={[product.id]} salesMode={tenant.salesMode} />
     </main>
   );
 }

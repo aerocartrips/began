@@ -28,10 +28,16 @@ export function isAuthPath(pathname: string) {
   return AUTH_PATHS.has(normalizePath(pathname));
 }
 
-/** Pages that need a signed-in shopper: the account area. */
+const within = (path: string, section: string) => path === section || path.startsWith(`${section}/`);
+
+/**
+ * Pages that need a signed-in shopper: the account area, and checkout (orders
+ * belong to an account, so signing in comes before the shopper fills anything in).
+ */
 export function isProtectedPath(pathname: string) {
   const path = normalizePath(pathname);
-  return (path === "/account" || path.startsWith("/account/")) && !PUBLIC_ACCOUNT_PATHS.has(path);
+  if (within(path, "/checkout")) return true;
+  return within(path, "/account") && !PUBLIC_ACCOUNT_PATHS.has(path);
 }
 
 /**

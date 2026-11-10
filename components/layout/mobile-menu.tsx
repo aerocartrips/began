@@ -91,7 +91,7 @@ export default function MobileMenu() {
     <>
       <button
         type="button"
-        className="mobile-menu-trigger"
+        className="nav-icon-button mobile-menu-trigger"
         aria-label="Open menu"
         aria-haspopup="dialog"
         onClick={open}

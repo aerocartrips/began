@@ -1,49 +1,55 @@
 "use client";
 
-import Image from "next/image";
-import { useState } from "react";
+import dynamic from "next/dynamic";
+import { useMemo, useState } from "react";
+import type { SlideImage } from "yet-another-react-lightbox";
+import ProductImage from "@/components/images/product-image";
+import { buildClientDeliveryUrl } from "@/lib/cloudinary/transformations";
 import type { ReviewImage } from "@/features/reviews/types";
 
-type ReviewPhotoGalleryProps = {
-  images: ReviewImage[];
-};
+// The same full-screen viewer as the product photos, loaded on first open.
+const ProductLightbox = dynamic(() => import("@/components/catalog/product-lightbox"), { ssr: false });
 
-export default function ReviewPhotoGallery({ images }: ReviewPhotoGalleryProps) {
-  const [active, setActive] = useState<ReviewImage | null>(null);
+/**
+ * A review's customer photos: thumbnails that open the zoomable viewer.
+ * `owner` reads before "review": "Priya's", or "your" on the author's own page.
+ */
+export default function ReviewPhotoGallery({ images, owner }: { images: ReviewImage[]; owner: string }) {
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const slides = useMemo<SlideImage[]>(
+    () =>
+      images.map((image) => ({
+        src: (image.publicId ? buildClientDeliveryUrl(image.publicId, "highResolution") : null) ?? image.url,
+        alt: image.alt || `Photo from ${owner} review`,
+        thumbnail: image.thumbnailUrl || image.url,
+      })),
+    [owner, images],
+  );
 
   return (
     <>
-      <div className="review-photo-grid">
-        {images.map((image) => (
-          <button
-            key={image._id}
-            type="button"
-            className="review-photo-thumb"
-            onClick={() => setActive(image)}
-          >
-            <Image
-              src={image.thumbnailUrl || image.url}
-              alt={image.alt || "Review photo"}
-              fill
-              sizes="96px"
-              className="cover-image"
-            />
-          </button>
+      <ul className="review-photo-grid" aria-label={`Photos from ${owner} review`}>
+        {images.map((image, index) => (
+          <li key={image._id}>
+            <button
+              type="button"
+              className="review-photo-thumb"
+              aria-label={`Open photo ${index + 1} of ${images.length}`}
+              onClick={() => setViewerIndex(index)}
+            >
+              <ProductImage image={{ publicId: image.publicId, url: image.url, alt: slides[index].alt }} preset="thumbnail" sizes="80px" />
+            </button>
+          </li>
         ))}
-      </div>
-      {active ? (
-        <div className="review-lightbox" role="dialog" aria-modal="true" aria-label="Review photo">
-          <button type="button" className="review-lightbox-close" onClick={() => setActive(null)}>
-            Close
-          </button>
-          <Image
-            src={active.url}
-            alt={active.alt || "Review photo enlarged"}
-            width={active.width ?? 900}
-            height={active.height ?? 1200}
-            className="review-lightbox-image"
-          />
-        </div>
+      </ul>
+      {viewerIndex !== null ? (
+        <ProductLightbox
+          slides={slides}
+          index={viewerIndex}
+          title={`Photos from ${owner} review`}
+          onClose={() => setViewerIndex(null)}
+          onView={() => undefined}
+        />
       ) : null}
     </>
   );

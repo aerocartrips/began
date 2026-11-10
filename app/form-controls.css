@@ -4,11 +4,10 @@
    the native inputs next to them; only the context variables differ.
    ========================================================================== */
 .admin-field { --field-height: 38px; --field-radius: 5px; --field-border: #dfe4ea; --field-color: #344052; --field-font: 10px; --field-pad: 10px; --field-ring: 0 0 0 2px rgba(104, 99, 237, .12); }
-.contact-field { --field-height: 41px; --field-radius: 6px; --field-border: #dfe4ea; --field-color: #253041; --field-font: 10px; --field-pad: 11px; --field-ring: 0 0 0 3px rgba(104, 99, 237, .11); }
 .account-field { --field-height: 42px; --field-radius: var(--radius-control); --field-border: var(--color-border); --field-color: var(--color-text); --field-font: 12px; --field-pad: 12px; --field-ring: 0 0 0 3px rgba(104, 99, 237, .12); }
 /* Compact admin filters and inline controls (toolbars, page-heading actions, table cells). */
 .admin-toolbar, .admin-product-filters, .admin-heading-actions, .admin-home-trust-row, .admin-table { --field-height: 36px; --field-radius: 6px; --field-border: #dfe4ea; --field-color: #394556; --field-font: 10px; --field-pad: 10px; --field-ring: 0 0 0 2px rgba(104, 99, 237, .12); }
-.catalog-sort { --field-height: 38px; --field-radius: var(--radius-control); --field-border: var(--color-border); --field-color: var(--color-text); --field-font: 12px; --field-pad: 10px; --field-ring: 0 0 0 3px rgba(104, 99, 237, .12); }
+.catalog-sort { --field-height: 42px; --field-radius: var(--radius-control); --field-border: var(--color-border); --field-color: var(--color-text); --field-font: 12px; --field-pad: 12px; --field-ring: 0 0 0 3px rgba(104, 99, 237, .12); }
 
 /* Select (components/ui/form/select.tsx): a button drawn like the fields around it. */
 .ui-select { min-width: 0; }

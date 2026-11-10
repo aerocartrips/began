@@ -52,8 +52,20 @@ export const cartActions = {
   remove(line: Pick<CartItem, "productId" | "variantId">) {
     return cartStore.set((items) => items.filter((item) => !sameLine(item, line)));
   },
+  /** Undo for remove(): puts the line back where it was, unless it was added again meanwhile. */
+  restore(item: CartItem, index: number) {
+    return cartStore.set((items) =>
+      items.some((candidate) => sameLine(candidate, item))
+        ? items
+        : [...items.slice(0, index), item, ...items.slice(index)].slice(0, MAX_LINES),
+    );
+  },
   clear() {
     return cartStore.set([]);
+  },
+  /** Undo for clear(): the lines as they were. */
+  replace(items: CartItem[]) {
+    return cartStore.set(sanitizeItems(items));
   },
   beginBuyNow(item: CartItem) {
     return buyNowStore.set(item);

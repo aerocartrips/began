@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { useMemo, useRef, useState, type PointerEvent, type UIEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent, type UIEvent } from "react";
 import { Expand } from "lucide-react";
 import type { SlideImage } from "yet-another-react-lightbox";
 import ProductImage from "@/components/images/product-image";
@@ -15,32 +15,51 @@ const ProductLightbox = dynamic(loadLightbox, { ssr: false });
 
 /** Magnification of the desktop hover zoom (keep in step with --zoom-scale in app/catalog.css). */
 const HOVER_ZOOM = 2.4;
-/** Rendered width of the zoomed photo: the stage width (see `sizes` below) times the zoom. */
-const ZOOM_SIZES = `(max-width: 900px) ${Math.round(100 * HOVER_ZOOM)}vw, ${Math.round(55 * HOVER_ZOOM)}vw`;
+/**
+ * Rendered width of the main photo. Phones: nearly the screen width (the next
+ * photo peeks in). Tablets: half the page. Desktops: the photo is sized to fit
+ * the screen height (--pdp-stage-w in app/catalog.css), at most 688px wide.
+ */
+const STAGE_SIZES = "(max-width: 760px) 90vw, (max-width: 1023px) 48vw, 688px";
+/** Rendered width of the zoomed photo: the stage width times the zoom. */
+const ZOOM_SIZES = `(max-width: 760px) ${Math.round(90 * HOVER_ZOOM)}vw, (max-width: 1023px) ${Math.round(48 * HOVER_ZOOM)}vw, ${Math.round(688 * HOVER_ZOOM)}px`;
 
 function sourceOf(image: CatalogImage, preset: "thumbnail" | "highResolution") {
   return (image.publicId ? buildClientDeliveryUrl(image.publicId, preset) : null) ?? image.url;
 }
 
+/**
+ * Distance between slide starts: one full slide where photos fill the track,
+ * a slide plus the gap on phones (where the next photo peeks in).
+ */
+function slidePitch(track: HTMLElement) {
+  const first = track.children[0] as HTMLElement | undefined;
+  const second = track.children[1] as HTMLElement | undefined;
+  return first && second ? second.offsetLeft - first.offsetLeft : track.clientWidth;
+}
+
 /** Index of the slide in view in a horizontal scroll-snap track. */
 function currentSlide(track: HTMLElement) {
-  return track.clientWidth ? Math.round(track.scrollLeft / track.clientWidth) : 0;
+  const pitch = slidePitch(track);
+  return pitch > 0 ? Math.min(track.children.length - 1, Math.round(track.scrollLeft / pitch)) : 0;
 }
 
 function scrollToSlide(track: HTMLElement | null, index: number, smooth = true) {
+  const first = track?.children[0] as HTMLElement | undefined;
   const slide = track?.children[index] as HTMLElement | undefined;
-  if (track && slide) track.scrollTo({ left: slide.offsetLeft, behavior: smooth ? "smooth" : "auto" });
+  if (track && first && slide) track.scrollTo({ left: slide.offsetLeft - first.offsetLeft, behavior: smooth ? "smooth" : "auto" });
 }
 
 const clampPercent = (value: number) => Math.min(100, Math.max(0, value));
 
 /**
  * Product photos. Phones swipe between them (scroll snap, dots, counter);
- * wider screens add thumbnails and a mouse hover zoom that follows the cursor,
- * sharpened by a high-resolution copy loaded on first hover. Clicking or
- * tapping a photo opens the full-screen viewer (pinch, double-tap, wheel and
- * keyboard zoom with panning). The parent keys this component by photo set,
- * so a colour change starts over.
+ * wider screens add thumbnails (a vertical rail beside the photo on desktops)
+ * and a mouse hover zoom that follows the cursor, sharpened by a
+ * high-resolution copy loaded on first hover. Clicking or tapping a photo
+ * opens the full-screen viewer (pinch, double-tap, wheel and keyboard zoom
+ * with panning). The parent keys this component by photo set, so a colour
+ * change starts over.
  */
 export default function ProductGallery({ images, productName }: { images: CatalogImage[]; productName: string }) {
   const [active, setActive] = useState(0);
@@ -48,9 +67,22 @@ export default function ProductGallery({ images, productName }: { images: Catalo
   /** Slides whose high-resolution zoom layer has been requested (on first hover). */
   const [zoomLayers, setZoomLayers] = useState<ReadonlySet<number>>(() => new Set());
   const trackRef = useRef<HTMLUListElement>(null);
+  const thumbsRef = useRef<HTMLUListElement>(null);
   const frameRef = useRef(0);
   const lastViewedRef = useRef(0);
   const count = images.length;
+
+  // Keep the current thumbnail in view when the rail scrolls (many photos): the rail only, never the page.
+  useEffect(() => {
+    const rail = thumbsRef.current;
+    const thumb = rail?.children[active] as HTMLElement | undefined;
+    if (!rail || !thumb || (rail.scrollHeight <= rail.clientHeight && rail.scrollWidth <= rail.clientWidth)) return;
+    rail.scrollTo({
+      top: thumb.offsetTop - (rail.clientHeight - thumb.offsetHeight) / 2,
+      left: thumb.offsetLeft - (rail.clientWidth - thumb.offsetWidth) / 2,
+      behavior: "smooth",
+    });
+  }, [active]);
 
   const slides = useMemo<SlideImage[]>(
     () =>
@@ -106,7 +138,11 @@ export default function ProductGallery({ images, productName }: { images: Catalo
   }
 
   return (
-    <div className="product-gallery" onPointerEnter={() => void loadLightbox()} onTouchStart={() => void loadLightbox()}>
+    <div
+      className={count > 1 ? "product-gallery product-gallery--multi" : "product-gallery"}
+      onPointerEnter={() => void loadLightbox()}
+      onTouchStart={() => void loadLightbox()}
+    >
       <div className="product-gallery__viewport">
         <ul
           ref={trackRef}
@@ -126,12 +162,7 @@ export default function ProductGallery({ images, productName }: { images: Catalo
                 onClick={(event) => openViewer(index, event.currentTarget)}
                 aria-label={`Photo ${index + 1} of ${count}: open full screen and zoom`}
               >
-                <ProductImage
-                  image={image}
-                  preset="highResolution"
-                  priority={index === 0}
-                  sizes="(max-width: 900px) 100vw, 55vw"
-                />
+                <ProductImage image={image} preset="highResolution" priority={index === 0} sizes={STAGE_SIZES} />
                 {zoomLayers.has(index) ? (
                   <Image
                     className="product-gallery__zoom"
@@ -165,7 +196,7 @@ export default function ProductGallery({ images, productName }: { images: Catalo
       </div>
 
       {count > 1 ? (
-        <ul className="product-gallery__thumbs" aria-label="Choose a photo">
+        <ul ref={thumbsRef} className="product-gallery__thumbs" aria-label="Choose a photo">
           {images.map((image, index) => (
             <li key={`${image.url}-${index}`}>
               <button
@@ -174,7 +205,7 @@ export default function ProductGallery({ images, productName }: { images: Catalo
                 aria-current={index === active}
                 onClick={() => scrollToSlide(trackRef.current, index)}
               >
-                <ProductImage image={image} preset="thumbnail" sizes="88px" />
+                <ProductImage image={image} preset="thumbnail" sizes="72px" />
               </button>
             </li>
           ))}

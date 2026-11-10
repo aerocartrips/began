@@ -29,7 +29,7 @@ type SelectProps = {
   /** Keeps the label for screen readers only (toolbars, table cells). */
   hideLabel?: boolean;
   options: readonly SelectOption[];
-  /** Field wrapper class of the surrounding form (admin-field, account-field, contact-field…). */
+  /** Field wrapper class: "account-field" on the storefront, "admin-field" in admin. */
   className?: string;
   /** Selected option id; "" means nothing selected. */
   value?: string;
@@ -98,7 +98,7 @@ export default function Select({
       isDisabled={disabled}
       isInvalid={error ? true : undefined}
     >
-      <Label className={hideLabel ? "sr-only" : undefined}>{label}</Label>
+      <Label className={hideLabel ? "sr-only" : "ui-select__label"}>{label}</Label>
       <Button className="ui-select__trigger">
         <SelectValue<SelectOption> className="ui-select__value">
           {({ isPlaceholder, selectedItems, defaultChildren }) => {

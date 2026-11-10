@@ -6,6 +6,7 @@ import Button from "@/components/ui/button";
 import ErrorCard from "@/components/ui/feedback/error-card";
 import SuccessCard from "@/components/ui/feedback/success-card";
 import LoadingButton from "@/components/ui/buttons/loading-button";
+import { PasswordField } from "@/components/ui/form/text-field";
 import { authErrorMessage, postAuthForm } from "@/features/auth/auth-request";
 import { FORGOT_PASSWORD_PATH, LOGIN_PATH } from "@/lib/auth/redirect";
 
@@ -56,15 +57,9 @@ export default function ResetPasswordForm({ token }: { token: string }) {
   }
 
   return (
-    <form className="checkout-form customer-auth-form" onSubmit={handleSubmit}>
-      <label className="checkout-field checkout-field-wide">
-        New password
-        <input name="newPassword" type="password" autoComplete="new-password" required minLength={8} maxLength={128} />
-      </label>
-      <label className="checkout-field checkout-field-wide">
-        Confirm new password
-        <input name="confirmPassword" type="password" autoComplete="new-password" required minLength={8} maxLength={128} />
-      </label>
+    <form className="customer-auth-form" onSubmit={handleSubmit}>
+      <PasswordField label="New password" name="newPassword" autoComplete="new-password" minLength={8} maxLength={128} />
+      <PasswordField label="Confirm new password" name="confirmPassword" autoComplete="new-password" minLength={8} maxLength={128} />
       {state.status === "error" ? <ErrorCard title="Password not changed" description={state.message} /> : null}
       <LoadingButton type="submit" loading={state.status === "saving"} loadingText="Saving…" className="checkout-submit">
         Set new password

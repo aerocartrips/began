@@ -30,7 +30,7 @@ export default function MobileSearch() {
 
   return (
     <>
-      <button type="button" className="cart-link mobile-search-trigger" aria-label="Search products" aria-haspopup="dialog" onClick={open}>
+      <button type="button" className="nav-icon-button mobile-search-trigger" aria-label="Search products" aria-haspopup="dialog" onClick={open}>
         <Search size={20} strokeWidth={1.8} aria-hidden="true" />
       </button>
       <dialog ref={dialogRef} className="search-sheet" aria-label="Search products">

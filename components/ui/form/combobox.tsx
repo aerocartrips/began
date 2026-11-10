@@ -17,7 +17,7 @@ export type ComboboxOption = {
 type ComboboxProps = {
   label: ReactNode;
   options: ComboboxOption[];
-  /** Field wrapper class of the surrounding form (admin-field, account-field, contact-field…). */
+  /** Field wrapper class: "account-field" on the storefront, "admin-field" in admin. */
   className?: string;
   /** Selected option id; "" means nothing selected. */
   value?: string;

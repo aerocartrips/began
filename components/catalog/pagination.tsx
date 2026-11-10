@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { catalogHref } from "@/features/catalog/query-string";
 import type { CatalogQuery } from "@/features/catalog/types";
 
@@ -16,18 +17,26 @@ export default function Pagination({ basePath, query, pageCount }: {
 
   return (
     <nav className="catalog-pagination" aria-label="Pagination">
-      {current > 1 ? <Link href={catalogHref(basePath, query, { page: current - 1 })} rel="prev">Previous</Link> : null}
+      {current > 1 ? (
+        <Link className="catalog-pagination__step" href={catalogHref(basePath, query, { page: current - 1 })} rel="prev">
+          <ChevronLeft size={16} aria-hidden="true" /> Previous
+        </Link>
+      ) : null}
       {pages.map((page, index) => (
         <span key={page} className="catalog-pagination__item">
-          {index > 0 && page - pages[index - 1] > 1 ? <span aria-hidden="true">…</span> : null}
+          {index > 0 && page - pages[index - 1] > 1 ? <span className="catalog-pagination__gap" aria-hidden="true">…</span> : null}
           {page === current ? (
             <span aria-current="page">{page}</span>
           ) : (
-            <Link href={catalogHref(basePath, query, { page })}>{page}</Link>
+            <Link href={catalogHref(basePath, query, { page })} aria-label={`Page ${page}`}>{page}</Link>
           )}
         </span>
       ))}
-      {current < pageCount ? <Link href={catalogHref(basePath, query, { page: current + 1 })} rel="next">Next</Link> : null}
+      {current < pageCount ? (
+        <Link className="catalog-pagination__step" href={catalogHref(basePath, query, { page: current + 1 })} rel="next">
+          Next <ChevronRight size={16} aria-hidden="true" />
+        </Link>
+      ) : null}
     </nav>
   );
 }

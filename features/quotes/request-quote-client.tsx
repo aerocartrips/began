@@ -6,6 +6,7 @@ import Link from "next/link";
 import { CheckCircle2, Trash2 } from "lucide-react";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import { DatePicker, todayIso } from "@/components/ui/form/date-picker";
+import { TextAreaField, TextField } from "@/components/ui/form/text-field";
 import QuantitySelector from "@/components/ui/quantity-selector";
 import EmptyState from "@/components/ui/empty-state";
 import Button from "@/components/ui/button";
@@ -126,7 +127,6 @@ export default function RequestQuoteClient({ initialLines, fromCart, signedIn }:
     );
   }
 
-  const error = (field: string) => (errors[field] ? <span className="contact-field-error">{errors[field]}</span> : null);
 
   return (
     <main className="content-page content-width quote-page">
@@ -148,24 +148,34 @@ export default function RequestQuoteClient({ initialLines, fromCart, signedIn }:
           <ul className="quote-lines">
             {lines.map((line) => (
               <li key={keyOf(line)} className="quote-line">
-                <span className="cart-line__image">
+                <span className="quote-line__image">
                   {line.imageUrl ? <Image src={line.imageUrl} alt="" fill sizes="72px" className="cover-image" /> : null}
                 </span>
                 <div>
                   <strong>{line.name}</strong>
-                  <p className="cart-line__meta">
+                  <p className="quote-line__meta">
                     {line.colorName ? `${line.colorName} · ` : ""}List price {formatRupees(line.listUnitPrice)}/piece · MOQ {formatNumber(line.minimumQuantity)}
                   </p>
-                  <label className="quote-line__field">
-                    Target price per piece (optional)
-                    <input type="number" min={0} step="0.01" value={edits[keyOf(line)]?.target ?? ""} onChange={(event) => edit(line, { target: event.currentTarget.value })} />
-                  </label>
-                  <label className="quote-line__field">
-                    Notes
-                    <input maxLength={1000} value={edits[keyOf(line)]?.notes ?? ""} onChange={(event) => edit(line, { notes: event.currentTarget.value })} />
-                  </label>
+                  <div className="quote-line__fields">
+                    <TextField
+                      label="Target price per piece"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={edits[keyOf(line)]?.target ?? ""}
+                      onChange={(event) => edit(line, { target: event.currentTarget.value })}
+                      optional
+                    />
+                    <TextField
+                      label="Notes"
+                      maxLength={1000}
+                      value={edits[keyOf(line)]?.notes ?? ""}
+                      onChange={(event) => edit(line, { notes: event.currentTarget.value })}
+                      optional
+                    />
+                  </div>
                 </div>
-                <div className="cart-line__actions">
+                <div className="quote-line__actions">
                   <QuantitySelector value={line.quantity} minimum={1} maximum={1000000} onChange={(quantity) => edit(line, { quantity })} />
                   <button type="button" className="icon-button" aria-label={`Remove ${line.name}`} onClick={() => edit(line, { removed: true })}>
                     <Trash2 size={16} />
@@ -174,35 +184,36 @@ export default function RequestQuoteClient({ initialLines, fromCart, signedIn }:
               </li>
             ))}
           </ul>
-          {error("items")}
+          {errors.items ? <p className="account-field-error" role="alert">{errors.items}</p> : null}
         </section>
 
         <section aria-labelledby="quote-requirements">
           <h2 id="quote-requirements">Requirements</h2>
           <div className="contact-form-grid">
-            <label className="contact-field"><span><input type="checkbox" name="customBranding" /> Custom branding or labels</span></label>
-            <label className="contact-field"><span><input type="checkbox" name="customPackaging" /> Custom packaging</span></label>
-            <label className="contact-field">
-              Delivery PIN code
-              <input name="deliveryPincode" inputMode="numeric" maxLength={6} pattern="\d{6}" />
-              {error("requirements.deliveryPincode")}
-            </label>
-            <DatePicker className="contact-field" label="Needed by" name="neededBy" min={todayIso()} error={errors["requirements.neededBy"]} />
-            <label className="contact-field contact-field-wide">
-              Anything else we should know?
-              <textarea name="message" rows={4} maxLength={4000} />
-            </label>
+            <label className="account-checkbox"><input type="checkbox" name="customBranding" /> Custom branding or labels</label>
+            <label className="account-checkbox"><input type="checkbox" name="customPackaging" /> Custom packaging</label>
+            <TextField
+              label="Delivery PIN code"
+              name="deliveryPincode"
+              inputMode="numeric"
+              maxLength={6}
+              pattern="\d{6}"
+              error={errors["requirements.deliveryPincode"]}
+              optional
+            />
+            <DatePicker className="account-field" label="Needed by" name="neededBy" min={todayIso()} error={errors["requirements.neededBy"]} />
+            <TextAreaField label="Anything else we should know?" name="message" rows={4} maxLength={4000} optional wide />
           </div>
         </section>
 
         <section aria-labelledby="quote-contact">
           <h2 id="quote-contact">Your details</h2>
           <div className="contact-form-grid">
-            <label className="contact-field">Full name<input name="name" required maxLength={120} autoComplete="name" />{error("contact.name")}</label>
-            <label className="contact-field">Email<input name="email" type="email" required maxLength={254} autoComplete="email" />{error("contact.email")}</label>
-            <label className="contact-field">Phone<input name="phone" type="tel" maxLength={25} autoComplete="tel" /></label>
-            <label className="contact-field">Company<input name="companyName" maxLength={160} autoComplete="organization" /></label>
-            <label className="contact-field">GSTIN<input name="gstin" maxLength={15} />{error("contact.gstin")}</label>
+            <TextField label="Full name" name="name" maxLength={120} autoComplete="name" error={errors["contact.name"]} />
+            <TextField label="Email" name="email" type="email" maxLength={254} autoComplete="email" error={errors["contact.email"]} />
+            <TextField label="Phone" name="phone" type="tel" maxLength={25} autoComplete="tel" optional />
+            <TextField label="Company" name="companyName" maxLength={160} autoComplete="organization" optional />
+            <TextField label="GSTIN" name="gstin" maxLength={15} error={errors["contact.gstin"]} optional />
           </div>
           <div className="contact-honeypot" aria-hidden="true">
             <label>Leave this field empty<input name="website" tabIndex={-1} autoComplete="off" /></label>

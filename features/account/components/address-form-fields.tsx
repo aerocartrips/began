@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ADDRESS_LABELS, ADDRESS_LABEL_TEXT, DEFAULT_COUNTRY, INDIAN_STATES } from "@/lib/constants/account";
 import Select, { type SelectOption } from "@/components/ui/form/select";
-import { TextField } from "@/features/account/components/form-field";
+import { TextField } from "@/components/ui/form/text-field";
 import type { AddressInput, AddressLabel, FieldErrors } from "@/features/account/types";
 
 export const EMPTY_ADDRESS: AddressInput = {

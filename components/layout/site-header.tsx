@@ -13,7 +13,7 @@ import { Heart, ShoppingCart } from "lucide-react";
 
 export default async function SiteHeader() {
   const tenant = await getCurrentTenant();
-  const navigation = getSiteNavigation(tenant.salesMode);
+  const navigation = getSiteNavigation();
   const isWholesale = tenant.salesMode === "wholesale";
 
   return (
@@ -29,18 +29,22 @@ export default async function SiteHeader() {
       </div>
       <div className="nav-actions">
         <StorefrontSearch />
-        <MobileSearch />
-        <Link className="cart-link nav-wishlist-link" href="/wishlist" aria-label="Wishlist">
-          <Heart size={19} strokeWidth={1.8} aria-hidden="true" />
-        </Link>
-        <Link className="cart-link" href="/cart" aria-label="Shopping cart">
-          <ShoppingCart size={19} strokeWidth={1.8} aria-hidden="true" />
-          <CartCount />
-        </Link>
-        {/* The only per-visitor part of the header: the rest stays in the static shell. */}
-        <Suspense fallback={<HeaderAccountFallback />}>
-          <HeaderAccount />
-        </Suspense>
+        {/* Every header icon is a .nav-icon-button: one size, one hover, badges on the same corner. */}
+        <div className="nav-icons">
+          <MobileSearch />
+          <Link className="nav-icon-button nav-wishlist-link" href="/wishlist" aria-label="Wishlist">
+            <Heart size={19} strokeWidth={1.8} aria-hidden="true" />
+          </Link>
+          {/* Named by CartCount ("Shopping cart, 42 items"), so the count is announced too. */}
+          <Link className="nav-icon-button" href="/cart">
+            <ShoppingCart size={19} strokeWidth={1.8} aria-hidden="true" />
+            <CartCount />
+          </Link>
+          {/* The only per-visitor part of the header: the rest stays in the static shell. */}
+          <Suspense fallback={<HeaderAccountFallback />}>
+            <HeaderAccount />
+          </Suspense>
+        </div>
         {isWholesale ? (
           <Button href="/request-quote" variant="portal">Request a quote</Button>
         ) : null}

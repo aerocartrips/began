@@ -87,6 +87,47 @@ describe("catalogue search", () => {
     expect(result.facets.fabric.find((facet) => facet.value === "Silk")?.count).toBe(2);
   });
 
+  it("lists values that differ only in letter case as one option and matches them whatever the case", async () => {
+    // A store of its own, so the totals the other tests check stay as they are.
+    const store = await m.Tenant.create({ slug: "c", name: "Cased Co", domains: ["c.test"], salesMode: "wholesale" });
+    await m.runWithTenant(store, async () => {
+      const category = await m.Category.create({ name: "Sarees", slug: "sarees" });
+      const fabrics = ["Pure Silk", "Pure Silk", "pure silk", "Cotton+Silk", "Linen"];
+      for (const [index, fabric] of fabrics.entries()) {
+        await m.Product.create({
+          name: `Cased ${index}`,
+          slug: `cased-${index}`,
+          sku: `SKU-c-${index}`,
+          category: category._id,
+          fabric,
+          price: 1000 + index * 100,
+          wholesalePrice: 500 + index * 100,
+          minimumOrderQuantity: 1,
+          variants: [{ colorName: "Red", colorHex: "#aa0000", sku: `V-c-${index}`, stockQuantity: 5 }],
+          status: "active",
+        });
+      }
+    });
+
+    const all = await m.searchCatalog(String(store._id), "wholesale", m.parseCatalogQuery({}));
+    // One option per value, shown in its most common spelling, most products first.
+    expect(all.facets.fabric).toEqual([
+      { value: "Pure Silk", count: 3 },
+      { value: "Cotton+Silk", count: 1 },
+      { value: "Linen", count: 1 },
+    ]);
+    expect(all.priceRange).toEqual({ min: 500, max: 900 });
+
+    const silk = await m.searchCatalog(String(store._id), "wholesale", m.parseCatalogQuery({ fabric: "pure SILK" }));
+    expect(silk.total).toBe(3);
+    expect(silk.priceRange).toEqual({ min: 500, max: 700 });
+    // Whole values only, with regex characters taken literally.
+    const blend = await m.searchCatalog(String(store._id), "wholesale", m.parseCatalogQuery({ fabric: "cotton+silk" }));
+    expect(blend.items.map((item) => item.name)).toEqual(["Cased 3"]);
+    const partial = await m.searchCatalog(String(store._id), "wholesale", m.parseCatalogQuery({ fabric: "Silk" }));
+    expect(partial.total).toBe(0);
+  });
+
   it("matches word searches and name prefixes", async () => {
     const words = await m.searchCatalog(String(wholesale._id), "wholesale", m.parseCatalogQuery({ q: "banarasi" }));
     const prefix = await m.searchCatalog(String(wholesale._id), "wholesale", m.parseCatalogQuery({ q: "bana" }));

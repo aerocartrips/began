@@ -7,7 +7,7 @@ import VisibleStyle from "@/components/ui/visible-style";
 import { useCartCount } from "@/features/cart/cart-store";
 import { useHydrated } from "@/lib/client/persistent-store";
 import { PHONE_QUERY } from "@/lib/constants/breakpoints";
-import { formatNumber } from "@/lib/format";
+import CountBadge, { badgeCount } from "@/components/ui/count-badge";
 
 /** Read by --bottom-ui in app/mobile.css: content and toasts stay clear of the bar. */
 const RESERVE_BOTTOM_EDGE = ":root { --tabbar-space: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); }";
@@ -26,7 +26,7 @@ const TABS: Tab[] = [
 function TabBar({ pathname }: { pathname: string | null }) {
   const hydrated = useHydrated();
   const cartCount = useCartCount();
-  const cartBadge = hydrated && cartCount > 0 ? (cartCount > 99 ? "99+" : formatNumber(cartCount)) : null;
+  const cartItems = hydrated ? cartCount : 0;
 
   return (
     <>
@@ -34,7 +34,8 @@ function TabBar({ pathname }: { pathname: string | null }) {
       <nav className="mobile-tabbar" aria-label="Quick navigation">
         {TABS.map(({ href, label, icon: Icon, section }) => {
           const inSection = pathname !== null && section(pathname);
-          const badge = href === "/cart" ? cartBadge : null;
+          const count = href === "/cart" ? cartItems : 0;
+          const badge = badgeCount(count);
           return (
             <Link
               key={href}
@@ -45,7 +46,7 @@ function TabBar({ pathname }: { pathname: string | null }) {
             >
               <span className="mobile-tabbar__icon">
                 <Icon size={22} strokeWidth={inSection ? 2.2 : 1.7} aria-hidden="true" />
-                {badge ? <span className="mobile-tabbar__badge" aria-hidden="true">{badge}</span> : null}
+                <CountBadge count={count} corner />
               </span>
               <span className="mobile-tabbar__label">{label}</span>
             </Link>

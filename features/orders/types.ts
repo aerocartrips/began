@@ -43,6 +43,8 @@ export type OrderActions = {
   cancelUntil: string | null;
   canRequestReturn: boolean;
   returnUntil: string | null;
+  /** Unpaid, inside the payment window: a payment may still be confirmed. */
+  awaitingPayment?: boolean;
 };
 
 export type OrderDetail = OrderListItem & {
@@ -56,6 +58,8 @@ export type OrderDetail = OrderListItem & {
   /** Admin view only. */
   internalNotes?: string;
   customerVisibleRemark?: string;
+  /** The shopper's note from checkout (PO number, delivery instructions). */
+  notes?: string;
   actions?: OrderActions;
   invoice?: { number: string; issuedAt?: string | null } | null;
   shippingAddress: Record<string, string>;

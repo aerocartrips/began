@@ -5,12 +5,15 @@ export type NavigationItem = {
   href: string;
 };
 
-/** Primary storefront links; wholesale stores also surface the quote flow. */
-export function getSiteNavigation(salesMode: SalesMode): readonly NavigationItem[] {
+/**
+ * Desktop header links. Wholesale stores also get the "Request a quote" button
+ * beside them (components/layout/site-header.tsx), so it is not repeated here:
+ * the duplicate pushed the header wider than 1440px screens.
+ */
+export function getSiteNavigation(): readonly NavigationItem[] {
   return [
     { label: "Catalogue", href: "/products" },
     { label: "Categories", href: "/categories" },
-    ...(salesMode === "wholesale" ? [{ label: "Request a quote", href: "/request-quote" }] : []),
     { label: "Track order", href: "/track-order" },
     { label: "Contact", href: "/contact" },
   ];

@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import LoadingButton from "@/components/ui/buttons/loading-button";
+import { TextField } from "@/components/ui/form/text-field";
 import OrderStatusBadge, { formatOrderStatus } from "@/features/orders/order-status-badge";
 import { formatDate, formatDateTime } from "@/lib/format";
 
@@ -61,14 +62,8 @@ export default function TrackOrderClient() {
       </header>
 
       <form className="track-order-form" onSubmit={onSubmit}>
-        <label className="contact-field">
-          Order number
-          <input name="orderNumber" required minLength={6} maxLength={40} autoComplete="off" placeholder="e.g. AUR-20261102-K3F9QZ" />
-        </label>
-        <label className="contact-field">
-          Email or phone
-          <input name="contact" required minLength={5} maxLength={254} autoComplete="email" placeholder="you@company.com or 98765 43210" />
-        </label>
+        <TextField label="Order number" name="orderNumber" minLength={6} maxLength={40} autoComplete="off" placeholder="e.g. AUR-20261102-K3F9QZ" />
+        <TextField label="Email or phone" name="contact" minLength={5} maxLength={254} autoComplete="email" placeholder="you@company.com or 98765 43210" />
         <LoadingButton type="submit" loading={pending} loadingText="Looking up…">Track order</LoadingButton>
       </form>
       {error ? <p className="contact-submit-error" role="alert">{error}</p> : null}

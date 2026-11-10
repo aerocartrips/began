@@ -22,13 +22,19 @@ const SERVER_SNAPSHOT: Snapshot = { unreadCount: null, revision: 0 };
  * One poller per scope, shared by every mounted consumer (header bell, inbox page),
  * so mounting several components never multiplies requests. Polls only while the
  * tab is visible, and stops for good on 401/403 until remounted after sign-in.
+ *
+ * Stopping never aborts the request in flight (a tiny GET): it finishes quietly
+ * and its answer is ignored. Aborting gained nothing, could surface as an
+ * unhandled AbortError wherever fetch is wrapped (devtools, extensions), and left
+ * a quick remount waiting a whole poll interval for its first count.
  */
-class UnreadStore {
+export class UnreadStore {
   private snapshot: Snapshot = SERVER_SNAPSHOT;
   private listeners = new Set<() => void>();
   private timer: ReturnType<typeof setTimeout> | null = null;
-  private controller: AbortController | null = null;
-  private inflight: Promise<void> | null = null;
+  /** Bumped by stop(): answers to requests sent before it are ignored. */
+  private generation = 0;
+  private inflight: { generation: number; promise: Promise<void> } | null = null;
   private lastFetchedAt = 0;
   private unauthorized = false;
 
@@ -53,31 +59,34 @@ class UnreadStore {
 
   refresh = (force = false): Promise<void> => {
     if (this.unauthorized || this.listeners.size === 0) return Promise.resolve();
-    if (this.inflight) return this.inflight;
+    if (this.inflight?.generation === this.generation) return this.inflight.promise;
     if (!force && Date.now() - this.lastFetchedAt < MIN_REFRESH_GAP_MS) return Promise.resolve();
 
-    this.controller = new AbortController();
-    this.inflight = notificationApi
-      .unreadCount(this.scope, this.controller.signal)
+    const generation = this.generation;
+    const current = () => generation === this.generation;
+    const promise: Promise<void> = notificationApi
+      .unreadCount(this.scope)
       .then((unreadCount) => {
+        if (!current()) return;
         this.lastFetchedAt = Date.now();
         const { unreadCount: previous, revision } = this.snapshot;
         if (previous !== unreadCount) this.emit({ unreadCount, revision: previous === null ? revision : revision + 1 });
       })
       .catch((error: unknown) => {
+        if (!current()) return;
         if (isClientApiError(error) && (error.status === 401 || error.status === 403)) {
           this.unauthorized = true;
           this.clearTimer();
           this.emit({ ...this.snapshot, unreadCount: 0 });
         }
-        // Network errors and aborts: keep the last known count and try again next tick.
+        // Network errors: keep the last known count and try again next tick.
       })
       .finally(() => {
-        this.inflight = null;
-        this.controller = null;
-        this.schedule();
+        if (this.inflight?.promise === promise) this.inflight = null;
+        if (current()) this.schedule();
       });
-    return this.inflight;
+    this.inflight = { generation, promise };
+    return promise;
   };
 
   private emit(next: Snapshot) {
@@ -112,7 +121,8 @@ class UnreadStore {
     document.removeEventListener("visibilitychange", this.onVisibilityChange);
     window.removeEventListener("focus", this.onVisibilityChange);
     this.clearTimer();
-    this.controller?.abort();
+    // A request still in flight finishes quietly; its answer belongs to the old generation.
+    this.generation += 1;
     this.snapshot = SERVER_SNAPSHOT;
   }
 }

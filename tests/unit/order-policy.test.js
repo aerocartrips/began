@@ -8,6 +8,13 @@ const WINDOWS = { cancellationWindowHours: 48, returnWindowDays: 7 };
 const ago = (ms) => new Date(NOW.getTime() - ms);
 
 describe("customer order actions", () => {
+  it("treats an unpaid order as awaiting payment only inside its payment window", () => {
+    const order = { orderStatus: "pending_payment", paymentStatus: "pending", createdAt: ago(10 * 60 * 1000) };
+    expect(customerOrderActions({ ...order, paymentExpiresAt: new Date(NOW.getTime() + 20 * 60 * 1000) }, WINDOWS, NOW).awaitingPayment).toBe(true);
+    expect(customerOrderActions({ ...order, paymentExpiresAt: ago(60 * 1000) }, WINDOWS, NOW).awaitingPayment).toBe(false);
+    expect(customerOrderActions({ ...order, paymentStatus: "paid", orderStatus: "confirmed", paymentExpiresAt: new Date(NOW.getTime() + HOUR) }, WINDOWS, NOW).awaitingPayment).toBe(false);
+  });
+
   it("lets an unpaid order be cancelled at any time before payment", () => {
     const order = { orderStatus: "pending_payment", paymentStatus: "pending", createdAt: ago(30 * DAY) };
     expect(customerOrderActions(order, WINDOWS, NOW)).toMatchObject({ canCancel: true, cancelUntil: null });

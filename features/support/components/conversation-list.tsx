@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import CountBadge from "@/components/ui/count-badge";
 import { useIsClient } from "@/components/ui/client-formatted-time";
 import SupportStatusBadge from "@/components/support/chat/support-status-badge";
 import { categoryLabel } from "@/features/support/support-labels";
@@ -42,13 +43,7 @@ const ConversationCard = memo(function ConversationCard({
         </span>
         <span className="support-card__subject">
           {conversation.subject}
-          {unread ? (
-            <span className="support-card__unread">
-              <span className="sr-only">, </span>
-              {conversation.unreadCount}
-              <span className="sr-only"> unread</span>
-            </span>
-          ) : null}
+          <CountBadge count={conversation.unreadCount} label="unread" />
         </span>
         <span className="support-card__preview">{preview}</span>
         <span className="support-card__bottom">

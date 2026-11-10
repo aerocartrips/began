@@ -9,6 +9,7 @@ import "../globals.css";
 import "../catalog.css";
 import "../landing.css";
 import "../form-controls.css";
+import "../commerce.css";
 import "../mobile.css";
 
 /** Edge to edge on notched phones (app/mobile.css pads the safe areas); the browser bar matches the header. */

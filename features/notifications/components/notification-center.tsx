@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useFeedback } from "@/components/feedback/feedback-provider";
+import CountBadge from "@/components/ui/count-badge";
 import NotificationList from "@/features/notifications/components/notification-list";
 import { useUnreadNotifications } from "@/features/notifications/unread-store";
 import { useNotificationList } from "@/features/notifications/use-notification-list";
@@ -26,7 +27,7 @@ export default function NotificationCenter({ scope }: { scope: NotificationScope
         <div className="notification-center__filters" role="group" aria-label="Filter notifications">
           {(["all", "unread"] as const).map((value) => (
             <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}>
-              {value === "all" ? "All" : `Unread${unreadCount ? ` (${unreadCount > 99 ? "99+" : unreadCount})` : ""}`}
+              {value === "all" ? "All" : <>Unread <CountBadge count={unreadCount} label="new" /></>}
             </button>
           ))}
         </div>

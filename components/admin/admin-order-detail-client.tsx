@@ -190,6 +190,12 @@ export default function AdminOrderDetailClient({ orderId }: { orderId: string })
             </address>
           </AdminCard>
 
+          {order.notes ? (
+            <AdminCard title="Customer note">
+              <p className="order-note">{order.notes}</p>
+            </AdminCard>
+          ) : null}
+
           <AdminCard title="Payment">
             <AdminDetailList
               items={[

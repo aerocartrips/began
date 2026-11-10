@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { ArrowLeft } from "lucide-react";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import Combobox from "@/components/ui/form/combobox";
+import { TextAreaField, TextField } from "@/components/ui/form/text-field";
 import { isClientApiError } from "@/lib/api/api-error";
 import { fetchCustomerOrders } from "@/features/orders/order-api";
 import { createCustomerConversation, createRequestKey } from "@/features/support/support-api";
@@ -134,7 +135,7 @@ export default function NewConversationForm({ onCreated, onCancel, onAuthError }
             </label>
           ))}
         </div>
-        {errors.category ? <small id="support-category-error" className="support-field-error">{errors.category}</small> : null}
+        {errors.category ? <small id="support-category-error" className="account-field-error">{errors.category}</small> : null}
       </fieldset>
 
       {showOrders ? (
@@ -150,32 +151,25 @@ export default function NewConversationForm({ onCreated, onCancel, onAuthError }
         />
       ) : null}
 
-      <label className="account-field">
-        Subject
-        <input
-          value={subject}
-          maxLength={120}
-          onChange={(event) => setSubject(event.currentTarget.value)}
-          placeholder="e.g. Delivery date for my order"
-          aria-invalid={errors.subject ? true : undefined}
-        />
-        {errors.subject ? <small className="support-field-error">{errors.subject}</small> : null}
-      </label>
+      <TextField
+        label="Subject"
+        value={subject}
+        maxLength={120}
+        onChange={(event) => setSubject(event.currentTarget.value)}
+        placeholder="e.g. Delivery date for my order"
+        error={errors.subject}
+      />
 
-      <label className="account-field">
-        Message
-        <textarea
-          value={message}
-          rows={6}
-          onChange={(event) => setMessage(event.currentTarget.value)}
-          placeholder="Share the details — order numbers, product names or anything that helps us help you faster."
-          aria-invalid={errors.message ? true : undefined}
-        />
-        <span className="support-new__counter">
-          {message.length.toLocaleString("en-IN")} / {SUPPORT_MESSAGE_MAX.toLocaleString("en-IN")}
-        </span>
-        {errors.message ? <small className="support-field-error">{errors.message}</small> : null}
-      </label>
+      <TextAreaField
+        label="Message"
+        value={message}
+        rows={6}
+        maxLength={SUPPORT_MESSAGE_MAX}
+        onChange={(event) => setMessage(event.currentTarget.value)}
+        placeholder="Share the details — order numbers, product names or anything that helps us help you faster."
+        error={errors.message}
+        counter
+      />
 
       {errors.form ? <p className="support-form-error" role="alert">{errors.form}</p> : null}
 

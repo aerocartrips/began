@@ -4,6 +4,7 @@ import { useId, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, Check } from "lucide-react";
 import Button from "@/components/ui/button";
 import LoadingButton from "@/components/ui/buttons/loading-button";
+import { TextAreaField, TextField } from "@/components/ui/form/text-field";
 import type { ContactFieldErrors } from "@/features/messages/types/contact-message";
 
 type ContactResponse = {
@@ -89,32 +90,31 @@ export default function ContactForm() {
         <p>Share a few details and your message will be saved for our team.</p>
       </div>
       <div className="contact-form-grid">
-        <label className="contact-field">
-          Full name
-          <input name="name" autoComplete="name" minLength={2} maxLength={100} placeholder="Your full name" required aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? `${formId}-name-error` : undefined} />
-          {errors.name && <span className="contact-field-error" id={`${formId}-name-error`}>{errors.name}</span>}
-        </label>
-        <label className="contact-field">
-          Email address
-          <input name="email" type="email" autoComplete="email" maxLength={254} placeholder="you@company.com" required aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? `${formId}-email-error` : undefined} />
-          {errors.email && <span className="contact-field-error" id={`${formId}-email-error`}>{errors.email}</span>}
-        </label>
-        <label className="contact-field">
-          Phone <span className="contact-optional">Optional</span>
-          <input name="phone" type="tel" autoComplete="tel" maxLength={25} pattern="[+0-9(). -]{7,25}" placeholder="+91 98765 43210" aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? `${formId}-phone-error` : undefined} />
-          {errors.phone && <span className="contact-field-error" id={`${formId}-phone-error`}>{errors.phone}</span>}
-        </label>
-        <label className="contact-field">
-          Subject
-          <input name="subject" minLength={3} maxLength={120} placeholder="Wholesale inquiry, product question…" required aria-invalid={Boolean(errors.subject)} aria-describedby={errors.subject ? `${formId}-subject-error` : undefined} />
-          {errors.subject && <span className="contact-field-error" id={`${formId}-subject-error`}>{errors.subject}</span>}
-        </label>
-        <label className="contact-field contact-field-wide">
-          Message
-          <textarea name="message" rows={6} minLength={20} maxLength={5000} placeholder="Tell us what you need—quantities, saree names, timelines, or questions." required aria-invalid={Boolean(errors.message)} aria-describedby={`${formId}-message-help${errors.message ? ` ${formId}-message-error` : ""}`} />
-          <span className="contact-field-help" id={`${formId}-message-help`}>Please include at least 20 characters.</span>
-          {errors.message && <span className="contact-field-error" id={`${formId}-message-error`}>{errors.message}</span>}
-        </label>
+        <TextField label="Full name" name="name" autoComplete="name" minLength={2} maxLength={100} placeholder="Your full name" error={errors.name} />
+        <TextField label="Email address" name="email" type="email" autoComplete="email" maxLength={254} placeholder="you@company.com" error={errors.email} />
+        <TextField
+          label="Phone"
+          name="phone"
+          type="tel"
+          autoComplete="tel"
+          maxLength={25}
+          pattern="[+0-9(). -]{7,25}"
+          placeholder="+91 98765 43210"
+          error={errors.phone}
+          optional
+        />
+        <TextField label="Subject" name="subject" minLength={3} maxLength={120} placeholder="Wholesale inquiry, product question…" error={errors.subject} />
+        <TextAreaField
+          label="Message"
+          name="message"
+          rows={6}
+          minLength={20}
+          maxLength={5000}
+          placeholder="Tell us what you need—quantities, saree names, timelines, or questions."
+          hint="Please include at least 20 characters."
+          error={errors.message}
+          wide
+        />
       </div>
       <div className="contact-honeypot" aria-hidden="true">
         <label htmlFor={`${formId}-website`}>Leave this field empty</label>

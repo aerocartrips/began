@@ -83,6 +83,8 @@ export type CatalogResult = {
   total: number;
   page: number;
   pageCount: number;
+  /** Lowest and highest piece price among the current matches (the price filter's placeholders). */
+  priceRange: { min: number; max: number } | null;
   facets: Record<CatalogFacetKey, CatalogFacet[]>;
 };
 

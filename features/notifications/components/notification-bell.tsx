@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { ArrowRight, Bell, CheckCheck } from "lucide-react";
+import CountBadge, { badgeCount } from "@/components/ui/count-badge";
 import NotificationList from "@/features/notifications/components/notification-list";
 import { INBOX_PATH } from "@/features/notifications/notification-api";
 import { useUnreadNotifications } from "@/features/notifications/unread-store";
@@ -11,11 +12,6 @@ import type { AppNotification, NotificationScope } from "@/features/notification
 
 const DROPDOWN_LIMIT = 8;
 
-export function formatBadge(count: number | null) {
-  if (!count) return null;
-  return count > 99 ? "99+" : String(count);
-}
-
 export default function NotificationBell({ scope }: { scope: NotificationScope }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -23,7 +19,7 @@ export default function NotificationBell({ scope }: { scope: NotificationScope }
   const panelId = useId();
   const { unreadCount } = useUnreadNotifications(scope);
   const list = useNotificationList(scope, { limit: DROPDOWN_LIMIT, enabled: open });
-  const badge = formatBadge(unreadCount);
+  const badge = badgeCount(unreadCount);
 
   useEffect(() => {
     if (!open) return;
@@ -54,14 +50,14 @@ export default function NotificationBell({ scope }: { scope: NotificationScope }
       <button
         ref={triggerRef}
         type="button"
-        className="notification-bell__trigger"
+        className="nav-icon-button notification-bell__trigger"
         aria-expanded={open}
         aria-controls={panelId}
         aria-label={badge ? `Notifications, ${badge} unread` : "Notifications"}
         onClick={() => setOpen((value) => !value)}
       >
         <Bell size={scope === "admin" ? 16 : 18} strokeWidth={1.8} aria-hidden="true" />
-        {badge ? <span className="notification-bell__badge" aria-hidden="true">{badge}</span> : null}
+        <CountBadge count={unreadCount} corner />
       </button>
 
       {open ? (
@@ -69,7 +65,7 @@ export default function NotificationBell({ scope }: { scope: NotificationScope }
           <div className="notification-panel__head">
             <div className="notification-panel__title">
               <h2>Notifications</h2>
-              {badge ? <span className="notification-panel__chip">{badge} new</span> : null}
+              <CountBadge count={unreadCount} label="new" />
             </div>
             {unreadCount ? (
               <button

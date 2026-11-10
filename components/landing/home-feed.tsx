@@ -197,7 +197,7 @@ export default function HomeFeed({ section, title, description, initialPage, cat
         {status === "loading"
           ? Array.from({ length: SKELETONS }, (_, index) => (
               <li key={`skeleton-${index}`}>
-                <CatalogCardSkeleton />
+                <CatalogCardSkeleton variant="compact" />
               </li>
             ))
           : null}

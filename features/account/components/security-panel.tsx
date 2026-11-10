@@ -7,7 +7,7 @@ import { useFeedback } from "@/components/feedback/feedback-provider";
 import Button from "@/components/ui/button";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import AccountDialog from "@/features/account/components/account-dialog";
-import { PasswordField } from "@/features/account/components/form-field";
+import { PasswordField } from "@/components/ui/form/text-field";
 import { accountApi, toFieldErrors } from "@/features/account/account-api";
 import { completeSignOut } from "@/features/account/session-transitions";
 import { authHref } from "@/lib/auth/redirect";

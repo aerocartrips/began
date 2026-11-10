@@ -61,7 +61,14 @@ describe("protected and auth paths", () => {
     expect(isProtectedPath("/account/register")).toBe(false);
     expect(isProtectedPath("/account/verify-email")).toBe(false);
     expect(isProtectedPath("/accounts")).toBe(false);
-    expect(isProtectedPath("/checkout")).toBe(false);
+    expect(isProtectedPath("/cart")).toBe(false);
+  });
+
+  it("protects checkout, so shoppers sign in before filling in their details", () => {
+    expect(isProtectedPath("/checkout")).toBe(true);
+    expect(isProtectedPath("/checkout/")).toBe(true);
+    expect(isProtectedPath("/checkout/confirmation")).toBe(true);
+    expect(isProtectedPath("/checkouts")).toBe(false);
   });
 
   it("recognises the sign-in pages with or without a trailing slash", () => {

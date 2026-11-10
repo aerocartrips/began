@@ -9,6 +9,7 @@ import { useFeedback } from "@/components/feedback/feedback-provider";
 import EmptyState from "@/components/ui/empty-state";
 import ErrorCard from "@/components/ui/feedback/error-card";
 import Button from "@/components/ui/button";
+import CountBadge from "@/components/ui/count-badge";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import { DateRangePicker, todayIso } from "@/components/ui/form/date-picker";
 import Select, { type SelectOption } from "@/components/ui/form/select";
@@ -192,7 +193,7 @@ export default function CustomerOrdersPageClient() {
         >
           <SlidersHorizontal size={16} aria-hidden="true" />
           Filters
-          {extraFilters ? <span className="catalog-toolbar__badge" aria-hidden="true">{extraFilters}</span> : null}
+          <CountBadge count={extraFilters} />
         </button>
         <Select className="account-field" label="Status" options={FILTER_OPTIONS} value={bucket} onChange={setBucket} />
         <Select className="account-field" label="Sort" options={SORT_OPTIONS} value={sort} onChange={(next) => setSort(next as "asc" | "desc")} />

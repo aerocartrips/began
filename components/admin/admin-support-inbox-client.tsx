@@ -7,6 +7,7 @@ import { Search } from "lucide-react";
 import AdminPageHeading from "@/components/admin/admin-page-heading";
 import AdminStatusChip from "@/components/admin/admin-status-chip";
 import AdminSummaryGrid from "@/components/admin/admin-summary-grid";
+import CountBadge from "@/components/ui/count-badge";
 import Select, { toSelectOptions } from "@/components/ui/form/select";
 import { categoryLabel, SUPPORT_CATEGORY_OPTIONS } from "@/features/support/support-labels";
 import { formatDateTime, formatNumber } from "@/lib/format";
@@ -151,8 +152,8 @@ export default function AdminSupportInboxClient({ conversations, meta, counts, f
                       <span className="admin-avatar" aria-hidden="true">{(row.name || row.email || "?").charAt(0).toUpperCase()}</span>
                       <span className="admin-cell-stack">
                         <strong>
-                          {row.unread ? <span className="admin-unread-dot" aria-label={`${row.unreadCount} unread`} /> : null}
                           {row.name || "Guest"}
+                          {row.unread ? <CountBadge count={row.unreadCount} label="unread" /> : null}
                         </strong>
                         <small>{row.email}{row.customerId ? "" : " · guest"}</small>
                       </span>

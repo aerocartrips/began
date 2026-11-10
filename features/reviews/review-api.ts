@@ -50,9 +50,14 @@ function buildQuery(params: Record<string, string | undefined>) {
   return query ? `?${query}` : "";
 }
 
-export async function fetchProductReviews(productId: string, params: Record<string, string | undefined>) {
+export async function fetchProductReviews(
+  productId: string,
+  params: Record<string, string | undefined>,
+  { signal }: { signal?: AbortSignal } = {},
+) {
   return apiRequest<{ reviews: PublicReview[]; summary: ProductRatingSummary }>(
     `/api/v1/products/${encodeURIComponent(productId)}/reviews${buildQuery(params)}`,
+    { signal },
   );
 }
 

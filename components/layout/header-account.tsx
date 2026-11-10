@@ -19,5 +19,11 @@ export default async function HeaderAccount() {
 }
 
 export function HeaderAccountFallback() {
-  return <span className="account-menu-placeholder account-menu-placeholder--icon" aria-hidden="true" />;
+  // Bell and account: the same two buttons every visitor gets, so nothing shifts when they arrive.
+  return (
+    <>
+      <span className="account-menu-placeholder" aria-hidden="true" />
+      <span className="account-menu-placeholder" aria-hidden="true" />
+    </>
+  );
 }

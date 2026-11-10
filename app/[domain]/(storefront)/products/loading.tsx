@@ -1,9 +1,5 @@
-import ProductGridSkeleton from "@/components/ui/loaders/product-grid-skeleton";
+import CatalogSkeleton from "@/components/ui/loaders/catalog-skeleton";
 
 export default function ProductsLoading() {
-  return (
-    <main className="catalog-page content-width">
-      <ProductGridSkeleton count={9} />
-    </main>
-  );
+  return <CatalogSkeleton />;
 }

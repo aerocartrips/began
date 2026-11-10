@@ -1,36 +1,28 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Select, { type SelectOption } from "@/components/ui/form/select";
+import { catalogHref } from "@/features/catalog/query-string";
+import type { CatalogQuery, CatalogSort } from "@/features/catalog/types";
 
 /**
- * Sort control of the catalog filter form (AutoSubmitForm). The dropdown sets
- * its value without a DOM change event, so it submits the form itself once
- * the new value is committed to the form's hidden select.
+ * The catalogue's sort, in the toolbar above the results. Picking an order
+ * shows its first page with every filter kept. Render it with
+ * `key={query.sort}` so back/forward shows the page's own order.
  */
-export default function CatalogSortSelect({ options, defaultValue }: { options: SelectOption[]; defaultValue: string }) {
-  const [value, setValue] = useState(defaultValue);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const changedRef = useRef(false);
-
-  useEffect(() => {
-    if (!changedRef.current) return;
-    changedRef.current = false;
-    rootRef.current?.closest("form")?.requestSubmit();
-  }, [value]);
-
+export default function CatalogSortSelect({ basePath, query, options }: {
+  basePath: string;
+  query: CatalogQuery;
+  options: SelectOption[];
+}) {
+  const router = useRouter();
   return (
     <Select
-      ref={rootRef}
       className="catalog-sort"
       label="Sort by"
-      name="sort"
       options={options}
-      value={value}
-      onChange={(next) => {
-        changedRef.current = true;
-        setValue(next);
-      }}
+      defaultValue={query.sort}
+      onChange={(sort) => router.push(catalogHref(basePath, query, { sort: sort as CatalogSort }), { scroll: false })}
     />
   );
 }

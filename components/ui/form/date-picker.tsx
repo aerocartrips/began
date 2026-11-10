@@ -49,7 +49,7 @@ export const todayIso = () => today(getLocalTimeZone()).toString();
 
 type BaseProps = {
   label: ReactNode;
-  /** Field wrapper class of the surrounding form (admin-field, account-field, contact-field…). */
+  /** Field wrapper class: "account-field" on the storefront, "admin-field" in admin. */
   className?: string;
   /** Earliest / latest selectable date ("YYYY-MM-DD" or with time). */
   min?: string;

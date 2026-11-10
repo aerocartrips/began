@@ -13,6 +13,7 @@ import WarningCard from "@/components/ui/feedback/warning-card";
 import DownloadInvoiceButton from "@/components/orders/download-invoice-button";
 import OrderDetailReviewsSection from "@/components/reviews/order-detail-reviews-section";
 import LoadingButton from "@/components/ui/buttons/loading-button";
+import { TextAreaField } from "@/components/ui/form/text-field";
 import { OrderDetailSkeleton } from "@/components/ui/loaders/order-list-skeleton";
 import {
   cancelOrder,
@@ -283,10 +284,7 @@ export default function CustomerOrderDetailClient({ orderId }: { orderId: string
                 Paid orders are refunded to the original payment method once cancellation is confirmed.
                 {cancelUntil ? ` You can cancel until ${formatDateTime(cancelUntil)}.` : ""}
               </p>
-              <label className="account-field">
-                Reason for cancelling
-                <textarea value={cancelReason} onChange={(event) => setCancelReason(event.currentTarget.value)} rows={3} maxLength={500} />
-              </label>
+              <TextAreaField label="Reason for cancelling" value={cancelReason} onChange={(event) => setCancelReason(event.currentTarget.value)} rows={3} maxLength={500} />
               <div className="account-panel-actions">
                 <LoadingButton type="button" variant="destructive" size="sm" loading={cancelling} onClick={() => void runCancel()}>
                   Cancel order
@@ -302,14 +300,15 @@ export default function CustomerOrderDetailClient({ orderId }: { orderId: string
                 Our team reviews every return request and updates you on this page.
                 {returnUntil ? ` Returns can be requested until ${formatDate(returnUntil)}.` : ""}
               </p>
-              <label className="account-field">
-                Reason for return
-                <textarea value={returnReason} onChange={(event) => setReturnReason(event.currentTarget.value)} rows={3} maxLength={500} />
-              </label>
-              <label className="account-field">
-                Additional remarks <small>(optional)</small>
-                <textarea value={returnRemarks} onChange={(event) => setReturnRemarks(event.currentTarget.value)} rows={2} maxLength={2000} />
-              </label>
+              <TextAreaField label="Reason for return" value={returnReason} onChange={(event) => setReturnReason(event.currentTarget.value)} rows={3} maxLength={500} />
+              <TextAreaField
+                label="Additional remarks"
+                value={returnRemarks}
+                onChange={(event) => setReturnRemarks(event.currentTarget.value)}
+                rows={2}
+                maxLength={2000}
+                optional
+              />
               <div className="account-panel-actions">
                 <LoadingButton type="button" size="sm" loading={returning} onClick={() => void runReturn()}>
                   Submit return request
@@ -341,6 +340,13 @@ export default function CustomerOrderDetailClient({ orderId }: { orderId: string
               {address.phone ? <span>{address.phone}</span> : null}
             </address>
           </section>
+
+          {order.notes ? (
+            <section className="account-panel">
+              <h2>Your note</h2>
+              <p className="order-note">{order.notes}</p>
+            </section>
+          ) : null}
 
           <section className="account-panel">
             <h2>Payment</h2>

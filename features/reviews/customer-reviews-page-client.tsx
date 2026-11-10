@@ -158,7 +158,7 @@ export default function CustomerReviewsPageClient() {
               </div>
               <ReviewStatusBadge status={review.moderationStatus ?? "pending"} />
             </header>
-            <ReviewCard review={{ ...review, authorName: "You", verifiedPurchase: true }} showModeration={false} />
+            <ReviewCard review={{ ...review, authorName: "You", verifiedPurchase: true }} ownReview />
             <footer className="customer-review-actions">
               {review.productSlug ? (
                 <Button href={`/products/${review.productSlug}`} variant="secondary" size="sm">View product</Button>

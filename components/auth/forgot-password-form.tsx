@@ -6,6 +6,7 @@ import ErrorCard from "@/components/ui/feedback/error-card";
 import { NoticeLink } from "@/components/ui/feedback/notice-card";
 import SuccessCard from "@/components/ui/feedback/success-card";
 import LoadingButton from "@/components/ui/buttons/loading-button";
+import { TextField } from "@/components/ui/form/text-field";
 import { authErrorMessage, postAuthForm } from "@/features/auth/auth-request";
 import { LOGIN_PATH } from "@/lib/auth/redirect";
 
@@ -36,11 +37,8 @@ export default function ForgotPasswordForm() {
   }
 
   return (
-    <form className="checkout-form customer-auth-form" onSubmit={handleSubmit}>
-      <label className="checkout-field checkout-field-wide">
-        Email
-        <input name="email" type="email" autoComplete="email" required maxLength={254} />
-      </label>
+    <form className="customer-auth-form" onSubmit={handleSubmit}>
+      <TextField label="Email" name="email" type="email" autoComplete="email" maxLength={254} />
       {error ? <ErrorCard title="Reset link not sent" description={error} /> : null}
       <LoadingButton type="submit" loading={pending} loadingText="Sending link…" className="checkout-submit">
         Send reset link

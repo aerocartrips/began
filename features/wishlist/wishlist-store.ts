@@ -53,6 +53,10 @@ export const wishlistActions = {
     if (serverIds) wishlistStore.set(serverIds);
     return !saved;
   },
+  /** Saves a product (a no-op when it is already saved), e.g. moving it out of the cart. */
+  async add(productId: string) {
+    if (!wishlistStore.get().includes(productId)) await wishlistActions.toggle(productId);
+  },
   /** Once per tab session: merge local ids into the account (no-op for guests). */
   async sync() {
     if (sessionStore.get() !== "unknown") return;

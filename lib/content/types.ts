@@ -11,3 +11,17 @@ export type StorePageContent = {
   isDefault: boolean;
   updatedAt: string | null;
 };
+
+/** Purchase terms from Admin → Settings, shown on the product page. */
+export type StorePolicies = {
+  /** Days after delivery a return can be requested; 0 means no returns. */
+  returnWindowDays: number;
+  /** Shipping per order (₹); 0 means shipping is always free. */
+  shippingFlatAmount: number;
+  /** Order subtotal (₹) from which shipping is free; 0 disables. */
+  shippingFreeThreshold: number;
+  /** "Only N left" shows at or below this stock. */
+  lowStockThreshold: number;
+  /** Minutes an unpaid order holds its stock while the shopper pays. */
+  paymentReservationMinutes: number;
+};

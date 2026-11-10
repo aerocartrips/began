@@ -71,7 +71,7 @@ function SignedOutControls() {
     <>
       <div className="notification-bell notification-bell--customer">
         <Link
-          className="notification-bell__trigger"
+          className="nav-icon-button notification-bell__trigger"
           href={authHref("/account/notifications")}
           aria-label="Notifications: sign in to see yours"
           title="Sign in to see your notifications"
@@ -80,7 +80,7 @@ function SignedOutControls() {
         </Link>
       </div>
       <Link
-        className="account-menu-trigger account-menu-trigger--icon"
+        className="nav-icon-button account-menu-trigger"
         href={authHref(returnPathFor(pathname, searchParams))}
         aria-label="Sign in"
         title="Sign in"
@@ -131,7 +131,7 @@ function AccountMenu({ user }: { user: SessionUser }) {
       <div className="account-menu" ref={rootRef}>
         <button
           type="button"
-          className="account-menu-trigger account-menu-trigger--icon"
+          className="nav-icon-button account-menu-trigger"
           aria-expanded={open}
           aria-haspopup="menu"
           aria-label={`Account menu for ${displayName}`}

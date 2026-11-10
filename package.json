@@ -26,7 +26,8 @@
     "orders:migrate": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-alias.mjs scripts/migrate-order-lifecycle.mjs",
     "admin:create": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-alias.mjs scripts/create-admin-user.mjs",
     "seed:test": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-alias.mjs scripts/seed-test-data.mjs",
-    "seed:test-banners": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-alias.mjs scripts/seed-test-banners.mjs"
+    "seed:test-banners": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-alias.mjs scripts/seed-test-banners.mjs",
+    "seed:test-reviews": "node --env-file-if-exists=.env --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-alias.mjs scripts/seed-test-reviews.mjs"
   },
   "dependencies": {
     "@internationalized/date": "^3.12.4",

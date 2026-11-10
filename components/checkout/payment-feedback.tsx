@@ -1,11 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
 import Button from "@/components/ui/button";
 import ErrorCard from "@/components/ui/feedback/error-card";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import PendingCard from "@/components/ui/feedback/pending-card";
-import SuccessCard from "@/components/ui/feedback/success-card";
 import WarningCard from "@/components/ui/feedback/warning-card";
 import Spinner from "@/components/ui/loaders/spinner";
 
@@ -21,82 +19,53 @@ export type PaymentUiPhase =
 
 type PaymentFeedbackProps = {
   phase: PaymentUiPhase;
-  orderNumber?: string;
-  amountLabel?: string;
-  methodLabel?: string;
   paymentReference?: string;
   message?: string;
-  onRetry?: () => void;
+  /** How long the unpaid order holds its stock (store setting). */
+  holdMinutes: number;
+  /** Where "Back" leads when payment fails: the cart, or the product for Buy now. */
+  backHref: string;
+  onRetry: () => void;
   onRefreshStatus?: () => void;
   refreshPending?: boolean;
-  extra?: ReactNode;
 };
 
+const IN_PROGRESS = {
+  creating_order: "Preparing secure payment",
+  awaiting_payment: "Complete your payment in the Razorpay window",
+  verifying_payment: "Confirming your payment",
+} as const;
+
+/**
+ * Checkout's one payment status card, from opening Razorpay to a failed,
+ * cancelled or unconfirmed payment. Success leaves the page for the
+ * confirmation, so it renders nothing here.
+ */
 export default function PaymentFeedback({
   phase,
-  orderNumber,
-  amountLabel,
-  methodLabel,
   paymentReference,
   message,
+  holdMinutes,
+  backHref,
   onRetry,
   onRefreshStatus,
   refreshPending = false,
-  extra,
 }: PaymentFeedbackProps) {
-  if (phase === "idle") return null;
-
   if (phase === "creating_order" || phase === "awaiting_payment" || phase === "verifying_payment") {
-    const labels = {
-      creating_order: "Preparing secure checkout",
-      awaiting_payment: "Complete payment in Razorpay",
-      verifying_payment: "Verifying payment with our servers",
-    } as const;
-
     return (
       <PendingCard
-        title={labels[phase]}
-        description="Please keep this page open until verification finishes. Do not refresh during payment."
-        action={
-          <div className="feedback-inline-status">
-            <Spinner size="sm" label={labels[phase]} />
-          </div>
-        }
+        title={IN_PROGRESS[phase]}
+        description="Keep this page open. It updates by itself once the payment is confirmed."
+        action={<Spinner size="sm" label={IN_PROGRESS[phase]} />}
       />
     );
   }
 
-  if (phase === "success") {
-    return (
-      <SuccessCard
-        title="Order placed successfully"
-        description="Your payment was verified and captured. Fulfillment updates will follow separately."
-        detail={
-          <>
-            {orderNumber ? (
-              <p>
-                Order number: <strong>{orderNumber}</strong>
-              </p>
-            ) : null}
-            {amountLabel ? <p>Amount paid: {amountLabel}</p> : null}
-            {methodLabel ? <p>Payment method: {methodLabel}</p> : null}
-          </>
-        }
-        action={
-          <>
-            {orderNumber ? (
-              <Button href={`/checkout/confirmation?orderNumber=${encodeURIComponent(orderNumber)}`}>
-                View confirmation
-              </Button>
-            ) : null}
-            <Button href="/products" variant="secondary">
-              Continue shopping
-            </Button>
-          </>
-        }
-      />
-    );
-  }
+  const refresh = onRefreshStatus ? (
+    <LoadingButton type="button" variant="secondary" size="sm" loading={refreshPending} loadingText="Checking…" onClick={onRefreshStatus}>
+      Check status
+    </LoadingButton>
+  ) : null;
 
   if (phase === "failed") {
     return (
@@ -104,21 +73,14 @@ export default function PaymentFeedback({
         title="Payment could not be completed"
         description={
           <>
-            {message ??
-              "We could not confirm a successful payment. You have not been charged again by this page."}
+            {message ?? "We could not confirm a payment. You have not been charged by this attempt."}
             {paymentReference ? <span className="notice-card__meta">Reference: {paymentReference}</span> : null}
           </>
         }
         action={
           <>
-            {onRetry ? (
-              <Button type="button" onClick={onRetry}>
-                Retry payment
-              </Button>
-            ) : null}
-            <Button href="/cart" variant="secondary">
-              Back to cart
-            </Button>
+            <Button type="button" size="sm" onClick={onRetry}>Try again</Button>
+            <Button href={backHref} variant="secondary" size="sm">Back</Button>
           </>
         }
       />
@@ -128,24 +90,9 @@ export default function PaymentFeedback({
   if (phase === "pending") {
     return (
       <PendingCard
-        title="Payment confirmation pending"
-        description={
-          message ??
-          "Your payment may still be processing. Please do not pay again until the status is confirmed."
-        }
-        action={
-          onRefreshStatus ? (
-            <LoadingButton
-              type="button"
-              variant="secondary"
-              loading={refreshPending}
-              loadingText="Checking..."
-              onClick={onRefreshStatus}
-            >
-              Refresh status
-            </LoadingButton>
-          ) : undefined
-        }
+        title="Confirming your payment"
+        description={message ?? "Your payment may still be processing. Please don't pay again until its status is confirmed."}
+        action={refresh ?? undefined}
       />
     );
   }
@@ -154,30 +101,16 @@ export default function PaymentFeedback({
     return (
       <WarningCard
         title="Payment not completed"
-        description="You closed checkout before finishing payment. Your wholesale order remains reserved for a limited time."
+        description={`The payment window was closed before paying. Your items stay reserved for up to ${holdMinutes} minutes, so you can try again now. If money was debited, check the status before paying again.`}
         action={
           <>
-            {onRefreshStatus ? (
-              <LoadingButton
-                type="button"
-                variant="secondary"
-                loading={refreshPending}
-                loadingText="Checking..."
-                onClick={onRefreshStatus}
-              >
-                Refresh status
-              </LoadingButton>
-            ) : null}
-            {onRetry ? (
-              <Button type="button" onClick={onRetry}>
-                Retry when ready
-              </Button>
-            ) : null}
+            {refresh}
+            <Button type="button" size="sm" onClick={onRetry}>Try again</Button>
           </>
         }
       />
     );
   }
 
-  return extra ?? null;
+  return null;
 }

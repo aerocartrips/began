@@ -6,7 +6,7 @@ import { useFeedback } from "@/components/feedback/feedback-provider";
 import Button from "@/components/ui/button";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import AccountDialog from "@/features/account/components/account-dialog";
-import { FieldShell, PasswordField, TextField } from "@/features/account/components/form-field";
+import { FieldShell, PasswordField, TextField } from "@/components/ui/form/text-field";
 import { accountApi, toFieldErrors } from "@/features/account/account-api";
 import { DELETION_CONFIRMATION_PHRASE } from "@/lib/constants/account";
 import { formatDate } from "@/lib/format";

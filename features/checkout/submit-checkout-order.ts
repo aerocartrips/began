@@ -40,22 +40,30 @@ function addressFields(kind: "shipping" | "billing", selection: AddressSelection
     : { [`${kind}Address`]: selection.address };
 }
 
-/** Billing is omitted when it matches shipping; the server then bills the shipping address. */
-function buildOrderPayload(items: CartItem[], shipping: AddressSelection, billing: AddressSelection | null) {
+type OrderDetails = {
+  shipping: AddressSelection;
+  /** Omitted when it matches shipping; the server then bills the shipping address. */
+  billing: AddressSelection | null;
+  /** The shopper's note for the store (PO number, delivery instructions); "" for none. */
+  notes: string;
+};
+
+function buildOrderPayload(items: CartItem[], { shipping, billing, notes }: OrderDetails) {
   return {
     // Identifiers only: the server prices every line again from the catalogue.
     items: items.map((item) => ({ productId: item.productId, variantId: item.variantId, quantity: item.quantity })),
     ...addressFields("shipping", shipping),
     ...(billing ? addressFields("billing", billing) : {}),
+    ...(notes ? { notes } : {}),
     paymentMethod: "razorpay",
   };
 }
 
-export async function createPaymentOrder(items: CartItem[], shipping: AddressSelection, billing: AddressSelection | null) {
+export async function createPaymentOrder(items: CartItem[], details: OrderDetails) {
   const response = await fetchWithSession("/api/v1/payments/create-order", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(buildOrderPayload(items, shipping, billing)),
+    body: JSON.stringify(buildOrderPayload(items, details)),
   });
   const payload = (await response.json()) as ApiEnvelope<CreatePaymentOrderData>;
   return { response, payload };
@@ -79,4 +87,4 @@ export async function verifyPayment(response: RazorpaySuccessResponse) {
   return { response: result, payload };
 }
 
-export type { AddressSelection, CheckoutAddress, CreatePaymentOrderData };
+export type { AddressSelection, CheckoutAddress, CreatePaymentOrderData, OrderDetails };

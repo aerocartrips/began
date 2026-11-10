@@ -7,7 +7,7 @@ import { BadgeCheck, Camera, Mail, Trash2 } from "lucide-react";
 import { useFeedback } from "@/components/feedback/feedback-provider";
 import Button from "@/components/ui/button";
 import LoadingButton from "@/components/ui/buttons/loading-button";
-import { PasswordField, TextField } from "@/features/account/components/form-field";
+import { PasswordField, TextField } from "@/components/ui/form/text-field";
 import { accountApi, toFieldErrors } from "@/features/account/account-api";
 import type { AccountCapabilities, AccountProfile, FieldErrors } from "@/features/account/types";
 
