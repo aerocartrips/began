@@ -95,69 +95,77 @@
   .catalog-skeleton__filter { display: block; width: 104px; height: 44px; }
 }
 
-.catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 22px; margin: 0; padding: 0; list-style: none; }
+/* Product cards (components/catalog/product-card.tsx): one card, one size, wherever
+   products are listed. A grid fits as many columns of at least --card-min as its
+   width allows (two at the least, on small phones); a product row shows the same
+   number (container queries under .product-rail), so a card is the same size in a
+   row and in the grid below it. */
+:root { --card-min: 160px; --card-gap: 12px; }
+@media (max-width: 760px) {
+  :root { --card-gap: 10px; }
+}
+.catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(var(--card-min), (100% - var(--card-gap)) / 2), 1fr)); gap: var(--card-gap); margin: 0; padding: 0; list-style: none; }
 .catalog-card { display: flex; height: 100%; flex-direction: column; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface); box-shadow: var(--shadow-card); }
 .catalog-card__media { position: relative; aspect-ratio: 4 / 5; overflow: hidden; background: var(--color-background); }
 .catalog-card__media .ui-image-frame { position: absolute; inset: 0; }
 .catalog-card__media img { transition: transform .5s ease; }
 .catalog-card:hover .catalog-card__media img { transform: scale(1.04); }
 .catalog-card__placeholder { position: absolute; inset: 0; background: linear-gradient(135deg, var(--color-background), var(--color-border)); }
-.catalog-card__badge { position: absolute; bottom: 12px; left: 12px; padding: 5px 10px; border-radius: var(--radius-pill); background: rgba(17, 24, 39, .78); color: #fff; font-size: 10px; font-weight: 700; }
-.catalog-card__body { display: grid; gap: 8px; align-content: start; padding: 14px 16px 18px; }
-/* Two lines at most, so cards in a row line up whatever the product name length. */
-.catalog-card__title { display: -webkit-box; margin: 0; overflow: hidden; font-size: 14px; font-weight: 600; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 /* Max width: flags wrap before they reach the wishlist button. */
-.catalog-card__flags { position: absolute; top: 10px; left: 10px; display: flex; max-width: calc(100% - 64px); flex-wrap: wrap; gap: 6px; pointer-events: none; }
-.catalog-card__flag { padding: 4px 8px; border-radius: var(--radius-pill); background: var(--color-surface); color: var(--color-text); font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; box-shadow: var(--shadow-card); }
+.catalog-card__flags { position: absolute; top: 8px; left: 8px; display: flex; max-width: calc(100% - 52px); flex-wrap: wrap; gap: 4px; pointer-events: none; }
+.catalog-card__flag { padding: 3px 7px; border-radius: var(--radius-pill); background: var(--color-surface); color: var(--color-text); font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; box-shadow: var(--shadow-card); }
 .catalog-card__flag.is-offer { background: var(--color-brand); color: #fff; }
-.catalog-card__sku { margin: -4px 0 0; color: var(--color-text-subtle); font-size: 10.5px; letter-spacing: .03em; }
-.catalog-card__tier { margin: -2px 0 0; color: var(--color-success); font-size: 11.5px; font-weight: 600; }
-.catalog-card__stock { color: var(--color-success); }
+.catalog-card__badge { position: absolute; bottom: 8px; left: 8px; padding: 4px 9px; border-radius: var(--radius-pill); background: rgba(17, 24, 39, .78); color: #fff; font-size: 10px; font-weight: 700; }
+.wishlist-toggle { position: absolute; top: 8px; right: 8px; display: inline-grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .92); color: var(--color-text); cursor: pointer; box-shadow: var(--shadow-card); }
+.wishlist-toggle[aria-pressed="true"] { color: #d6336c; }
+/* Lines sit 4px apart; a line that qualifies the one above it (SKU under the name,
+   quantity price under the price) sits 2px under it. Every line sets its own height,
+   which the loading placeholder reuses. */
+.catalog-card__body { display: grid; gap: 4px; align-content: start; padding: 10px 10px 12px; }
+/* Always two lines tall and cut after two, so prices line up across a row. */
+.catalog-card__title { display: -webkit-box; min-height: 2.7em; margin: 0; overflow: hidden; font-size: 13px; font-weight: 600; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .catalog-card__title a:hover { color: var(--color-brand); }
-.catalog-card__meta { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; color: var(--color-text-muted); font-size: 11px; }
+.catalog-card__sku { margin: -2px 0 0; color: var(--color-text-subtle); font-size: 10.5px; line-height: 1.35; letter-spacing: .03em; }
+.catalog-card .catalog-price { gap: 0 6px; font-size: 16px; line-height: 1.3; }
+.catalog-card__tier { margin: -2px 0 0; color: var(--color-success); font-size: 11.5px; font-weight: 600; line-height: 1.35; }
+/* On the narrowest cards the line breaks between the price and the quantity, never inside either. */
+.catalog-card__tier > span { white-space: nowrap; }
+.catalog-card__meta { display: flex; flex-wrap: wrap; gap: 0 10px; margin: 0; color: var(--color-text-muted); font-size: 11px; line-height: 1.4; }
+.catalog-card__stock { color: var(--color-success); }
+/* Last line: colours on the left, rating on the right (on its own, it stays right). */
+.catalog-card__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; min-height: 14px; }
+.catalog-card__rating { margin-left: auto; color: var(--color-text-muted); font-size: 11px; line-height: 14px; white-space: nowrap; }
 .swatch-list { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 0; padding: 0; list-style: none; }
-.swatch-more { color: var(--color-text-muted); font-size: 11px; }
+.swatch-list > li { display: flex; }
+.swatch-more { color: var(--color-text-muted); font-size: 11px; line-height: 14px; }
+/* Loading placeholder (components/ui/loaders/catalog-card-skeleton.tsx): a bar in each line box. */
+.catalog-card__bone { display: inline-block; width: 92%; height: .8em; vertical-align: middle; }
+.catalog-card__bone--short { width: 58%; }
+.catalog-card__bone--price { width: 46%; }
+.catalog-card__bone--swatches { width: 40%; height: 14px; }
 .catalog-price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin: 0; }
 .catalog-price strong { color: var(--color-text); font-size: 16px; }
 .catalog-price__unit { color: var(--color-text-muted); font-size: 11px; }
 .catalog-price del { color: var(--color-text-subtle); font-size: 12px; }
 .catalog-price--large strong { color: var(--color-brand); font-size: 28px; }
-.wishlist-toggle { position: absolute; top: 10px; right: 10px; display: inline-grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .92); color: var(--color-text); cursor: pointer; box-shadow: var(--shadow-card); }
-.wishlist-toggle[aria-pressed="true"] { color: #d6336c; }
 
-/* Compact card (home page rows and feed, product page rows): the photo carries
-   the card; one-line name, price with MOQ, best quantity price, then colours
-   and rating. About half the text height of the full card. */
-.catalog-card--compact .catalog-card__body { gap: 3px; padding: 8px 10px 10px; }
-.catalog-card--compact .catalog-card__title { display: block; overflow: hidden; font-size: 13px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
-.catalog-card--compact .catalog-price { gap: 0 4px; line-height: 1.3; }
-.catalog-card--compact .catalog-price strong { font-size: 15px; }
-.catalog-card--compact .catalog-price del { font-size: 11px; }
-.catalog-card--compact .catalog-card__tier { margin: 0; font-size: 11.5px; line-height: 1.3; }
-/* Colours on the left; MOQ and rating on the right (they wrap below on the narrowest cards). */
-.catalog-card--compact .catalog-card__meta { display: flex; min-height: 14px; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px 8px; margin-top: 2px; font-size: 11px; line-height: 1.3; }
-.catalog-card__facts { display: inline-flex; gap: 6px; white-space: nowrap; }
-.catalog-card--compact .swatch-list { gap: 4px; }
-.catalog-card--compact .swatch { width: 12px; height: 12px; }
-.catalog-card--compact .catalog-card__flags { top: 8px; left: 8px; max-width: calc(100% - 52px); gap: 4px; }
-.catalog-card--compact .catalog-card__flag { padding: 3px 6px; font-size: 9.5px; }
-.catalog-card--compact .catalog-card__badge { bottom: 8px; left: 8px; }
-.catalog-card--compact .wishlist-toggle { top: 8px; right: 8px; width: 32px; height: 32px; }
-
-/* Product rail (components/catalog/product-rail.tsx): one line of cards.
-   --rail-visible cards fit the width; the fraction is the next card peeking
-   in, the cue that the row scrolls. Desktop shows whole cards and arrows. */
-.rail { position: relative; }
+/* Product rows (components/catalog/product-rail.tsx): one line of product cards,
+   each as wide as in a grid of the same width. .rail is a size container; the row
+   shows as many whole cards as .catalog-grid puts in a row at that width. Touch
+   screens get no arrows, so part of the next card shows instead: the cue that the
+   row swipes. */
+.rail { position: relative; container-type: inline-size; }
 .product-rail {
-  --rail-visible: 6;
-  --rail-gap: 16px;
+  --rail-cols: 2;
+  --rail-peek: 0;
+  --rail-visible: calc(var(--rail-cols) + var(--rail-peek));
   /* Keeps absolutely positioned descendants (the .sr-only label in the "View all"
      card) inside the scroll container; otherwise they escape to .rail and widen the page. */
   position: relative;
   display: grid;
-  grid-auto-columns: calc((100% - (var(--rail-visible) - 1) * var(--rail-gap)) / var(--rail-visible));
+  grid-auto-columns: calc((100% - (var(--rail-visible) - 1) * var(--card-gap)) / var(--rail-visible));
   grid-auto-flow: column;
-  gap: var(--rail-gap);
+  gap: var(--card-gap);
   margin: 0;
   padding: 2px 2px 8px;
   overflow-x: auto;
@@ -171,10 +179,22 @@
 }
 .product-rail::-webkit-scrollbar { display: none; }
 .product-rail > li { min-width: 0; scroll-snap-align: start; }
+/* n cards from n × 160px (--card-min) + (n − 1) × 12px (--card-gap): the widths at
+   which .catalog-grid adds a column. Keep these in step with those two values. */
+@container (min-width: 504px) { .product-rail { --rail-cols: 3; } }
+@container (min-width: 676px) { .product-rail { --rail-cols: 4; } }
+@container (min-width: 848px) { .product-rail { --rail-cols: 5; } }
+@container (min-width: 1020px) { .product-rail { --rail-cols: 6; } }
+@container (min-width: 1192px) { .product-rail { --rail-cols: 7; } }
+@container (min-width: 1364px) { .product-rail { --rail-cols: 8; } }
+@media (hover: none), (pointer: coarse) {
+  .product-rail { --rail-peek: .2; }
+}
 /* Previous / next: mouse and trackpad only (touch swipes). Hidden (and out of the
    tab order) until components/catalog/rail-scroller.tsx marks the row as able to
-   move that way, so neither shows on a row that fits or at its ends. */
-.rail__arrow { position: absolute; top: 38%; z-index: 2; display: none; width: 40px; height: 40px; place-items: center; padding: 0; border: 1px solid var(--color-border); border-radius: 50%; background: var(--color-surface); box-shadow: 0 6px 18px rgba(17, 24, 39, .14); color: var(--color-text); cursor: pointer; opacity: 0; visibility: hidden; transform: translateY(-50%); transition: opacity .2s ease, visibility .2s; }
+   move that way, so neither shows on a row that fits or at its ends. They sit
+   over the photos. */
+.rail__arrow { position: absolute; top: 28%; z-index: 2; display: none; width: 40px; height: 40px; place-items: center; padding: 0; border: 1px solid var(--color-border); border-radius: 50%; background: var(--color-surface); box-shadow: 0 6px 18px rgba(17, 24, 39, .14); color: var(--color-text); cursor: pointer; opacity: 0; visibility: hidden; transform: translateY(-50%); transition: opacity .2s ease, visibility .2s; }
 .rail__arrow--prev { left: -20px; }
 .rail__arrow--next { right: -20px; }
 .rail__arrow:hover { border-color: var(--color-brand); color: var(--color-brand); }
@@ -191,16 +211,11 @@
 .rail-view-all:hover .rail-view-all__icon { transform: translateX(3px); }
 .rail-view-all strong { font-size: 14px; }
 .rail-view-all__count { color: var(--color-text-muted); font-size: 12px; }
-@media (max-width: 1100px) {
-  .product-rail { --rail-visible: 4.3; --rail-gap: 14px; }
-}
 @media (max-width: 760px) {
-  .product-rail { --rail-visible: 3.3; --rail-gap: 10px; }
+  /* Phones: the row runs to the screen edge (app/mobile.css), so the gutter already shows part of the next card. */
+  .product-rail { --rail-peek: .1; }
   .rail__arrow--prev { left: 4px; }
   .rail__arrow--next { right: 4px; }
-}
-@media (max-width: 480px) {
-  .product-rail { --rail-visible: 2.3; }
 }
 @media (prefers-reduced-motion: reduce) {
   .rail__arrow, .rail-view-all, .rail-view-all__icon { transition: none; }
@@ -509,10 +524,6 @@
 
 @media (max-width: 900px) and (prefers-reduced-motion: reduce) {
   .catalog-sidebar, .catalog-filters-backdrop, .catalog-filter-fab { transition: none; }
-}
-
-@media (max-width: 520px) {
-  .catalog-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 }
 
 .content-page { max-width: 820px; padding: 56px 0 96px; }

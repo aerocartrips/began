@@ -235,9 +235,11 @@ describe("recommendations", () => {
 describe("home page layout", () => {
   it("uses the default layout until the store saves its own", async () => {
     const types = (await m.getHomepageSections(storeA)).map((section) => section.type);
-    // Products first; reassurance and sign-up after the feed, which ends after 60 products.
+    // Products first; everything else after the feed, which ends after 60 products.
     expect(types.slice(0, 4)).toEqual(["category-nav", "hero", "for-you", "product-tabs"]);
-    expect(types.indexOf("feed")).toBeLessThan(types.indexOf("newsletter"));
+    for (const type of ["trust", "quick-picks", "reviews", "cta", "newsletter"]) {
+      expect(types.indexOf("feed")).toBeLessThan(types.indexOf(type));
+    }
     await m.runWithTenant(storeA, async () => expect((await m.getAdminHomepageLayout()).isDefault).toBe(true));
   });
 

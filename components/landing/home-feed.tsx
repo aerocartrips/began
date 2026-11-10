@@ -20,7 +20,6 @@ type CategoryChip = { slug: string; name: string; count: number };
 const SKELETONS = 4;
 /** Start loading this far before the shopper reaches the end. */
 const PRELOAD_MARGIN = "900px 0px";
-const FEED_SIZES = "(max-width: 640px) 50vw, (max-width: 1100px) 33vw, 20vw";
 /**
  * Batches that load on their own as the shopper scrolls; the rest wait for a
  * tap. On phones the third batch waits, so 40 products arrive without asking
@@ -188,16 +187,16 @@ export default function HomeFeed({ section, title, description, initialPage, cat
         </div>
       ) : null}
 
-      <ul className="catalog-grid home-feed__grid" aria-label={activeChip ? `${activeChip.name} products` : "All products"} aria-busy={status === "loading"}>
+      <ul className="catalog-grid" aria-label={activeChip ? `${activeChip.name} products` : "All products"} aria-busy={status === "loading"}>
         {items.map((product) => (
           <li key={product.id}>
-            <ProductCard product={product} salesMode={salesMode} sizes={FEED_SIZES} variant="compact" />
+            <ProductCard product={product} salesMode={salesMode} />
           </li>
         ))}
         {status === "loading"
           ? Array.from({ length: SKELETONS }, (_, index) => (
               <li key={`skeleton-${index}`}>
-                <CatalogCardSkeleton variant="compact" />
+                <CatalogCardSkeleton />
               </li>
             ))
           : null}

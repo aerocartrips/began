@@ -132,9 +132,11 @@ describe("home page layout", () => {
   it("keeps the admin's order: the feed ends after 60 products, so it need not be last", () => {
     const reversed = defaultHomeSections().reverse();
     expect(normalizeHomeSections(reversed)).toEqual(reversed);
-    // By default the feed comes before the reassurance and sign-up sections.
+    // By default products come first: the feed is the last product section, and
+    // reassurance, quick filters, reviews, the call to action, guides and sign-up follow it.
     const types = defaultHomeSections().map((section) => section.type);
-    expect(types.indexOf("feed")).toBeLessThan(types.indexOf("newsletter"));
+    const feed = types.indexOf("feed");
+    expect(types.slice(feed + 1)).toEqual(["trust", "quick-picks", "reviews", "cta", "guides", "newsletter"]);
   });
 
   it("adds section types a saved layout predates, without duplicating any", () => {
