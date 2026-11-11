@@ -33,21 +33,25 @@ export default function ForYouRail({ section, initialProducts, catalogueTotal, s
     const cart = [...new Set(cartStore.get().map((item) => item.productId))];
     if (!viewed.length && !wished.length && !cart.length) return;
 
-    const controller = new AbortController();
+    // A small GET, so cleanup doesn't abort it: an abort surfaces as an unhandled
+    // AbortError wherever fetch is wrapped (browser extensions). A late answer is ignored.
+    let current = true;
     const params = new URLSearchParams({
       viewed: viewed.slice(0, 20).join(","),
       wished: wished.slice(0, 20).join(","),
       cart: cart.slice(0, 20).join(","),
       limit: String(section.limit),
     });
-    fetch(`/api/v1/catalog/recommendations?${params}`, { signal: controller.signal, credentials: "include" })
+    fetch(`/api/v1/catalog/recommendations?${params}`, { credentials: "include" })
       .then((response) => (response.ok ? response.json() : null))
       .then((payload) => {
         const data = payload?.data as Recommendations | undefined;
-        if (data?.personalized && data.items.length) setPicks(data);
+        if (current && data?.personalized && data.items.length) setPicks(data);
       })
       .catch(() => undefined); // Keep the popular row.
-    return () => controller.abort();
+    return () => {
+      current = false;
+    };
   }, [section.limit]);
 
   const products = picks?.items ?? initialProducts;

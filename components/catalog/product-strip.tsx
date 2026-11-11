@@ -14,14 +14,18 @@ export function useProductCards(ids: string[]) {
 
   useEffect(() => {
     if (!key) return;
-    const controller = new AbortController();
-    fetch(`/api/v1/catalog/products?ids=${key}`, { signal: controller.signal })
+    // Not aborted on cleanup (see ForYouRail); the answer for an outdated list of ids is ignored.
+    let current = true;
+    fetch(`/api/v1/catalog/products?ids=${key}`)
       .then((response) => response.json())
-      .then((payload) => setState({ key, cards: payload.success ? payload.data : [] }))
-      .catch(() => {
-        if (!controller.signal.aborted) setState({ key, cards: [] });
+      .then((payload): ProductCardData[] => (payload.success ? payload.data : []))
+      .catch((): ProductCardData[] => [])
+      .then((cards) => {
+        if (current) setState({ key, cards });
       });
-    return () => controller.abort();
+    return () => {
+      current = false;
+    };
   }, [key]);
 
   return { cards: key && state?.key === key ? state.cards : [], loading: Boolean(key) && state?.key !== key };
