@@ -3,6 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Store not found",
+  robots: { index: false, follow: false },
 };
 
 /** Served for hostnames that are not mapped to any store (Tenant.domains). */

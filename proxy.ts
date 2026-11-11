@@ -4,6 +4,9 @@ import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/auth/cookies";
 import { authHref, isAuthPath, isProtectedPath, safeRedirectPath } from "@/lib/auth/redirect";
 import { normalizeHost } from "@/lib/tenant/host";
 
+/** Storefront pages addressed by a slug (always lower case; see lib/utils/slugify.js). */
+const SLUG_PATH = /^\/(?:products|categories|guides)\/[^/]+\/?$/;
+
 const ACCESS_SECRET = (() => {
   const secret = new TextEncoder().encode(process.env.JWT_SECRET?.trim() ?? "");
   return secret.length >= 32 ? secret : null;
@@ -46,6 +49,14 @@ export async function proxy(request: NextRequest) {
   }
 
   const { pathname, searchParams } = request.nextUrl;
+  // Product, category and guide addresses are lower case. Any other spelling gets one permanent
+  // redirect here, before rendering, so search engines see a single URL per page and no
+  // differently-cased copy is ever rendered or cached (cache files on case-insensitive disks collide).
+  if (SLUG_PATH.test(pathname) && pathname !== pathname.toLowerCase()) {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname.toLowerCase();
+    return NextResponse.redirect(url, 308);
+  }
   if (isProtectedPath(pathname) && !request.cookies.has(ACCESS_COOKIE) && !request.cookies.has(REFRESH_COOKIE)) {
     const query = new URLSearchParams(searchParams);
     query.delete("_rsc"); // client-navigation cache key, not part of the page address
@@ -69,5 +80,7 @@ export const config = {
     "/sitemap.xml",
     "/sitemaps/:path*",
     "/robots.txt",
+    "/favicon.ico",
+    "/icons/:path*",
   ],
 };

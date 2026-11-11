@@ -15,7 +15,7 @@ import { useAsyncAction } from "@/hooks/use-async-action";
 import { apiRequest } from "@/lib/api/api-client";
 import { formatDateTime } from "@/lib/format";
 
-type SettingsSection = "store" | "branding" | "theme" | "contact" | "business" | "commerce" | "orders" | "shipping";
+type SettingsSection = "store" | "branding" | "theme" | "contact" | "business" | "seo" | "commerce" | "orders" | "shipping";
 type Tab = SettingsSection | "integrations";
 type SettingsValue = string | number;
 
@@ -46,6 +46,12 @@ const TABS: { id: Tab; label: string; description: string }[] = [
   { id: "theme", label: "Colours", description: "Storefront colours. Changes apply to every page immediately." },
   { id: "contact", label: "Contact", description: "Contact details shown on the contact page, footer and emails." },
   { id: "business", label: "Business & GST", description: "Legal details printed on invoices, and where store alerts are sent." },
+  {
+    id: "seo",
+    label: "SEO",
+    description:
+      "Prove you own the store in Google Search Console and Bing Webmaster Tools (HTML tag method), then submit /sitemap.xml there. Titles, descriptions and product data for search engines come from your products, categories and pages.",
+  },
   { id: "commerce", label: "Tax & shipping", description: "GST and shipping charges added at checkout." },
   { id: "orders", label: "Orders", description: "Payment reservation, cancellation and return windows." },
   { id: "shipping", label: "Pickup", description: "Pickup location and default parcel details for courier booking." },
@@ -103,11 +109,29 @@ const FIELDS: Record<SettingsSection, FieldConfig[]> = {
     { name: "notificationEmail", label: "Alert inbox", type: "email", hint: "New orders, quotes and contact messages" },
     { name: "registeredAddress", label: "Registered address", type: "textarea", wide: true },
   ],
+  seo: [
+    {
+      name: "googleSiteVerification",
+      label: "Google Search Console code",
+      wide: true,
+      hint: "Search Console → Add property → URL prefix → HTML tag. Paste the code or the whole <meta> tag.",
+    },
+    {
+      name: "bingSiteVerification",
+      label: "Bing Webmaster Tools code",
+      wide: true,
+      hint: "Bing Webmaster Tools → Add site → HTML Meta Tag (or import the site from Search Console instead).",
+    },
+  ],
   commerce: [
     { name: "defaultGstRatePercent", label: "Default GST %", type: "number", step: "0.01", fallback: 0, hint: "For products without their own rate, and shipping" },
     { name: "shippingFlatAmount", label: "Shipping charge (₹)", type: "number", step: "0.01", fallback: 0 },
     { name: "shippingFreeThreshold", label: "Free shipping from (₹)", type: "number", step: "0.01", fallback: 0, hint: "0 turns free shipping off" },
     { name: "lowStockThreshold", label: "Low-stock alert at", type: "number", fallback: 5, hint: "Pieces remaining" },
+    { name: "dispatchMinDays", label: "Dispatch time from (working days)", type: "number", fallback: 2, hint: "Payment to dispatch" },
+    { name: "dispatchMaxDays", label: "Dispatch time to (working days)", type: "number", fallback: 4, hint: "Shown in the default shipping policy and to search engines; 0 = not stated" },
+    { name: "transitMinDays", label: "Delivery time from (days)", type: "number", fallback: 0, hint: "Dispatch to delivery, by courier" },
+    { name: "transitMaxDays", label: "Delivery time to (days)", type: "number", fallback: 0, hint: "Given to search engines with your products; 0 = not stated" },
   ],
   orders: [
     { name: "paymentReservationMinutes", label: "Payment reservation", type: "number", fallback: 30, hint: "Minutes stock is held for unpaid orders" },

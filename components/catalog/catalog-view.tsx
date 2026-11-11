@@ -5,6 +5,7 @@ import CatalogLayout from "@/components/catalog/catalog-layout";
 import CatalogSortSelect from "@/components/catalog/catalog-sort-select";
 import Pagination from "@/components/catalog/pagination";
 import ProductGrid from "@/components/catalog/product-grid";
+import Breadcrumbs, { type Crumb } from "@/components/seo/breadcrumbs";
 import { catalogHref } from "@/features/catalog/query-string";
 import { getCategories, getFeaturedProducts, searchCatalog } from "@/lib/catalog/query";
 import { CATALOG_PAGE_SIZE, CATALOG_SORT_LABELS } from "@/lib/constants/catalog";
@@ -17,10 +18,12 @@ type CatalogViewProps = {
   basePath: string;
   title: string;
   description?: string;
+  /** Trail above the heading (category pages); its structured data comes with it. */
+  breadcrumbs?: { origin: string; crumbs: Crumb[] };
 };
 
 /** Shared listing for /products, /categories/[slug] and search results. */
-export default async function CatalogView({ tenant, query, basePath, title, description }: CatalogViewProps) {
+export default async function CatalogView({ tenant, query, basePath, title, description, breadcrumbs }: CatalogViewProps) {
   const [result, categories] = await Promise.all([
     searchCatalog(tenant.id, tenant.salesMode, query),
     getCategories(tenant.id),
@@ -51,6 +54,7 @@ export default async function CatalogView({ tenant, query, basePath, title, desc
 
   return (
     <main className="catalog-page content-width">
+      {breadcrumbs ? <Breadcrumbs origin={breadcrumbs.origin} crumbs={breadcrumbs.crumbs} /> : null}
       <header className="catalog-header">
         <h1>{title}</h1>
         {description ? <p>{description}</p> : null}

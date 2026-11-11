@@ -4,8 +4,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { domain } from "next/root-params";
 import Paragraphs from "@/components/content/paragraphs";
+import Breadcrumbs from "@/components/seo/breadcrumbs";
 import JsonLd from "@/components/seo/json-ld";
 import { getPublishedGuide, getPublishedGuides } from "@/lib/content/guides";
+import { shareImage } from "@/lib/seo/images";
+import { pageMetadata } from "@/lib/seo/metadata";
+import { articleJsonLd, withContext } from "@/lib/seo/structured-data";
+import { storeOrigin } from "@/lib/seo/urls";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { BUILD_PLACEHOLDER_DOMAIN } from "@/lib/tenant/host";
 
@@ -19,66 +24,37 @@ export async function generateStaticParams() {
   return (guides.length ? guides.map((guide) => guide.slug) : ["placeholder"]).map((slug) => ({ slug }));
 }
 
+/** The published guide at this address; anything else shows the not-found page. */
 async function load(params: GuidePageProps["params"]) {
   const [{ slug }, tenant] = await Promise.all([params, getCurrentTenant()]);
-  return { tenant, guide: await getPublishedGuide(tenant.id, slug) };
+  const guide = await getPublishedGuide(tenant.id, slug);
+  if (!guide) notFound();
+  return { tenant, guide };
 }
 
 export async function generateMetadata({ params }: GuidePageProps): Promise<Metadata> {
-  const { guide } = await load(params);
-  if (!guide) return { title: "Guide not found" };
-  return {
+  const { tenant, guide } = await load(params);
+  return pageMetadata(tenant, {
     title: guide.title,
     description: guide.excerpt || undefined,
-    alternates: { canonical: `/guides/${guide.slug}` },
-    openGraph: {
-      type: "article",
-      title: guide.title,
-      description: guide.excerpt || undefined,
-      publishedTime: guide.publishedAt,
-      modifiedTime: guide.updatedAt,
-      images: guide.coverImage ? [{ url: guide.coverImage.url, alt: guide.coverAlt }] : undefined,
-    },
-  };
+    path: `/guides/${guide.slug}`,
+    type: "article",
+    publishedTime: guide.publishedAt,
+    modifiedTime: guide.updatedAt,
+    images: guide.coverImage ? [shareImage(guide.coverImage.url, guide.coverAlt || guide.title)] : undefined,
+  });
 }
 
 export default async function GuidePage({ params }: GuidePageProps) {
   const { tenant, guide } = await load(params);
-  if (!guide) notFound();
-  const origin = `https://${tenant.primaryDomain}`;
 
   return (
     <main className="guide-article content-width">
-      <JsonLd
-        data={[
-          {
-            "@context": "https://schema.org",
-            "@type": "Article",
-            headline: guide.title,
-            ...(guide.excerpt ? { description: guide.excerpt } : {}),
-            ...(guide.coverImage ? { image: [guide.coverImage.url] } : {}),
-            datePublished: guide.publishedAt,
-            dateModified: guide.updatedAt,
-            author: { "@type": "Organization", name: tenant.name, url: origin },
-            publisher: { "@type": "Organization", name: tenant.name, ...(tenant.branding.logoUrl ? { logo: { "@type": "ImageObject", url: tenant.branding.logoUrl } } : {}) },
-            mainEntityOfPage: `${origin}/guides/${guide.slug}`,
-          },
-          {
-            "@context": "https://schema.org",
-            "@type": "BreadcrumbList",
-            itemListElement: [
-              { "@type": "ListItem", position: 1, name: "Home", item: `${origin}/` },
-              { "@type": "ListItem", position: 2, name: "Buying guides", item: `${origin}/guides` },
-              { "@type": "ListItem", position: 3, name: guide.title },
-            ],
-          },
-        ]}
+      <JsonLd data={withContext(articleJsonLd(tenant, guide))} />
+      <Breadcrumbs
+        origin={storeOrigin(tenant)}
+        crumbs={[{ name: "Home", href: "/" }, { name: "Buying guides", href: "/guides" }, { name: guide.title }]}
       />
-      <nav className="breadcrumbs" aria-label="Breadcrumb">
-        <Link href="/">Home</Link>
-        <span aria-hidden="true">/</span>
-        <Link href="/guides">Buying guides</Link>
-      </nav>
       <header className="guide-article__header">
         <h1>{guide.title}</h1>
         {guide.excerpt ? <p className="guide-article__excerpt">{guide.excerpt}</p> : null}

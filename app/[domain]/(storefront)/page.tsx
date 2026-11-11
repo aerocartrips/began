@@ -35,6 +35,8 @@ import {
   getQuickPicks,
 } from "@/lib/catalog/home";
 import { HOME_SECTION_TYPES as T, PRODUCT_TAB_LABELS } from "@/lib/constants/homepage";
+import { shareImage } from "@/lib/seo/images";
+import { pageMetadata, siteNameOf } from "@/lib/seo/metadata";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { logger } from "@/lib/utils/logger";
 import type { HomeSection as HomeSectionConfig, ProductTabKey } from "@/features/homepage/types";
@@ -58,17 +60,18 @@ async function safely<T>(section: string, load: () => Promise<T>, fallback: T): 
 
 export async function generateMetadata(): Promise<Metadata> {
   const tenant = await getCurrentTenant();
-  const { siteTitle, tagline, description, heroImageUrl } = tenant.branding;
+  const { tagline, heroImageUrl } = tenant.branding;
+  const siteName = siteNameOf(tenant);
   const banners = await safely("banners", () => getLiveBanners(tenant.id), []);
-  const title = tagline ? `${siteTitle} – ${tagline}` : siteTitle;
-  const image = banners[0]?.image.url || heroImageUrl;
-  return {
-    title: { absolute: title },
-    description: description || undefined,
-    alternates: { canonical: "/" },
-    openGraph: { title, description: description || undefined, url: "/", type: "website", images: image ? [{ url: image }] : undefined },
-    twitter: { card: image ? "summary_large_image" : "summary", title, description: description || undefined, images: image ? [image] : undefined },
-  };
+  const banner = banners[0];
+  const image = banner ? shareImage(banner.image.url, banner.imageAlt || banner.title) : heroImageUrl ? shareImage(heroImageUrl, siteName) : null;
+  return pageMetadata(tenant, {
+    // The home page title carries the site name and what the store is about.
+    title: tagline ? `${siteName} – ${tagline}` : siteName,
+    absoluteTitle: true,
+    path: "/",
+    images: image ? [image] : undefined,
+  });
 }
 
 /** Store headline and hero image, shown when the store has no live banners. */

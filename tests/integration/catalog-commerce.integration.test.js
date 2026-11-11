@@ -30,6 +30,8 @@ beforeAll(async () => {
     Order: (await import("@/lib/db/models/Order")).Order,
     StockMovement: (await import("@/lib/db/models/StockMovement")).StockMovement,
     ...(await import("@/lib/services/quote.service")),
+    ...(await import("@/lib/services/product.service")),
+    ...(await import("@/lib/services/category.service")),
   };
   await Promise.all([m.Product.syncIndexes(), m.Category.syncIndexes()]);
   // Request contexts hold the public view of a store (as withDatabase sets it), not the raw document.
@@ -141,6 +143,48 @@ describe("catalogue search", () => {
     const result = await m.searchCatalog(retail.id, "retail", m.parseCatalogQuery({}));
     expect(result.items.map((item) => item.name)).toEqual(["Retail Only Linen"]);
     expect(result.items[0]).toMatchObject({ price: 1000, compareAtPrice: 1200, minimumQuantity: 1 });
+  });
+});
+
+describe("renamed products and categories keep their old addresses", () => {
+  it("redirects a product's earlier slugs to its current one, in its own store only", async () => {
+    const { product: renamed } = await m.runWithTenant(wholesale, async () => {
+      const created = await m.Product.create({
+        name: "Kora Organza",
+        slug: "kora-organza",
+        sku: "SKU-w-rename",
+        category: product.category,
+        price: 1000,
+        wholesalePrice: 700,
+        minimumOrderQuantity: 1,
+        stockQuantity: 5,
+        status: "active",
+      });
+      await m.updateProduct(created._id, { slug: "kora-organza-gold" });
+      return { product: await m.updateProduct(created._id, { slug: "kora-organza-zari" }) };
+    });
+    expect(renamed.slug).toBe("kora-organza-zari");
+    expect(renamed.previousSlugs).toEqual(["kora-organza", "kora-organza-gold"]);
+    expect(await m.findMovedProductSlug(wholesale.id, "kora-organza")).toBe("kora-organza-zari");
+    expect(await m.findMovedProductSlug(wholesale.id, "KORA-ORGANZA-GOLD")).toBe("kora-organza-zari");
+    expect(await m.findMovedProductSlug(retail.id, "kora-organza")).toBeNull();
+    expect(await m.getProductDetail(wholesale.id, "wholesale", "kora-organza")).toBeNull();
+
+    // Moving back to an earlier slug takes it off the redirect list.
+    const restored = await m.runWithTenant(wholesale, () => m.updateProduct(renamed._id, { slug: "kora-organza" }));
+    expect(restored.previousSlugs).toEqual(["kora-organza-gold", "kora-organza-zari"]);
+    expect(await m.findMovedProductSlug(wholesale.id, "kora-organza")).toBeNull();
+  });
+
+  it("redirects a renamed category's old slug, which follows its name", async () => {
+    const category = await m.runWithTenant(wholesale, async () => {
+      const created = await m.createCategory({ name: "Kora Weaves" });
+      return m.updateCategory(created._id, { name: "Kora Silk Weaves" });
+    });
+    expect(category.slug).toBe("kora-silk-weaves");
+    expect(category.previousSlugs).toEqual(["kora-weaves"]);
+    expect(await m.findMovedCategorySlug(wholesale.id, "kora-weaves")).toBe("kora-silk-weaves");
+    expect(await m.findMovedCategorySlug(retail.id, "kora-weaves")).toBeNull();
   });
 });
 

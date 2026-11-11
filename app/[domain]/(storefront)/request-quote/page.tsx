@@ -3,12 +3,19 @@ import { notFound } from "next/navigation";
 import RequestQuoteClient, { type QuoteLine } from "@/features/quotes/request-quote-client";
 import { getProductDetail } from "@/lib/catalog/query";
 import { getCurrentAccountUser } from "@/lib/auth/current-customer";
+import { pageMetadata, siteNameOf } from "@/lib/seo/metadata";
 import { getCurrentTenant } from "@/lib/tenant/current";
 
-export const metadata: Metadata = {
-  title: "Request a quote",
-  description: "Request wholesale pricing for the products and quantities you need.",
-};
+/** Wholesale stores only. Prefilled versions (?product=…) share the plain page's canonical URL. */
+export async function generateMetadata(): Promise<Metadata> {
+  const tenant = await getCurrentTenant();
+  if (tenant.salesMode !== "wholesale") notFound();
+  return pageMetadata(tenant, {
+    title: "Request a quote",
+    description: `Request wholesale prices from ${siteNameOf(tenant)} for the sarees and quantities you need.`,
+    path: "/request-quote",
+  });
+}
 
 type RequestQuotePageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 

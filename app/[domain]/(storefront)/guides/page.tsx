@@ -1,18 +1,22 @@
 import type { Metadata } from "next";
 import GuideCard from "@/components/guides/guide-card";
 import { getPublishedGuides } from "@/lib/content/guides";
+import { shareImage } from "@/lib/seo/images";
+import { pageMetadata, siteNameOf } from "@/lib/seo/metadata";
 import { getCurrentTenant } from "@/lib/tenant/current";
 
 export async function generateMetadata(): Promise<Metadata> {
   const tenant = await getCurrentTenant();
   const guides = await getPublishedGuides(tenant.id);
-  return {
+  const cover = guides.find((guide) => guide.coverImage);
+  return pageMetadata(tenant, {
     title: "Buying guides",
-    description: `Fabric, weave and care guides from ${tenant.name}.`,
-    alternates: { canonical: "/guides" },
+    description: `Fabric, weave and care guides from ${siteNameOf(tenant)}: know your sarees before you buy.`,
+    path: "/guides",
     // An empty index adds nothing for search engines.
-    robots: guides.length ? undefined : { index: false, follow: true },
-  };
+    robots: guides.length ? "index" : "noindex",
+    images: cover?.coverImage ? [shareImage(cover.coverImage.url, cover.coverAlt || cover.title)] : undefined,
+  });
 }
 
 export default async function GuidesPage() {

@@ -3,6 +3,10 @@ import Image from "next/image";
 import AccountNav from "@/features/account/components/account-nav";
 import { AccountShellSkeleton } from "@/features/account/components/account-skeletons";
 import { requireAccountUser } from "@/lib/auth/current-customer";
+import { ROBOTS_PRIVATE } from "@/lib/seo/robots";
+
+/** Signed-in pages are never indexed (robots.txt also keeps crawlers out of /account). */
+export const metadata = { robots: ROBOTS_PRIVATE };
 
 async function AccountFrame({ children }: { children: ReactNode }) {
   const user = await requireAccountUser();

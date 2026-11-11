@@ -1,16 +1,22 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import ProductDetailClient from "@/components/catalog/product-detail-client";
 import ProductDetails from "@/components/catalog/product-details";
 import ProductRail from "@/components/catalog/product-rail";
 import RecentlyViewed from "@/components/catalog/recently-viewed";
 import ProductReviewsSection from "@/components/reviews/product-reviews-section";
+import Breadcrumbs from "@/components/seo/breadcrumbs";
 import JsonLd from "@/components/seo/json-ld";
+import { categoryTrail } from "@/lib/catalog/category-tree";
 import { purchaseTerms } from "@/lib/catalog/purchase-terms";
-import { getPopularProductSlugs, getProductDetail, getRelatedProducts } from "@/lib/catalog/query";
+import { findMovedProductSlug, getCategories, getPopularProductSlugs, getProductDetail, getRelatedProducts } from "@/lib/catalog/query";
 import { getProductReviewPreview } from "@/lib/catalog/reviews";
 import { getStorePolicies } from "@/lib/content/pages";
+import { productDescription } from "@/lib/seo/descriptions";
+import { shareImage } from "@/lib/seo/images";
+import { pageMetadata, type SeoImage } from "@/lib/seo/metadata";
+import { productJsonLd } from "@/lib/seo/structured-data";
+import { storeOrigin } from "@/lib/seo/urls";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { BUILD_PLACEHOLDER_DOMAIN } from "@/lib/tenant/host";
 import { domain } from "next/root-params";
@@ -27,38 +33,47 @@ export async function generateStaticParams() {
   return (slugs.length ? slugs : ["placeholder"]).map((slug) => ({ slug }));
 }
 
+/**
+ * The product at this address (slugs arrive lower-cased by proxy.ts). Unknown
+ * slugs show the not-found page, and a renamed product's old slug redirects
+ * permanently to its current URL. Once a response has begun streaming (this
+ * route has a loading skeleton), Next.js sends these as a noindex tag and an
+ * instant redirect tag instead of a 404 or 308 status; search engines treat
+ * both the same way.
+ */
 async function loadProduct(slug: string) {
   const tenant = await getCurrentTenant();
   const product = await getProductDetail(tenant.id, tenant.salesMode, slug);
+  if (!product) {
+    const moved = await findMovedProductSlug(tenant.id, slug);
+    if (moved) permanentRedirect(`/products/${moved}`);
+    notFound();
+  }
   return { tenant, product };
 }
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
-  const { slug } = await params;
-  const { product } = await loadProduct(slug);
-  if (!product) return { title: "Product not found" };
-  return {
+  const { tenant, product } = await loadProduct((await params).slug);
+  const cover = product.images[0];
+  // A 1200×630 card for link previews first, then the full portrait photo (Pinterest prefers tall images).
+  const images: SeoImage[] = cover ? [shareImage(cover.url, cover.alt), { url: cover.url, alt: cover.alt }] : [];
+  return pageMetadata(tenant, {
     title: product.seoTitle,
-    description: product.seoDescription || undefined,
-    alternates: { canonical: `/products/${product.slug}` },
-    openGraph: {
-      title: product.seoTitle,
-      description: product.seoDescription || undefined,
-      images: product.images.slice(0, 1).map((image) => ({ url: image.url, alt: image.alt })),
-    },
-  };
+    description: productDescription(tenant, product),
+    path: `/products/${product.slug}`,
+    images: images.filter((image, index) => images.findIndex((other) => other.url === image.url) === index),
+  });
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
-  const { slug } = await params;
-  const { tenant, product } = await loadProduct(slug);
-  if (!product) notFound();
+  const { tenant, product } = await loadProduct((await params).slug);
 
   // All cached per store; none of them waits for another.
-  const [related, reviewPreview, policies] = await Promise.all([
+  const [related, reviewPreview, policies, categories] = await Promise.all([
     getRelatedProducts(tenant.id, tenant.salesMode, product.id, product.category?.slug ?? null),
     getProductReviewPreview(tenant.id, product.id),
     getStorePolicies(tenant.id),
+    getCategories(tenant.id),
   ]);
   const terms = purchaseTerms(policies, {
     salesMode: tenant.salesMode,
@@ -66,55 +81,21 @@ export default async function ProductPage({ params }: ProductPageProps) {
     hasGstin: Boolean(tenant.business.gstin),
   });
 
-  const url = `https://${tenant.primaryDomain}/products/${product.slug}`;
-  const structuredData = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: product.name,
-    sku: product.sku,
-    description: product.seoDescription || product.shortDescription,
-    image: product.images.map((image) => image.url),
-    brand: { "@type": "Brand", name: tenant.name },
-    ...(product.category ? { category: product.category.name } : {}),
-    offers: {
-      "@type": "Offer",
-      priceCurrency: "INR",
-      price: product.price,
-      availability: product.inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-      url,
-      ...(product.minimumQuantity > 1
-        ? { eligibleQuantity: { "@type": "QuantitativeValue", minValue: product.minimumQuantity, unitCode: "C62" } }
-        : {}),
-    },
-    ...(product.rating.count > 0
-      ? {
-          aggregateRating: { "@type": "AggregateRating", ratingValue: product.rating.average, reviewCount: product.rating.count },
-          review: reviewPreview.reviews.slice(0, 5).map((review) => ({
-            "@type": "Review",
-            author: { "@type": "Person", name: review.authorName ?? "Verified buyer" },
-            datePublished: review.createdAt?.slice(0, 10),
-            reviewRating: { "@type": "Rating", ratingValue: review.rating, bestRating: 5 },
-            ...(review.title ? { name: review.title } : {}),
-            reviewBody: review.comment,
-          })),
-        }
-      : {}),
-  };
+  // The category and its parents, as in the catalogue's own breadcrumbs.
+  const trail = product.category ? categoryTrail(categories, product.category.slug) : [];
+  const crumbs = [
+    { name: "Catalogue", href: "/products" },
+    ...(trail.length ? trail : product.category ? [product.category] : []).map((category) => ({
+      name: category.name,
+      href: `/categories/${category.slug}`,
+    })),
+    { name: product.name },
+  ];
 
   return (
     <main className="product-detail-page content-width">
-      <JsonLd data={structuredData} />
-      <nav className="breadcrumbs" aria-label="Breadcrumb">
-        <Link href="/products">Catalogue</Link>
-        {product.category ? (
-          <>
-            <span aria-hidden="true">/</span>
-            <Link href={`/categories/${product.category.slug}`}>{product.category.name}</Link>
-          </>
-        ) : null}
-        <span aria-hidden="true">/</span>
-        <span aria-current="page">{product.name}</span>
-      </nav>
+      <JsonLd data={productJsonLd({ tenant, product, reviews: reviewPreview.reviews, policies })} />
+      <Breadcrumbs origin={storeOrigin(tenant)} crumbs={crumbs} />
 
       <ProductDetailClient
         product={product}

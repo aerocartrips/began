@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FileText, Share2, ShoppingBag, Zap } from "lucide-react";
@@ -17,6 +17,7 @@ import { cartActions } from "@/features/cart/cart-store";
 import { recordProductView } from "@/features/catalog/recently-viewed";
 import { MEANINGFUL_VIEW_MS, trackProductActivity } from "@/features/catalog/activity";
 import { compareAtPriceFor, unitPriceFor } from "@/lib/catalog/pricing";
+import { VARIANT_PARAM, variantFromParam, variantParamValues } from "@/lib/catalog/variant-url";
 import { formatNumber, formatRupees } from "@/lib/format";
 import type { PurchaseTerm } from "@/lib/catalog/purchase-terms";
 import type { CatalogImage, ProductDetailData, ProductVariantData } from "@/features/catalog/types";
@@ -41,6 +42,14 @@ function photosFor(product: ProductDetailData, variant: ProductVariantData | nul
 
 const percentOff = (price: number, base: number) => (base > price && base > 0 ? Math.round((1 - price / base) * 100) : 0);
 
+/** The page address's `?color=` (null while server rendering and hydrating). */
+const subscribeToHistory = (onChange: () => void) => {
+  window.addEventListener("popstate", onChange);
+  return () => window.removeEventListener("popstate", onChange);
+};
+const linkedColour = () => new URLSearchParams(window.location.search).get(VARIANT_PARAM);
+const noLinkedColour = () => null;
+
 /** Gallery + purchase panel: choosing a colour changes photos, SKU, stock and price. */
 export default function ProductDetailClient({ product, salesMode, lowStockThreshold, terms }: ProductDetailClientProps) {
   const { pricing } = product;
@@ -49,8 +58,13 @@ export default function ProductDetailClient({ product, salesMode, lowStockThresh
   const isWholesale = salesMode === "wholesale";
   const minimum = product.minimumQuantity;
   const defaultVariant = product.variants.find((variant) => variant.stock >= minimum) ?? product.variants[0] ?? null;
-  const [variantId, setVariantId] = useState<string | null>(defaultVariant?.id ?? null);
-  const variant = product.variants.find((entry) => entry.id === variantId) ?? null;
+  // Each colour has its own address (?color=…, lib/catalog/variant-url.js): a link to one opens on it,
+  // and choosing a colour updates the address, so shared links and search results land on that colour.
+  const linkedVariant = variantFromParam(product.variants, useSyncExternalStore(subscribeToHistory, linkedColour, noLinkedColour));
+  const [pickedId, setPickedId] = useState<string | null>(null);
+  const variant =
+    product.variants.find((entry) => entry.id === pickedId) ?? linkedVariant ?? defaultVariant ?? null;
+  const variantId = variant?.id ?? null;
   const stock = variant ? variant.stock : product.stock;
   const [quantity, setQuantity] = useState(minimum);
   const safeQuantity = Math.max(minimum, Math.min(quantity, Math.max(stock, minimum)));
@@ -122,6 +136,16 @@ export default function ProductDetailClient({ product, salesMode, lowStockThresh
     }
   }
 
+  function chooseVariant(id: string) {
+    setPickedId(id);
+    const value = variantParamValues(product.variants).get(id);
+    if (!value) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set(VARIANT_PARAM, value);
+    // Next.js keeps its router in step with replaceState; no navigation, no new history entry.
+    window.history.replaceState(null, "", url);
+  }
+
   /** Radio group keys: arrows move the selection, as in a native radio group. */
   function onSwatchKey(event: KeyboardEvent<HTMLDivElement>) {
     const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
@@ -129,7 +153,7 @@ export default function ProductDetailClient({ product, salesMode, lowStockThresh
     event.preventDefault();
     const current = Math.max(0, product.variants.findIndex((entry) => entry.id === variantId));
     const next = (current + step + product.variants.length) % product.variants.length;
-    setVariantId(product.variants[next].id);
+    chooseVariant(product.variants[next].id);
     swatchesRef.current?.querySelectorAll<HTMLButtonElement>("[role=radio]")[next]?.focus();
   }
 
@@ -231,7 +255,7 @@ export default function ProductDetailClient({ product, salesMode, lowStockThresh
                     aria-label={`${entry.colorName}${available ? "" : " (out of stock)"}`}
                     title={entry.colorName}
                     className={`variant-swatch${available ? "" : " is-unavailable"}`}
-                    onClick={() => setVariantId(entry.id)}
+                    onClick={() => chooseVariant(entry.id)}
                   >
                     <span style={{ backgroundColor: entry.colorHex }} />
                   </button>

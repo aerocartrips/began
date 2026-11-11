@@ -9,6 +9,8 @@
 
 .catalog-page { padding: 40px 0 96px; }
 .catalog-header { margin-bottom: 24px; }
+.catalog-page > .breadcrumbs { margin-bottom: 14px; font-size: 12px; }
+.catalog-page > .breadcrumbs [aria-current="page"] { color: var(--color-text); }
 .catalog-header h1 { margin: 0; font-family: var(--heading-font); font-size: clamp(26px, 3vw, 38px); font-weight: 400; }
 .catalog-header p { max-width: 720px; margin: 8px 0 0; color: var(--color-text-muted); font-size: 14px; line-height: 1.7; }
 .catalog-layout { display: grid; grid-template-columns: 272px minmax(0, 1fr); align-items: start; gap: 32px; }

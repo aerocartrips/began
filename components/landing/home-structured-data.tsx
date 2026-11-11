@@ -1,38 +1,15 @@
 import JsonLd from "@/components/seo/json-ld";
+import { getStorePolicies } from "@/lib/content/pages";
+import { graph, organizationJsonLd, websiteJsonLd } from "@/lib/seo/structured-data";
 import type { PublicTenant } from "@/lib/tenant/types";
 
 /**
- * Organization and WebSite (with site search) structured data, from the
- * store's own settings only. No product or rating markup here: those belong
- * on product pages, where the data is shown in full.
+ * The store (OnlineStore, with its return and shipping policies) and the site
+ * (WebSite, for the site name in results), linked by @id. Home page only, as
+ * Google asks. No SearchAction: Google retired the sitelinks search box in
+ * November 2024. Product and rating markup belongs on product pages.
  */
-export default function HomeStructuredData({ tenant }: { tenant: PublicTenant }) {
-  const origin = `https://${tenant.primaryDomain}`;
-  const name = tenant.branding.siteTitle || tenant.name;
-  const sameAs = Object.values(tenant.contact.social ?? {}).filter((url): url is string => Boolean(url?.startsWith("https://")));
-  const data = [
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      name,
-      url: origin,
-      ...(tenant.business.legalName ? { legalName: tenant.business.legalName } : {}),
-      ...(tenant.branding.logoUrl ? { logo: tenant.branding.logoUrl } : {}),
-      ...(tenant.contact.email ? { email: tenant.contact.email } : {}),
-      ...(tenant.contact.phone ? { telephone: tenant.contact.phone } : {}),
-      ...(sameAs.length ? { sameAs } : {}),
-    },
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      name,
-      url: origin,
-      potentialAction: {
-        "@type": "SearchAction",
-        target: { "@type": "EntryPoint", urlTemplate: `${origin}/search?q={search_term_string}` },
-        "query-input": "required name=search_term_string",
-      },
-    },
-  ];
-  return <JsonLd data={data} />;
+export default async function HomeStructuredData({ tenant }: { tenant: PublicTenant }) {
+  const policies = await getStorePolicies(tenant.id);
+  return <JsonLd data={graph([organizationJsonLd(tenant, policies), websiteJsonLd(tenant)])} />;
 }

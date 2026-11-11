@@ -4,6 +4,7 @@ import { Cinzel_Decorative, Montserrat } from "next/font/google";
 import { TenantProvider } from "@/features/tenant/tenant-provider";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { listBuildTimeDomains } from "@/lib/tenant/build";
+import { rootMetadata } from "@/lib/seo/metadata";
 import { themeToCssVariables } from "@/lib/tenant/theme";
 import "../globals.css";
 import "../catalog.css";
@@ -36,16 +37,9 @@ export async function generateStaticParams() {
   return (await listBuildTimeDomains()).map((domain) => ({ domain }));
 }
 
+/** Store-wide head defaults (lib/seo/metadata.ts); every page adds its own title, canonical and share data. */
 export async function generateMetadata(): Promise<Metadata> {
-  const tenant = await getCurrentTenant();
-  const { siteTitle, description, faviconUrl } = tenant.branding;
-  return {
-    metadataBase: new URL(`https://${tenant.primaryDomain}`),
-    title: { default: siteTitle, template: `%s | ${siteTitle}` },
-    description: description || undefined,
-    icons: faviconUrl ? { icon: faviconUrl } : undefined,
-    openGraph: { siteName: siteTitle, locale: "en_IN", type: "website" },
-  };
+  return rootMetadata(await getCurrentTenant());
 }
 
 export default async function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

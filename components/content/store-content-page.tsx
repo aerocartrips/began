@@ -1,33 +1,27 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getStorePage } from "@/lib/content/pages";
+import { pageMetadata } from "@/lib/seo/metadata";
+import { faqJsonLd, withContext } from "@/lib/seo/structured-data";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import JsonLd from "@/components/seo/json-ld";
 import Paragraphs from "@/components/content/paragraphs";
 
-export async function storePageMetadata(slug: string): Promise<Metadata> {
-  const tenant = await getCurrentTenant();
-  const page = await getStorePage(tenant.id, slug);
-  if (!page) return {};
-  return { title: page.title, description: page.summary || undefined, alternates: { canonical: `/${slug}` } };
-}
-
-export default async function StoreContentPage({ slug }: { slug: string }) {
+async function loadPage(slug: string) {
   const tenant = await getCurrentTenant();
   const page = await getStorePage(tenant.id, slug);
   if (!page) notFound();
+  return { tenant, page };
+}
 
-  const faqData = page.faqs.length
-    ? {
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
-        mainEntity: page.faqs.map((faq) => ({
-          "@type": "Question",
-          name: faq.question,
-          acceptedAnswer: { "@type": "Answer", text: faq.answer },
-        })),
-      }
-    : null;
+export async function storePageMetadata(slug: string): Promise<Metadata> {
+  const { tenant, page } = await loadPage(slug);
+  return pageMetadata(tenant, { title: page.title, description: page.summary || undefined, path: `/${slug}` });
+}
+
+export default async function StoreContentPage({ slug }: { slug: string }) {
+  const { page } = await loadPage(slug);
+  const faqData = page.faqs.length ? withContext(faqJsonLd(page.faqs)) : null;
 
   return (
     <main className="content-page content-width">

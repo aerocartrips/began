@@ -42,4 +42,9 @@ export type PublicTenant = {
   };
   notificationEmail: string;
   razorpayKeyId: string;
+  /** Search engine ownership tokens, rendered as verification <meta> tags. */
+  seo: {
+    googleSiteVerification: string;
+    bingSiteVerification: string;
+  };
 };

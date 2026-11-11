@@ -94,7 +94,12 @@ export type CategorySummary = {
   slug: string;
   description: string;
   imageUrl: string;
+  /** Parent category, or null for a top-level one. */
+  parentId: string | null;
+  /** Active products directly in this category (subcategories not included; see subtreeTotals). */
   productCount: number;
+  /** Latest change to the category or one of its products (ISO), for sitemaps. */
+  lastModified: string | null;
 };
 
 /** A top-level category on the home page "catalogue at a glance". */

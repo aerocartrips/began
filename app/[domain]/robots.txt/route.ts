@@ -1,12 +1,13 @@
-import { storeOrigin, tenantForDomain } from "@/lib/seo/sitemap";
+import { robotsTxt } from "@/lib/seo/robots";
+import { tenantForDomain } from "@/lib/seo/sitemap";
 
-const PRIVATE_PATHS = ["/admin", "/account", "/cart", "/checkout", "/wishlist", "/api/"];
-
-/** robots.txt for the store on this domain; unknown hosts are not indexed. */
+/** robots.txt for the store on this domain (lib/seo/robots.js); hosts without a store are not crawled. */
 export async function GET(_request: Request, { params }: { params: Promise<{ domain: string }> }) {
   const tenant = await tenantForDomain((await params).domain);
-  const body = tenant
-    ? ["User-agent: *", "Allow: /", ...PRIVATE_PATHS.map((path) => `Disallow: ${path}`), "", `Sitemap: ${storeOrigin(tenant)}/sitemap.xml`].join("\n")
-    : "User-agent: *\nDisallow: /";
-  return new Response(`${body}\n`, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=3600" } });
+  return new Response(robotsTxt(tenant), {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400",
+    },
+  });
 }

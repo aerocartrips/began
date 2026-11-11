@@ -60,9 +60,27 @@ The storefront is server-rendered and built for 10k–50k products per store:
 - Search uses a weighted text index with a name-prefix fallback ("bana" finds Banarasi). Header autocomplete shows photos and prices.
 - Colours are variants of one product (own SKU, stock and photos). Stock is reserved atomically per variant.
 - Attribute values (fabric, weave, occasion, pattern, colour) come from per-store lists (Admin → Attributes), so filters stay consistent.
-- Per-store `sitemap.xml` (an index with 10,000-URL product sitemaps), `robots.txt`, canonical URLs, and Product/FAQ structured data.
+- Search engines: see [SEO](#seo).
 
 Cart and checkout keep only `{productId, variantId, quantity}` in the browser. Prices, tiers, MOQ, stock, GST and shipping always come from the server (`POST /api/v1/cart/price`), using the same rules as order creation (`lib/catalog/pricing.js`).
+
+## SEO
+
+Built to Google Search Central's documentation; all of it lives in `lib/seo/` and runs per store.
+
+- **Head tags.** Every page gets its metadata from `pageMetadata` (`lib/seo/metadata.ts`): title, description, an absolute canonical on the primary domain, robots rules (`max-image-preview:large` on indexable pages), and complete Open Graph and X cards (1200×630 share images cut by Cloudinary). Search and link-preview crawlers, Googlebot included, receive metadata in the initial `<head>` (`htmlLimitedBots` in `next.config.mjs`); Google reads `rel="canonical"` only there.
+- **What is indexed.** Products, categories, the catalogue and each of its pages (`?page=N` is its own canonical), guides and content pages. Searches, filters and sorts are `noindex` and blocked in `robots.txt`, as Google advises for faceted navigation. Carts, checkout, accounts, the admin and newsletter links are never indexed.
+- **Structured data** (`lib/seo/structured-data.js`): `OnlineStore` with its return and shipping policies and `WebSite` on the home page; `Product` (or `ProductGroup` with one URL per colour, `?color=`) with offers, minimum order, strikethrough sale price, shipping, returns, ratings and reviews on product pages; `BreadcrumbList` on product, category and guide pages; `Article` on guides; `FAQPage` on the FAQ.
+- **Sitemaps.** `/sitemap.xml` is an index of `pages.xml` and `products-N.xml` (2,000 products per file, with their photos as image entries); `<lastmod>` is the real time of the last change.
+- **Addresses.** Product, category and guide URLs are lower case (`proxy.ts` redirects other spellings with a 308). Renaming a product's slug or a category keeps the old URL working with a permanent redirect. Pages that don't exist show the not-found page with `noindex` (a 404 status where the response hasn't started streaming).
+- **Favicons.** The store's favicon is served as square PNGs (Google shows only square icons); stores without one get their initial on their brand colour (`app/[domain]/icons`).
+
+**For each store, once it is live:**
+
+1. Admin → Store settings → SEO: paste the Google Search Console and Bing Webmaster Tools verification codes (HTML tag method), then verify there and submit `https://<primary domain>/sitemap.xml`.
+2. Admin → Store settings → Tax & shipping: check the dispatch and delivery times (search engines show them with products; the default shipping policy quotes the dispatch time).
+3. Point any other domains (e.g. `www.`) at the primary domain with a permanent redirect in your host's domain settings (Vercel → Domains → Redirect to). Canonical URLs already name the primary domain; a redirect is the stronger signal.
+4. Fill in the logo, social profiles and GSTIN under Store settings: they appear in the store's structured data.
 
 ## Admin
 

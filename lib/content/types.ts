@@ -24,4 +24,10 @@ export type StorePolicies = {
   lowStockThreshold: number;
   /** Minutes an unpaid order holds its stock while the shopper pays. */
   paymentReservationMinutes: number;
+  /** Working days from payment to dispatch; a maximum of 0 means not stated. */
+  dispatchMinDays: number;
+  dispatchMaxDays: number;
+  /** Days from dispatch to delivery; a maximum of 0 means not stated. */
+  transitMinDays: number;
+  transitMaxDays: number;
 };
