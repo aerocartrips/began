@@ -13,6 +13,11 @@ const LIMITS = {
   account: { limit: 5, windowMs: WINDOW_MS },
 };
 
+/**
+ * `data.user`: signed in. `data.verification`: the password was right but the
+ * email isn't verified yet; a code was emailed and the session opens once it
+ * is entered (POST /auth/verify-email).
+ */
 export const POST = withDatabase(async (request) => {
   const payload = await parseJsonBody(request);
   const email = typeof payload?.email === "string" ? payload.email.trim().toLowerCase().slice(0, 254) : "";
@@ -29,10 +34,10 @@ export const POST = withDatabase(async (request) => {
   }
 
   try {
-    const user = await loginUser(payload);
+    const result = await loginUser(payload);
     // The account's failures are forgotten once its owner signs in; the address limit stays.
     if (email) await clearRateLimit(`login:account:${email}`);
-    return successResponse(user, "Login successful.");
+    return successResponse(result, "verification" in result ? "Enter the code we emailed you to finish signing in." : "Login successful.");
   } catch (error) {
     // Only wrong credentials count, so shoppers who sign in often are never locked out.
     if (error instanceof ApiError && error.statusCode === 401) {

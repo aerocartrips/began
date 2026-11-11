@@ -46,13 +46,15 @@ Paid pre-shipment cancellations call Razorpay refund API when configured. Status
 
 ## Account management
 
-Pages live in the `app/(storefront)/account/(dashboard)` route group, which adds the shared sidebar and session check without changing URLs: `/account`, `/account/profile`, `/account/addresses`, `/account/security`, `/account/preferences`, `/account/settings` (plus orders, reviews, support). `/account/verify-email` sits outside the group because it works signed out.
+Pages live in the `app/(storefront)/account/(dashboard)` route group, which adds the shared sidebar and session check without changing URLs: `/account`, `/account/profile`, `/account/addresses`, `/account/security`, `/account/preferences`, `/account/settings` (plus orders, reviews, support).
+
+Email verification uses 6-digit codes, entered in the same tab (`components/auth/email-code-form.tsx`), so there is no verification page. The sign-in and register card switches to the code step when the API answers with `verification`, then continues to `next`. The profile page uses the same form to confirm a new address.
 
 | Endpoint | Purpose |
 |----------|---------|
 | `GET/PATCH /api/v1/account/profile` | Profile (first/last name, phone, business name, GSTIN). `name` is derived. |
 | `PUT/DELETE /api/v1/account/profile/avatar` | Profile photo (Cloudinary, 5 MB) |
-| `POST/DELETE /api/v1/account/email`, `POST /api/v1/account/email/verify` | Email verification or change, via a single-use link valid for 1 hour (needs `RESEND_API_KEY`, `NEXT_PUBLIC_APP_URL`) |
+| `POST/DELETE /api/v1/account/email`, `POST /api/v1/account/email/verify` | Change of email: a code goes to the new address (current password required; repeating the request resends it while the code is valid), `{ code }` confirms it and the old address gets a notice. Needs `RESEND_API_KEY` and `NOTIFY_EMAIL_FROM` |
 | `GET/POST /api/v1/account/addresses`, `PUT/DELETE /api/v1/account/addresses/:id`, `POST .../:id/default` | Address book (max 10) with separate shipping/billing defaults |
 | `GET/PATCH /api/v1/account/preferences` | Order, shipping and promotional email preferences (promotional is opt-in and timestamped) |
 | `POST /api/v1/account/password`, `GET /api/v1/account/security` | Password change (signs out other devices) and security activity |

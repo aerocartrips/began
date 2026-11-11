@@ -601,7 +601,6 @@ html:has(dialog[open]) { overflow: hidden; }
   .address-grid { grid-template-columns: minmax(0, 1fr); }
   .address-card { padding: 16px; }
   .address-card-actions { gap: 0 18px; }
-  .account-verify h2 { font-size: 21px; }
 
   /* Orders: the search box shows; status, sort and dates open from "Filters". */
   .orders-count { font-size: 11px; }

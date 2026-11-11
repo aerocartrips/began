@@ -59,7 +59,8 @@ describe("protected and auth paths", () => {
     expect(isProtectedPath("/account/orders/123")).toBe(true);
     expect(isProtectedPath("/account/login")).toBe(false);
     expect(isProtectedPath("/account/register")).toBe(false);
-    expect(isProtectedPath("/account/verify-email")).toBe(false);
+    expect(isProtectedPath("/account/forgot-password")).toBe(false);
+    expect(isProtectedPath("/account/reset-password")).toBe(false);
     expect(isProtectedPath("/accounts")).toBe(false);
     expect(isProtectedPath("/cart")).toBe(false);
   });

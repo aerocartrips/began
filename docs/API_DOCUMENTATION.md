@@ -52,11 +52,24 @@ Body:
 }
 ```
 
-Creates a customer account, sets auth cookies. `201 Created`.
+Creates a customer account. `201 Created`. Only verified email addresses get a session, so the answer is one of:
+
+- `data.verification`: `{ email, expiresAt, resendAt, error? }`. A 6-digit code was emailed (valid 10 minutes, 5 tries) and a short-lived `norosilk_verify` cookie (HttpOnly, path `/api/v1/auth`, 30 minutes) marks this browser. Finish with `POST /auth/verify-email`. `error` is set when the email could not be sent; ask for another with `POST /auth/verify-email/resend`.
+- `data.user`: signed in (auth cookies set). This happens only when the platform can't send email (`RESEND_API_KEY` / `NOTIFY_EMAIL_FROM` unset).
 
 ### `POST /auth/login`
 
 Body: `{ "email": "...", "password": "..." }`
+
+Same answers as register. A verified account gets `data.user` and the auth cookies. An account whose email isn't verified yet gets `data.verification`, after the password check: sessions issued earlier to such accounts are no longer accepted.
+
+### `POST /auth/verify-email`
+
+Body: `{ "code": "123456" }` (spaces and dashes are ignored). Needs the `norosilk_verify` cookie from register/login. The right code verifies the email, sets the auth cookies and returns `data.user`. A wrong one returns `422` with a `code` field error saying how many attempts are left. Every guess counts, and after 5 the code stops working. Limited to 10 attempts per IP address per 15 minutes.
+
+### `POST /auth/verify-email/resend`
+
+Needs the `norosilk_verify` cookie. Emails a new code (`data.verification`). Allowed once a minute (`429` with `Retry-After` before that) and 5 times an hour per account.
 
 ### `POST /auth/logout`
 

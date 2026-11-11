@@ -32,8 +32,10 @@ beforeAll(async () => {
     ...(await import("@/lib/services/quote.service")),
   };
   await Promise.all([m.Product.syncIndexes(), m.Category.syncIndexes()]);
-  wholesale = await m.Tenant.create({ slug: "w", name: "Wholesale Co", domains: ["w.test"], salesMode: "wholesale" });
-  retail = await m.Tenant.create({ slug: "r", name: "Retail Co", domains: ["r.test"], salesMode: "retail" });
+  // Request contexts hold the public view of a store (as withDatabase sets it), not the raw document.
+  const { toPublicTenant } = await import("@/lib/tenant/resolve");
+  wholesale = toPublicTenant((await m.Tenant.create({ slug: "w", name: "Wholesale Co", domains: ["w.test"], salesMode: "wholesale" })).toObject());
+  retail = toPublicTenant((await m.Tenant.create({ slug: "r", name: "Retail Co", domains: ["r.test"], salesMode: "retail" })).toObject());
 
   const catalogues = [
     [wholesale, ["Banarasi Silk Red", "Banarasi Silk Blue", "Cotton Daily"]],
@@ -75,14 +77,14 @@ describe("catalogue search", () => {
   it("derives totals from variants and returns facets for one store only", async () => {
     expect(product.stockQuantity).toBe(60);
     expect(product.colors).toEqual(["Red", "Gold"]);
-    const result = await m.searchCatalog(String(wholesale._id), "wholesale", m.parseCatalogQuery({}));
+    const result = await m.searchCatalog(wholesale.id, "wholesale", m.parseCatalogQuery({}));
     expect(result.total).toBe(3);
     expect(result.facets.fabric).toEqual(expect.arrayContaining([{ value: "Silk", count: 2 }, { value: "Cotton", count: 1 }]));
     expect(result.items.every((item) => item.price === 700 && item.minimumQuantity === 10)).toBe(true);
   });
 
   it("keeps counts for other values when one value of a filter is selected", async () => {
-    const result = await m.searchCatalog(String(wholesale._id), "wholesale", m.parseCatalogQuery({ fabric: "Cotton" }));
+    const result = await m.searchCatalog(wholesale.id, "wholesale", m.parseCatalogQuery({ fabric: "Cotton" }));
     expect(result.total).toBe(1);
     expect(result.facets.fabric.find((facet) => facet.value === "Silk")?.count).toBe(2);
   });
@@ -129,14 +131,14 @@ describe("catalogue search", () => {
   });
 
   it("matches word searches and name prefixes", async () => {
-    const words = await m.searchCatalog(String(wholesale._id), "wholesale", m.parseCatalogQuery({ q: "banarasi" }));
-    const prefix = await m.searchCatalog(String(wholesale._id), "wholesale", m.parseCatalogQuery({ q: "bana" }));
+    const words = await m.searchCatalog(wholesale.id, "wholesale", m.parseCatalogQuery({ q: "banarasi" }));
+    const prefix = await m.searchCatalog(wholesale.id, "wholesale", m.parseCatalogQuery({ q: "bana" }));
     expect(words.total).toBe(2);
     expect(prefix.total).toBe(2);
   });
 
   it("shows retail prices in a retail store and never another store's products", async () => {
-    const result = await m.searchCatalog(String(retail._id), "retail", m.parseCatalogQuery({}));
+    const result = await m.searchCatalog(retail.id, "retail", m.parseCatalogQuery({}));
     expect(result.items.map((item) => item.name)).toEqual(["Retail Only Linen"]);
     expect(result.items[0]).toMatchObject({ price: 1000, compareAtPrice: 1200, minimumQuantity: 1 });
   });

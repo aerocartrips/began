@@ -1,5 +1,6 @@
 import { apiRequest } from "@/lib/api/api-client";
 import { isClientApiError } from "@/lib/api/api-error";
+import type { EmailCodeState } from "@/features/auth/types/email-code";
 import type {
   AccountProfile,
   AddressBook,
@@ -41,11 +42,12 @@ export const accountApi = {
   },
   removeAvatar: () => send<{ avatarUrl: string }>("/api/v1/account/profile/avatar", "DELETE"),
 
+  /** Emails a code to `email` (the current address, or a new one with the current password). Repeat to resend. */
   requestEmailVerification: (body: { email: string; currentPassword?: string }) =>
-    send<{ pendingEmail: string; expiresAt: string }>("/api/v1/account/email", "POST", body),
+    send<EmailCodeState & { pendingEmail: string }>("/api/v1/account/email", "POST", body),
   cancelEmailChange: () => send<null>("/api/v1/account/email", "DELETE"),
-  confirmEmail: (token: string) =>
-    send<{ email: string; changed: boolean }>("/api/v1/account/email/verify", "POST", { token }),
+  confirmEmailCode: (code: string) =>
+    send<{ email: string; changed: boolean }>("/api/v1/account/email/verify", "POST", { code }),
 
   createAddress: (body: AddressInput & { makeDefaultShipping?: boolean; makeDefaultBilling?: boolean }) =>
     send<{ address: SavedAddress; book: AddressBook }>("/api/v1/account/addresses", "POST", body),

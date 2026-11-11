@@ -1438,6 +1438,7 @@ a.customer-review-product:hover { color: var(--color-brand); }
 .customer-auth-form .checkout-submit { width: 100%; margin-top: 4px; }
 .customer-auth-form .checkout-boundary { text-align: center; }
 .customer-auth-form .checkout-boundary a { color: var(--color-brand); font-weight: 700; }
+.customer-auth-form .checkout-boundary .account-link-button { padding: 0; font-size: inherit; }
 .auth-form-skeleton { display: grid; gap: 16px; }
 .auth-form-skeleton__field { display: grid; gap: 7px; }
 .auth-form-skeleton__label { width: 34%; height: 10px; }
@@ -1753,9 +1754,6 @@ a.customer-review-product:hover { color: var(--color-brand); }
 .account-danger-button.button-glass { border-color: #f1c7c7; color: #b42318; }
 .account-danger-button.button-glass:hover { background: #fff5f5; }
 .account-panel textarea { min-height: 88px; }
-
-.account-verify-page .notice-card, .account-verify { max-width: 560px; }
-.account-verify h2 { margin: 0 0 10px; font-family: var(--heading-font); font-size: 19px; font-weight: 400; }
 
 /* Dialog */
 .account-dialog { width: min(600px, calc(100% - 32px)); max-height: min(90vh, 860px); padding: 0; border: 1px solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); color: var(--color-text); box-shadow: 0 30px 80px rgba(17, 24, 39, .22); }

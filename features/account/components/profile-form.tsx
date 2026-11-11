@@ -4,12 +4,14 @@ import Image from "next/image";
 import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { BadgeCheck, Camera, Mail, Trash2 } from "lucide-react";
+import EmailCodeForm from "@/components/auth/email-code-form";
 import { useFeedback } from "@/components/feedback/feedback-provider";
 import Button from "@/components/ui/button";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import { PasswordField, TextField } from "@/components/ui/form/text-field";
 import { accountApi, toFieldErrors } from "@/features/account/account-api";
 import type { AccountCapabilities, AccountProfile, FieldErrors } from "@/features/account/types";
+import type { EmailCodeState } from "@/features/auth/types/email-code";
 
 type ProfileFormProps = {
   initialProfile: AccountProfile;
@@ -33,6 +35,12 @@ export default function ProfileForm({ initialProfile, capabilities }: ProfileFor
   const [emailErrors, setEmailErrors] = useState<FieldErrors>({});
   const [emailBusy, setEmailBusy] = useState(false);
   const [showEmailForm, setShowEmailForm] = useState(false);
+  // The code on its way: a change still pending from an earlier visit (resend allowed now), or one just requested.
+  const [code, setCode] = useState<{ state: EmailCodeState; focus: boolean } | null>(() =>
+    initialProfile.pendingEmail
+      ? { state: { email: initialProfile.pendingEmail, expiresAt: initialProfile.pendingEmailExpiresAt, resendAt: "" }, focus: false }
+      : null,
+  );
 
   async function saveDetails(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -91,31 +99,55 @@ export default function ProfileForm({ initialProfile, capabilities }: ProfileFor
     }
   }
 
-  async function requestVerification(body: { email: string; currentPassword?: string }) {
+  async function requestCode(body: { email: string; currentPassword: string }) {
     setEmailBusy(true);
     setEmailErrors({});
     try {
       const result = await accountApi.requestEmailVerification(body);
-      if (result.data?.pendingEmail) {
-        setProfile((current) => ({ ...current, pendingEmail: result.data?.pendingEmail ?? "", pendingEmailExpiresAt: result.data?.expiresAt ?? null }));
+      if (result.data) {
+        setCode({ state: result.data, focus: true });
         setShowEmailForm(false);
       }
-      feedback.success("Verification email sent", `Check the inbox for ${body.email} and open the link within 1 hour.`);
     } catch (error) {
       const fieldErrors = toFieldErrors(error);
       setEmailErrors(fieldErrors);
-      if (!Object.keys(fieldErrors).length) feedback.error("Email not sent", errorMessage(error));
+      if (!Object.keys(fieldErrors).length) feedback.error("Code not sent", errorMessage(error));
     } finally {
       setEmailBusy(false);
     }
   }
 
-  async function cancelPendingEmail() {
+  async function verifyCode(value: string) {
+    try {
+      const result = await accountApi.confirmEmailCode(value);
+      const email = result.data?.email ?? profile.email;
+      setProfile((current) => ({ ...current, email, isEmailVerified: true, pendingEmail: "", pendingEmailExpiresAt: null }));
+      setCode(null);
+      feedback.success("Email address changed", `${email} is now the verified email on your account.`);
+      router.refresh();
+      return null;
+    } catch (error) {
+      return toFieldErrors(error).code ?? errorMessage(error) ?? "That code didn't work. Try again.";
+    }
+  }
+
+  async function resendCode(): Promise<EmailCodeState | string> {
+    const fallback = "We couldn't send a new code. Try again shortly.";
+    if (!code) return fallback;
+    try {
+      // Same address again: no password needed while the change's code is valid.
+      return (await accountApi.requestEmailVerification({ email: code.state.email })).data ?? fallback;
+    } catch (error) {
+      return errorMessage(error) ?? fallback;
+    }
+  }
+
+  async function cancelCode() {
     setEmailBusy(true);
     try {
       await accountApi.cancelEmailChange();
       setProfile((current) => ({ ...current, pendingEmail: "", pendingEmailExpiresAt: null }));
-      feedback.info("Email change cancelled");
+      setCode(null);
     } catch (error) {
       feedback.error("Could not cancel", errorMessage(error));
     } finally {
@@ -216,42 +248,42 @@ export default function ProfileForm({ initialProfile, capabilities }: ProfileFor
           <Mail size={15} aria-hidden="true" /> <strong>{profile.email}</strong>
         </p>
 
-        {profile.pendingEmail ? (
-          <div className="account-callout" role="status">
-            <p>
-              We sent a confirmation link to <strong>{profile.pendingEmail}</strong>. Your email changes only after you open it.
-            </p>
-            <button type="button" className="account-link-button" onClick={() => void cancelPendingEmail()} disabled={emailBusy}>
-              Cancel change
-            </button>
-          </div>
-        ) : null}
-
         {!capabilities.emailVerification ? (
           <p className="account-muted">
             Email changes require verification, which is not available right now. Contact support if you need to update your email.
           </p>
+        ) : code ? (
+          <EmailCodeForm
+            key={`${code.state.email}:${code.state.resendAt}`}
+            layout="panel"
+            initialState={code.state}
+            autoFocus={code.focus}
+            verify={verifyCode}
+            resend={resendCode}
+            purpose="to make it your account email (until then, the current one stays)"
+            submitLabel="Change email"
+            footer={
+              <Button variant="secondary" size="sm" onClick={() => void cancelCode()} disabled={emailBusy}>
+                Cancel
+              </Button>
+            }
+          />
         ) : (
           <>
-            <div className="account-inline-actions">
-              {!profile.isEmailVerified ? (
-                <LoadingButton variant="outline" size="sm" loading={emailBusy && !showEmailForm} loadingText="Sending..." onClick={() => void requestVerification({ email: profile.email })}>
-                  Send verification email
-                </LoadingButton>
-              ) : null}
-              {!showEmailForm ? (
+            {!showEmailForm ? (
+              <div className="account-inline-actions">
                 <Button variant="secondary" size="sm" onClick={() => setShowEmailForm(true)}>
                   Change email
                 </Button>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
             {showEmailForm ? (
               <form
                 className="account-form-grid account-subform"
                 onSubmit={(event) => {
                   event.preventDefault();
                   const formData = new FormData(event.currentTarget);
-                  void requestVerification({
+                  void requestCode({
                     email: String(formData.get("email") ?? "").trim(),
                     currentPassword: String(formData.get("currentPassword") ?? ""),
                   });
@@ -264,7 +296,7 @@ export default function ProfileForm({ initialProfile, capabilities }: ProfileFor
                     Cancel
                   </Button>
                   <LoadingButton type="submit" size="sm" loading={emailBusy} loadingText="Sending...">
-                    Send confirmation link
+                    Send code
                   </LoadingButton>
                 </div>
               </form>

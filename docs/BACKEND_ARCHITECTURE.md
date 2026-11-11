@@ -34,7 +34,9 @@ Route Handler (app/api/v1)
 - `/api/v1/auth/*` issues HttpOnly cookies (`norosilk_access`, `norosilk_refresh`) signed with `JWT_SECRET` and `JWT_REFRESH_SECRET`.
 - Existing `/admin` dashboard login remains env-based (`AUTH_SECRET`, `ADMIN_EMAIL`) and is unchanged.
 - Admin APIs under `/api/v1` require the admin session (`/admin/login`) of an active `role: "admin"` user. Storefront tokens belong to customers only: staff accounts can't sign in on the storefront, and a token stops working if its account becomes staff.
-- Customers can reset a forgotten password with a single-use emailed link (`/account/forgot-password`, 30 minutes); resetting ends every other session.
+- Only verified email addresses get a storefront session (`isUsableCustomer` in `lib/auth/session.js`). Sign-up, and the sign-in of an unverified account, email a 6-digit code (`lib/services/email-verification.service.js`), and the session opens once it is entered. The same codes confirm a change of email. Codes are stored as an HMAC (keyed with `JWT_SECRET`), are valid for 10 minutes, are single-use, and allow 5 attempts, each counted before it is compared. The rule is skipped when the platform can't send email.
+- Customers can reset a forgotten password with a single-use emailed link (`/account/forgot-password`, 30 minutes); resetting ends every other session and marks the email verified.
+- Links in emails (password reset, quotes, notifications, newsletter) use the store domain the request came in on (`getStoreOrigin` in `lib/tenant/active.js`). A host is only used after it has resolved to the store, so a forged `Host` header never reaches a link. Development hosts (`localhost`, `*.localhost`, IP addresses) keep their port and use http. Jobs without a request use the store's primary domain, its first `domains` entry. Canonical URLs, the sitemap and invoices always use the primary domain, so list the production domain first.
 
 ## Persistence
 

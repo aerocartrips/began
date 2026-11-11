@@ -28,7 +28,7 @@ vi.mock("@/lib/services/email.service", () => ({
   isCustomerEmailConfigured: () => true,
   notifyContactMessage: vi.fn(async () => ({ sent: false })),
   notifyNewOrder: vi.fn(async () => ({ sent: false })),
-  sendEmailVerification: vi.fn(async (message) => {
+  sendEmailVerificationCode: vi.fn(async (message) => {
     sentEmails.push(message);
     return { sent: true };
   }),
@@ -67,6 +67,8 @@ async function createUser(role = "customer", overrides = {}) {
     email: `account-${role}-${counter}@norosilk.test`,
     password: await bcrypt.hash(PASSWORD, 4),
     role,
+    // Email delivery is "configured" in this suite, so storefront sessions need a verified address.
+    isEmailVerified: true,
     ...(role === "admin" ? { adminRole: "owner" } : {}),
     ...overrides,
   });
@@ -74,13 +76,14 @@ async function createUser(role = "customer", overrides = {}) {
 
 /**
  * @param {(request: Request, context: { params: Promise<Record<string, string>> }) => Promise<Response>} handler
- * @param {{ as?: any; token?: string; method?: string; path?: string; body?: unknown; params?: Record<string, string> }} [options]
+ * @param {{ as?: any; token?: string; keep?: boolean; method?: string; path?: string; headers?: Record<string, string>; body?: unknown; params?: Record<string, string> }} [options]
+ *   `keep`: send the cookies the previous call left (a browser in the middle of signing in).
  */
-async function call(handler, { as, token, method = "GET", path = "/api/v1/account", body, params = {} } = {}) {
-  cookieJar.clear();
+async function call(handler, { as, token, keep = false, method = "GET", path = "/api/v1/account", headers = {}, body, params = {} } = {}) {
+  if (!keep) cookieJar.clear();
   if (token) cookieJar.set(session.ACCESS_COOKIE, token);
   else if (as) await signInto(cookieJar, as);
-  const init = { method, headers: { "content-type": "application/json" } };
+  const init = { method, headers: { "content-type": "application/json", ...headers } };
   if (body !== undefined) init.body = JSON.stringify(body);
   const response = await handler(new Request(`http://localhost${path}`, init), { params: Promise.resolve(params) });
   const text = await response.text();
@@ -156,6 +159,10 @@ beforeAll(async () => {
     security: await import("@/app/api/v1/account/security/route"),
     email: await import("@/app/api/v1/account/email/route"),
     emailVerify: await import("@/app/api/v1/account/email/verify/route"),
+    register: await import("@/app/api/v1/auth/register/route"),
+    login: await import("@/app/api/v1/auth/login/route"),
+    signInCode: await import("@/app/api/v1/auth/verify-email/route"),
+    signInResend: await import("@/app/api/v1/auth/verify-email/resend/route"),
     exportData: await import("@/app/api/v1/account/export/route"),
     deletion: await import("@/app/api/v1/account/deletion-request/route"),
     logoutAll: await import("@/app/api/v1/auth/logout-all/route"),
@@ -221,14 +228,14 @@ describe("profile", () => {
         gstNumber: "33aabcn1234f1z5",
         role: "admin",
         email: "attacker@evil.test",
-        isEmailVerified: true,
+        isEmailVerified: false,
       },
     });
     expect(result.status).toBe(200);
     expect(result.json.data).toMatchObject({ name: "Lakshmi Narayan", phone: "9876543210", gstNumber: "33AABCN1234F1Z5" });
 
     const stored = await models.User.findById(user._id).lean();
-    expect(stored).toMatchObject({ role: "customer", email: user.email, isEmailVerified: false, name: "Lakshmi Narayan" });
+    expect(stored).toMatchObject({ role: "customer", email: user.email, isEmailVerified: true, name: "Lakshmi Narayan" });
   });
 
   it("returns field-level validation errors", async () => {
@@ -482,36 +489,147 @@ describe("security", () => {
     expect(security.json.data.activity[0].type).toBe("sessions_revoked");
   });
 
-  it("verifies a new email before replacing the current one", async () => {
+  it("changes the email only after the code sent to the new address is entered", async () => {
     const user = await createUser();
     const taken = await createUser();
+    const asUser = { as: user, method: "POST", headers: { "x-forwarded-for": "203.0.113.20" } };
 
-    const duplicate = await call(routes.email.POST, { as: user, method: "POST", body: { email: taken.email, currentPassword: PASSWORD } });
+    const duplicate = await call(routes.email.POST, { ...asUser, body: { email: taken.email, currentPassword: PASSWORD } });
     expect(duplicate.status).toBe(409);
+    expect(fieldsOf(await call(routes.email.POST, { ...asUser, body: { email: user.email } }))).toEqual(["email"]);
 
-    const noPassword = await call(routes.email.POST, { as: user, method: "POST", body: { email: "new-address@norosilk.test" } });
+    const noPassword = await call(routes.email.POST, { ...asUser, body: { email: "new-address@norosilk.test" } });
     expect(fieldsOf(noPassword)).toEqual(["currentPassword"]);
 
-    const requested = await call(routes.email.POST, {
-      as: user,
-      method: "POST",
-      body: { email: "New-Address@norosilk.test", currentPassword: PASSWORD },
-    });
+    const requested = await call(routes.email.POST, { ...asUser, body: { email: "New-Address@norosilk.test", currentPassword: PASSWORD } });
     expect(requested.status).toBe(200);
+    expect(requested.json.data).toMatchObject({ email: "new-address@norosilk.test", pendingEmail: "new-address@norosilk.test" });
     expect((await models.User.findById(user._id).lean()).email).toBe(user.email);
 
     const message = sentEmails.at(-1);
-    expect(message.to).toBe("new-address@norosilk.test");
-    const token = new URL(message.verifyUrl).searchParams.get("token");
+    expect(message).toMatchObject({ to: "new-address@norosilk.test", isChange: true });
+    expect(message.code).toMatch(/^\d{6}$/);
 
-    const verified = await call(routes.emailVerify.POST, { method: "POST", body: { token } });
+    // Asking again (the form's resend) needs no password while the code is valid, and sends nothing during the cooldown.
+    const again = await call(routes.email.POST, { ...asUser, body: { email: "new-address@norosilk.test" } });
+    expect(again.status).toBe(200);
+    expect(sentEmails.at(-1)).toBe(message);
+
+    const wrong = await call(routes.emailVerify.POST, { ...asUser, body: { code: otherCode(message.code) } });
+    expect(wrong.status).toBe(422);
+    expect(wrong.json.errors).toEqual([{ field: "code", message: "That code isn't right. 4 attempts left." }]);
+
+    const verified = await call(routes.emailVerify.POST, { ...asUser, body: { code: message.code } });
     expect(verified.status).toBe(200);
+    expect(verified.json.data).toEqual({ email: "new-address@norosilk.test", changed: true });
     const stored = await models.User.findById(user._id).lean();
     expect(stored).toMatchObject({ email: "new-address@norosilk.test", isEmailVerified: true });
     expect(sentEmails.at(-1)).toMatchObject({ to: user.email, newEmail: "new-address@norosilk.test" });
 
-    const reused = await call(routes.emailVerify.POST, { method: "POST", body: { token } });
-    expect(reused.status).toBe(400);
+    const reused = await call(routes.emailVerify.POST, { ...asUser, body: { code: message.code } });
+    expect(reused.json.errors).toEqual([{ field: "code", message: "This code has expired. Request a new one." }]);
+  });
+});
+
+/** A valid-looking code that isn't `code`. */
+const otherCode = (code) => String((Number(code) + 1) % 1_000_000).padStart(6, "0");
+
+describe("email verification before the first session", () => {
+  const from = (n) => ({ "x-forwarded-for": `198.51.100.${n}` });
+  const cookie = (name) => cookieJar.get(name) || undefined;
+
+  it("opens a new account's session only once the emailed code is entered", async () => {
+    const { EMAIL_VERIFICATION_COOKIE } = await import("@/lib/auth/cookies");
+    counter += 1;
+    const email = `new-buyer-${counter}@norosilk.test`;
+    const registered = await call(routes.register.POST, {
+      method: "POST",
+      path: "/api/v1/auth/register",
+      headers: from(1),
+      body: { name: "Asha Rao", email: email.toUpperCase(), password: PASSWORD },
+    });
+    expect(registered.status).toBe(201);
+    expect(registered.json.data).toEqual({ verification: expect.objectContaining({ email }) });
+    expect(cookie(session.ACCESS_COOKIE)).toBeUndefined();
+    const pending = cookie(EMAIL_VERIFICATION_COOKIE);
+    expect(pending).toBeTruthy();
+
+    // Only a keyed hash of the code is stored.
+    const message = sentEmails.at(-1);
+    expect(message).toMatchObject({ to: email, isChange: false, minutes: 10 });
+    const stored = await models.User.findOne({ email }).select("+emailVerification.codeHash").lean();
+    expect(stored).toMatchObject({ isEmailVerified: false, emailVerification: { pendingEmail: email, attempts: 0 } });
+    expect(stored.emailVerification.codeHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(JSON.stringify(stored)).not.toContain(message.code);
+
+    // The right code alone opens nothing: it takes the browser that registered.
+    expect((await call(routes.signInCode.POST, { method: "POST", headers: from(1), body: { code: message.code } })).status).toBe(401);
+
+    cookieJar.set(EMAIL_VERIFICATION_COOKIE, pending);
+    const wrong = await call(routes.signInCode.POST, { keep: true, method: "POST", headers: from(1), body: { code: otherCode(message.code) } });
+    expect(wrong.status).toBe(422);
+    expect(cookie(session.ACCESS_COOKIE)).toBeUndefined();
+
+    // Typed with a space, as people copy it.
+    const spaced = `${message.code.slice(0, 3)} ${message.code.slice(3)}`;
+    const verified = await call(routes.signInCode.POST, { keep: true, method: "POST", headers: from(1), body: { code: spaced } });
+    expect(verified.status).toBe(200);
+    expect(verified.json.data.user).toMatchObject({ email, isEmailVerified: true });
+    expect(cookie(EMAIL_VERIFICATION_COOKIE)).toBeUndefined();
+    const accessToken = cookie(session.ACCESS_COOKIE);
+    expect((await call(routes.profile.GET, { token: accessToken })).json.data.profile).toMatchObject({ email, isEmailVerified: true });
+  });
+
+  it("asks an unverified account for a code at sign-in and no longer honours its old sessions", async () => {
+    const user = await createUser("customer", { isEmailVerified: false });
+    expect((await call(routes.profile.GET, { as: user })).status).toBe(401);
+
+    const signIn = () =>
+      call(routes.login.POST, { method: "POST", path: "/api/v1/auth/login", headers: from(2), body: { email: user.email, password: PASSWORD } });
+    const login = await signIn();
+    expect(login.status).toBe(200);
+    expect(login.json.data).toEqual({ verification: expect.objectContaining({ email: user.email }) });
+    expect(cookie(session.ACCESS_COOKIE)).toBeUndefined();
+    const first = sentEmails.at(-1);
+
+    // Signing in again during the cooldown keeps the code on its way; an explicit resend is refused.
+    await signIn();
+    expect(sentEmails.at(-1)).toBe(first);
+    const early = await call(routes.signInResend.POST, { keep: true, method: "POST" });
+    expect(early.status).toBe(429);
+
+    // Every guess counts, so the code dies after five wrong ones: even the right one fails then.
+    for (let attempt = 4; attempt >= 0; attempt -= 1) {
+      const guess = await call(routes.signInCode.POST, { keep: true, method: "POST", headers: from(2), body: { code: otherCode(first.code) } });
+      expect(guess.json.errors[0].message).toBe(attempt ? `That code isn't right. ${attempt} ${attempt === 1 ? "attempt" : "attempts"} left.` : "That code isn't right. Request a new one.");
+    }
+    const locked = await call(routes.signInCode.POST, { keep: true, method: "POST", headers: from(2), body: { code: first.code } });
+    expect(locked.json.errors[0].message).toBe("This code has expired. Request a new one.");
+
+    // A locked code can be replaced at once.
+    const resent = await call(routes.signInResend.POST, { keep: true, method: "POST" });
+    expect(resent.status).toBe(200);
+    const second = sentEmails.at(-1);
+    expect(second).not.toBe(first);
+    const verified = await call(routes.signInCode.POST, { keep: true, method: "POST", headers: from(2), body: { code: second.code } });
+    expect(verified.status).toBe(200);
+    expect(cookie(session.ACCESS_COOKIE)).toBeTruthy();
+    expect((await models.User.findById(user._id).lean()).isEmailVerified).toBe(true);
+
+    // Verified accounts sign straight in.
+    const direct = await signIn();
+    expect(direct.json.data.user).toMatchObject({ email: user.email });
+  });
+
+  it("cancels a waiting sign-in when the password is reset", async () => {
+    const user = await createUser("customer", { isEmailVerified: false });
+    await call(routes.login.POST, { method: "POST", path: "/api/v1/auth/login", headers: from(3), body: { email: user.email, password: PASSWORD } });
+    const { code } = sentEmails.at(-1);
+    await models.User.updateOne({ _id: user._id }, { $inc: { sessionVersion: 1 } });
+
+    const result = await call(routes.signInCode.POST, { keep: true, method: "POST", headers: from(3), body: { code } });
+    expect(result.status).toBe(401);
+    expect(cookie(session.ACCESS_COOKIE)).toBeUndefined();
   });
 });
 

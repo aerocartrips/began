@@ -21,7 +21,10 @@ vi.mock("next/headers", () => ({
   }),
 }));
 vi.mock("next/server", async (importOriginal) => ({ ...(await importOriginal()), ...(await import("../stubs/next-server.js")), after: vi.fn() }));
-vi.mock("@/lib/services/email.service", () => ({ notifyContactMessage: vi.fn(async () => ({ sent: false })) }));
+vi.mock("@/lib/services/email.service", () => ({
+  isCustomerEmailConfigured: () => false,
+  notifyContactMessage: vi.fn(async () => ({ sent: false })),
+}));
 
 let mongo;
 let routes;

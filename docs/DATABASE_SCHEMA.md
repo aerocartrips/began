@@ -14,7 +14,8 @@ All collections use Mongoose timestamps (`createdAt`, `updatedAt`) unless noted.
 | companyName | String | B2B |
 | gstNumber | String | optional |
 | isActive | Boolean | default true |
-| isEmailVerified | Boolean | default false |
+| isEmailVerified | Boolean | default false; storefront sessions require true (when email can be sent) |
+| emailVerification | Object | outstanding emailed code: `pendingEmail` (address it went to), `codeHash` (HMAC, `select: false`), `expiresAt`, `attempts`, `sentAt` |
 | addresses | Array | embedded address subdocuments |
 
 Indexes: unique email, `(role, isActive)`.

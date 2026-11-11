@@ -105,6 +105,8 @@ async function createUser(role = "customer", extra = {}) {
     email: `lifecycle-${role}-${seq}-${Date.now()}@norosilk.test`,
     password: await bcrypt.hash(PASSWORD, 4),
     role,
+    // Email delivery is "configured" in this suite, so storefront sessions need a verified address.
+    isEmailVerified: true,
     ...(role === "admin" ? { adminRole: "owner" } : {}),
     ...extra,
   });
@@ -552,10 +554,12 @@ describe("customer data and staff access", () => {
     const oldSession = await signAccessToken(customer);
 
     const unknown = await call(routes.forgotPassword.POST, { method: "POST", body: { email: "nobody@norosilk.test" } });
-    const known = await call(routes.forgotPassword.POST, { method: "POST", body: { email: customer.email } });
+    // The link leads back to the domain (and, in development, the port) the request came in on.
+    const known = await call(routes.forgotPassword.POST, { method: "POST", headers: { host: "localhost:3100" }, body: { email: customer.email } });
     expect([unknown.status, known.status]).toEqual([200, 200]);
     expect(unknown.json.message).toBe(known.json.message);
     expect(emails.map((email) => email.to)).toEqual([customer.email]);
+    expect(emails[0].resetUrl).toMatch(/^http:\/\/localhost:3100\/account\/reset-password\?token=[\w-]{43}$/);
 
     const token = new URL(emails[0].resetUrl).searchParams.get("token");
     const weak = await call(routes.resetPassword.POST, { method: "POST", body: { token, newPassword: "short", confirmPassword: "short" } });

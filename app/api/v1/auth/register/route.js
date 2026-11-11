@@ -6,6 +6,10 @@ import { getClientIp } from "@/lib/security/client-ip";
 import { checkRateLimit, recordRateLimitHit } from "@/lib/security/rate-limit";
 import { ApiError } from "@/lib/utils/api-error";
 
+/**
+ * Creates a customer account. `data.user`: signed in. `data.verification`: a
+ * code was emailed and the session opens once it is entered (POST /auth/verify-email).
+ */
 export const POST = withDatabase(async (request) => {
   const ip = getClientIp(request);
   const limit = await checkRateLimit(`register:${ip}`);
@@ -14,7 +18,8 @@ export const POST = withDatabase(async (request) => {
   }
 
   const payload = await parseJsonBody(request);
-  const user = await registerUser(payload);
+  const result = await registerUser(payload);
   await recordRateLimitHit(`register:${ip}`);
-  return successResponse(user, "Registration successful.", undefined, 201);
+  const message = "verification" in result ? "Account created. Enter the code we emailed you to finish." : "Registration successful.";
+  return successResponse(result, message, undefined, 201);
 });
