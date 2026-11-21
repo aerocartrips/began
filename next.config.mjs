@@ -91,6 +91,7 @@ const nextConfig = {
   experimental: {
     globalNotFound: true,
     authInterrupts: true,
+    agentUpgrade: "security",
   },
   poweredByHeader: false,
   async redirects() {
