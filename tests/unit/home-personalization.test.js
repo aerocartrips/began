@@ -3,7 +3,7 @@
  * cursors, trending thresholds, bot filtering and the layout rules.
  */
 import { describe, expect, it } from "vitest";
-import { affinityFor, buildInterestProfile, rankRecommendations, strongestInterest } from "@/lib/catalog/interest";
+import { affinityFor, buildInterestProfile, rankRecommendations, strongestInterest, topDetailValues } from "@/lib/catalog/interest";
 import { decodeFeedCursor, encodeFeedCursor, feedCursorFilter } from "@/lib/catalog/cursor";
 import { scoreProduct } from "@/lib/jobs/product-metrics.job";
 import { isAutomatedRequest } from "@/lib/security/bot-detection";
@@ -13,8 +13,10 @@ import { PERMISSIONS, roleHasPermission } from "@/lib/auth/permissions";
 import { MAX_SECTION_PRODUCTS, TRENDING_MIN_POINTS } from "@/lib/constants/homepage";
 
 const id = (n) => n.toString(16).padStart(24, "0");
-const silk = { category: "cat-silk", fabric: "Silk", weavingType: "Banarasi", occasion: "Wedding", colors: ["Red"], price: 3000 };
-const cotton = { category: "cat-cotton", fabric: "Cotton", weavingType: "Handloom", occasion: "Daily", colors: ["Blue"], price: 800 };
+const details = (entries) => Object.entries(entries).flatMap(([key, value]) => (Array.isArray(value) ? value : [value]).map((entry) => ({ key, value: entry })));
+const silk = { category: "cat-silk", productType: "saree", attributes: details({ fabric: "Silk", weave: "Banarasi", occasion: "Wedding" }), colors: ["Red"], price: 3000 };
+const cotton = { category: "cat-cotton", productType: "saree", attributes: details({ fabric: "Cotton", weave: "Handloom", occasion: "Daily" }), colors: ["Blue"], price: 800 };
+const tee = { category: "cat-tees", productType: "tee", attributes: details({ fabric: "Cotton", fit: "Oversized" }), colors: ["Black"], price: 600 };
 
 describe("shopper interest", () => {
   it("weights stronger and more recent signals higher", () => {
@@ -32,10 +34,35 @@ describe("shopper interest", () => {
 
   it("scores matching products higher, case-insensitively, and ignores attributes with no history", () => {
     const profile = buildInterestProfile([{ product: silk, type: "view" }]);
-    const similar = { ...silk, fabric: "SILK", category: "cat-silk", price: 3200 };
+    const similar = { ...silk, attributes: details({ fabric: "SILK", weave: "banarasi", occasion: "Wedding" }), price: 3200 };
     expect(affinityFor(similar, profile)).toBeGreaterThan(0.9);
-    expect(affinityFor(cotton, profile)).toBeLessThan(0.2);
+    // Same type, different details and price: a weak match.
+    expect(affinityFor(cotton, profile)).toBeLessThan(0.25);
     expect(affinityFor(silk, buildInterestProfile([]))).toBe(0);
+  });
+
+  it("learns from whatever details a store's types have, weighted by how much of the history each explains", () => {
+    const profile = buildInterestProfile([
+      { product: tee, type: "cart", rank: 0 },
+      { product: { ...tee, attributes: details({ fabric: "Linen", fit: "Oversized" }) }, type: "view", rank: 1 },
+    ]);
+    expect(Object.keys(profile.details).sort()).toEqual(["fabric", "fit"]);
+    expect(strongestInterest(profile)).toEqual({ dimension: "category", value: "cat-tees" });
+    // Oversized appears in every signal; cotton in one.
+    expect(topDetailValues(profile, 2)).toEqual([{ key: "fit", value: "oversized" }, { key: "fabric", value: "cotton" }]);
+    const oversizedLinen = { ...tee, _id: "x", attributes: details({ fabric: "Linen", fit: "Oversized" }) };
+    const regularCotton = { ...tee, _id: "y", attributes: details({ fabric: "Cotton", fit: "Regular" }) };
+    expect(affinityFor(oversizedLinen, profile)).toBeGreaterThan(affinityFor(regularCotton, profile));
+  });
+
+  it("can read interest from the store's filterable details only", () => {
+    const withNotes = { ...silk, attributes: [...silk.attributes, { key: "care_note", value: "Dry clean" }] };
+    const profile = buildInterestProfile([{ product: withNotes, type: "view" }], { detailKeys: ["fabric", "weave"] });
+    expect(Object.keys(profile.details).sort()).toEqual(["fabric", "weave"]);
+    const detailOnly = buildInterestProfile([{ product: { attributes: details({ fit: "Slim" }) }, type: "wishlist" }]);
+    expect(strongestInterest(detailOnly)).toEqual({ dimension: "detail", key: "fit", value: "slim" });
+    // The type explains the row only when nothing narrower does.
+    expect(strongestInterest(buildInterestProfile([{ product: { productType: "tee" }, type: "view" }]))).toEqual({ dimension: "type", value: "tee" });
   });
 
   it("excludes seen products, demotes out-of-stock ones and keeps the row varied", () => {
@@ -127,6 +154,10 @@ describe("home page layout", () => {
     expect(homepageLayoutSchema.safeParse({ sections: [{ ...collection, source: { kind: "category", value: "silk" } }] }).success).toBe(true);
     expect(homepageLayoutSchema.safeParse({ sections: [{ ...collection, source: { kind: "products", productIds: [] } }] }).success).toBe(false);
     expect(homepageLayoutSchema.safeParse({ sections: [{ ...collection, title: "", source: { kind: "fabric", value: "Silk" } }] }).success).toBe(false);
+    // Product-detail collections name the detail; older ones (kind "fabric") still validate.
+    expect(homepageLayoutSchema.safeParse({ sections: [{ ...collection, source: { kind: "attribute", value: "Silk" } }] }).success).toBe(false);
+    expect(homepageLayoutSchema.safeParse({ sections: [{ ...collection, source: { kind: "attribute", attribute: "fabric", value: "Silk" } }] }).success).toBe(true);
+    expect(homepageLayoutSchema.safeParse({ sections: [{ ...collection, source: { kind: "type", value: "t-shirts" } }] }).success).toBe(true);
   });
 
   it("keeps the admin's order: the feed ends after 60 products, so it need not be last", () => {

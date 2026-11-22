@@ -4,19 +4,32 @@ import { catalogHref, hasActiveFilters, toggleValue } from "@/features/catalog/q
 import { formatRupees } from "@/lib/format";
 import type { CatalogQuery } from "@/features/catalog/types";
 
-const LIST_KEYS = ["fabric", "weave", "color", "occasion"] as const;
+/** Short values ("M", "32", "Yes") read better with their filter's name: "Size: M". */
+const needsName = (value: string) => value.length <= 4 || /^\d/.test(value);
 
 /** Removable chips for every applied filter, plus "Clear all". */
-export default function AppliedFilters({ basePath, query }: { basePath: string; query: CatalogQuery }) {
-  if (!hasActiveFilters(query)) return null;
+export default function AppliedFilters({ basePath, query, names, typeName }: {
+  basePath: string;
+  query: CatalogQuery;
+  /** Filter names by attribute key. */
+  names: Record<string, string>;
+  /** The product type picked with `?type=` on the catalogue, when there is one. */
+  typeName?: string | null;
+}) {
+  const typeChip = Boolean(query.type && typeName && !basePath.startsWith("/shop/"));
+  if (!hasActiveFilters(query) && !typeChip) return null;
 
   const chips: { label: string; href: string }[] = [];
   if (query.q) {
     chips.push({ label: `Search: ${query.q}`, href: catalogHref(basePath, query, { q: "", sort: "newest" }) });
   }
-  for (const key of LIST_KEYS) {
-    for (const value of query[key]) {
-      chips.push({ label: value, href: catalogHref(basePath, query, { [key]: toggleValue(query[key], value) }) });
+  if (typeChip) chips.push({ label: typeName ?? query.type, href: catalogHref(basePath, query, { type: "" }) });
+  for (const [key, values] of Object.entries(query.filters)) {
+    for (const value of values) {
+      chips.push({
+        label: needsName(value) && names[key] ? `${names[key]}: ${value}` : value,
+        href: catalogHref(basePath, query, { filters: { [key]: toggleValue(values, value) } }),
+      });
     }
   }
   if (query.minPrice !== null || query.maxPrice !== null) {

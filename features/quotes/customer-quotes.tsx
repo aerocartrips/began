@@ -23,6 +23,8 @@ export type CustomerQuote = {
     productName: string;
     productSlug: string;
     colorName: string;
+    /** "Red / M" (older quotes: their colour). */
+    variantTitle?: string;
     sku: string;
     quantity: number;
     targetUnitPrice: number | null;
@@ -115,7 +117,7 @@ export function CustomerQuoteDetail({ quoteId }: { quoteId: string }) {
             <tr key={item.id}>
               <td>
                 {item.productSlug ? <Link href={`/products/${item.productSlug}`}>{item.productName}</Link> : item.productName}
-                {item.colorName ? <small> · {item.colorName}</small> : null}
+                {item.variantTitle || item.colorName ? <small> · {item.variantTitle || item.colorName}</small> : null}
                 {item.notes ? <small className="quote-note">{item.notes}</small> : null}
               </td>
               <td className="is-numeric">{formatNumber(item.quantity)}</td>

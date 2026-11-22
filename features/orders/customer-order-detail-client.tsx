@@ -211,7 +211,7 @@ export default function CustomerOrderDetailClient({ orderId }: { orderId: string
                   </div>
                   <div className="orders-line-copy">
                     <strong>{item.productName}</strong>
-                    <small>SKU {item.sku}</small>
+                    <small>{[item.variantTitle || item.colorName, `SKU ${item.sku}`].filter(Boolean).join(" · ")}</small>
                     <small>{item.quantity} × {formatRupees(item.unitPrice)}</small>
                   </div>
                   <strong className="orders-line-total">{formatRupees(item.lineTotal)}</strong>

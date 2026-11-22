@@ -155,10 +155,8 @@ export function isPlainListing(query: CatalogQuery, basePath: string) {
   const filtered =
     Boolean(query.q) ||
     (Boolean(query.category) && !basePath.startsWith("/categories/")) ||
-    query.fabric.length > 0 ||
-    query.weave.length > 0 ||
-    query.occasion.length > 0 ||
-    query.color.length > 0 ||
+    (Boolean(query.type) && !basePath.startsWith("/shop/")) ||
+    Object.values(query.filters).some((values) => values.length > 0) ||
     query.minPrice !== null ||
     query.maxPrice !== null ||
     query.inStock;

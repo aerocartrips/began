@@ -24,7 +24,7 @@ const CARD_SIZES = "(max-width: 540px) 50vw, (max-width: 760px) 30vw, 192px";
  * The store's one product card, used wherever products are listed: home page
  * rows and feed, the catalogue, categories and search, product page rows,
  * recently viewed and the wishlist. Photo, then one line each (the name gets
- * two): name, SKU, price, best quantity price, MOQ and stock, colours and rating.
+ * two): name, SKU, price, best quantity price, MOQ, stock and sizes, colours and rating.
  */
 export default function ProductCard({ product, salesMode, priority = false }: ProductCardProps) {
   const href = `/products/${product.slug}`;
@@ -67,6 +67,7 @@ export default function ProductCard({ product, salesMode, priority = false }: Pr
         <p className="catalog-card__meta">
           {moq ? <span>MOQ {formatNumber(moq)} pcs</span> : null}
           {product.inStock ? <span className="catalog-card__stock">In stock</span> : null}
+          {product.sizeRange ? <span className="catalog-card__sizes" title={`Sizes ${product.sizeRange}`}>{product.sizeRange}</span> : null}
         </p>
         {swatches.length > 0 || rated ? (
           <div className="catalog-card__foot">

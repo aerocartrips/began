@@ -1,13 +1,15 @@
 import BrandLink from "@/components/ui/brand-link";
 import FooterColumn from "@/components/layout/footer-column";
 import { getFooterColumns } from "@/lib/site-content";
+import { getCatalogConfig, sellingTypes } from "@/lib/catalog/catalog-config";
 import { getCurrentTenant } from "@/lib/tenant/current";
 
 const SOCIAL_LABELS = { instagram: "Instagram", linkedin: "LinkedIn", x: "X" } as const;
 
 export default async function SiteFooter() {
   const tenant = await getCurrentTenant();
-  const columns = getFooterColumns(tenant.salesMode);
+  const types = sellingTypes(await getCatalogConfig(tenant.id)).map((type) => ({ label: type.pluralName, href: `/shop/${type.slug}` }));
+  const columns = getFooterColumns(tenant.salesMode, types);
   const blurb = tenant.branding.description || tenant.branding.tagline;
   const socials = Object.entries(SOCIAL_LABELS).filter(
     ([key]) => tenant.contact.social[key as keyof typeof SOCIAL_LABELS],

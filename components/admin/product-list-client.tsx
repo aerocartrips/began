@@ -30,19 +30,34 @@ const STOCK_FILTER_OPTIONS = toSelectOptions([
   ["out_of_stock", "Out of stock"],
 ]);
 
-type ListFilters = { search: string; status: string; stock: string; page: number };
+type ListFilters = { search: string; status: string; stock: string; type: string; page: number };
+
+export type ListTypeOption = { id: string; name: string; isActive: boolean };
 
 /** Server-paginated product table; scales to stores with tens of thousands of products. */
-export default function AdminProductListClient() {
+export default function AdminProductListClient({ types, initialType = "", untypedCount = 0 }: {
+  /** The store's product types, for the type filter. */
+  types: ListTypeOption[];
+  /** Type to filter by on arrival (/admin/products?type=…). */
+  initialType?: string;
+  untypedCount?: number;
+}) {
   const { salesMode } = useTenant();
   const [searchInput, setSearchInput] = useState("");
-  const [filters, setFilters] = useState<ListFilters>({ search: "", status: "", stock: "", page: 1 });
+  const [filters, setFilters] = useState<ListFilters>({ search: "", status: "", stock: "", type: initialType, page: 1 });
+  const typeOptions = [
+    { id: "", label: "All types" },
+    ...types.map((type) => ({ id: type.id, label: `${type.name}${type.isActive ? "" : " (off)"}` })),
+    ...(untypedCount ? [{ id: "none", label: "Without a type" }] : []),
+  ];
+  const newHref = filters.type && filters.type !== "none" ? `/admin/products/new?type=${filters.type}` : "/admin/products/new";
 
   const endpoint = useMemo(() => {
     const params = new URLSearchParams({ admin: "true", limit: String(PAGE_SIZE), page: String(filters.page) });
     if (filters.search) params.set("search", filters.search);
     if (filters.status) params.set("status", filters.status);
     if (filters.stock) params.set("availability", filters.stock);
+    if (filters.type) params.set("type", filters.type);
     return `/api/v1/products?${params}`;
   }, [filters]);
 
@@ -67,7 +82,7 @@ export default function AdminProductListClient() {
         eyebrow="Catalogue"
         title="Products"
         description={`${formatNumber(total)} products`}
-        action={<Button href="/admin/products/new">Add product</Button>}
+        action={<Button href={newHref}>Add product</Button>}
       />
       {error ? (
         <ErrorCard title="Unable to load products" description={error} action={<LoadingButton onClick={() => void refetch()}>Retry</LoadingButton>} />
@@ -75,7 +90,7 @@ export default function AdminProductListClient() {
       <form className="admin-product-filters" onSubmit={applySearch} role="search">
         <label>
           <span className="sr-only">Search products</span>
-          <input value={searchInput} onChange={(event) => setSearchInput(event.currentTarget.value)} placeholder="Search name, SKU, fabric…" />
+          <input value={searchInput} onChange={(event) => setSearchInput(event.currentTarget.value)} placeholder="Search name, SKU, details…" />
         </label>
         <Select
           label="Filter by status"
@@ -84,6 +99,15 @@ export default function AdminProductListClient() {
           value={filters.status}
           onChange={(status) => setFilters({ ...filters, status, page: 1 })}
         />
+        {types.length > 1 || untypedCount ? (
+          <Select
+            label="Filter by type"
+            hideLabel
+            options={typeOptions}
+            value={filters.type}
+            onChange={(type) => setFilters({ ...filters, type, page: 1 })}
+          />
+        ) : null}
         <Select
           label="Filter by stock"
           hideLabel
@@ -98,7 +122,7 @@ export default function AdminProductListClient() {
         <TableSkeleton rows={8} />
       ) : (data ?? []).length === 0 ? (
         <div className="admin-empty-results" role="status">
-          {filters.search || filters.status || filters.stock ? "No products match these filters." : "No products yet."}
+          {filters.search || filters.status || filters.stock || filters.type ? "No products match these filters." : "No products yet."}
         </div>
       ) : (
         <div className="admin-table-wrap">
@@ -116,8 +140,10 @@ export default function AdminProductListClient() {
             </thead>
             <tbody>
               {(data ?? []).map((product) => {
-                const image = product.images?.[0] ?? product.variants?.[0]?.images?.[0];
+                const image = product.images?.[0] ?? product.colorMedia?.[0]?.images?.[0] ?? product.variants?.[0]?.images?.[0];
                 const category = typeof product.category === "object" ? product.category?.name : "";
+                const type = product.productType && typeof product.productType === "object" ? product.productType : null;
+                const variantCount = product.variants?.length ?? 0;
                 return (
                   <tr key={product._id}>
                     <td>
@@ -125,7 +151,11 @@ export default function AdminProductListClient() {
                         {image ? <Image src={image.secureUrl || image.url || ""} alt="" width={44} height={52} /> : null}
                         <span>
                           <strong>{product.name}</strong>
-                          <small>{[category, product.fabric, product.variants?.length ? `${product.variants.length} colours` : ""].filter(Boolean).join(" · ")}</small>
+                          <small>
+                            {[type?.name ?? "No type", category, variantCount ? `${variantCount} variants` : "", product.sizeRange ? `sizes ${product.sizeRange}` : ""]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </small>
                         </span>
                       </div>
                     </td>
@@ -133,7 +163,10 @@ export default function AdminProductListClient() {
                     <td className="is-numeric">{formatRupees(salesMode === "wholesale" ? product.wholesalePrice : product.price)}</td>
                     {salesMode === "wholesale" ? <td className="is-numeric">{formatNumber(product.minimumOrderQuantity)}</td> : null}
                     <td className="is-numeric">{formatNumber(product.stockQuantity)}</td>
-                    <td><AdminStatusChip status={product.status ?? "draft"} /></td>
+                    <td>
+                      <AdminStatusChip status={product.status ?? "draft"} />
+                      {product.typeHidden ? <AdminStatusChip status="inactive" tone="warning" label="Type off" /> : null}
+                    </td>
                     <td>
                       <div className="admin-product-actions">
                         <Link href={`/admin/products/${product._id}/edit`}>Edit</Link>

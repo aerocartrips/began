@@ -29,19 +29,30 @@ import type { AdminHomepageLayout, CollectionSource, HomeSection, ProductTabKey,
 
 type CategoryOption = { _id: string; name: string; slug: string };
 type ProductOption = { id: string; name: string; sku?: string };
+/** What the store sells, for collections built on a product type or a product detail. */
+export type HomepageCatalogOptions = {
+  types: { slug: string; name: string }[];
+  attributes: { key: string; name: string; values: { label: string; hex: string }[] }[];
+};
 
 /** Sections that show a product row, and so take a product count and "View all" link. */
 const PRODUCT_ROWS = new Set(["for-you", "product-tabs", "collection", "recently-viewed", "reviews", "guides"]);
 /** Sections with no visible heading of their own. */
 const NO_HEADING = new Set(["category-nav", "hero", "trust"]);
-const SOURCE_LABELS: Record<CollectionSource["kind"], string> = {
-  category: "Category",
-  fabric: "Fabric",
-  weave: "Weave",
-  occasion: "Occasion",
-  products: "Hand-picked products",
-};
-const SOURCE_OPTIONS: SelectOption[] = Object.entries(SOURCE_LABELS).map(([id, label]) => ({ id, label }));
+/** Collections stores made before product details were configurable: their kind is the attribute key. */
+const LEGACY_ATTRIBUTE_KINDS = new Set(["fabric", "weave", "occasion"]);
+/** "Category", "Product type", "Fabric: Silk"… for a collection's summary line. */
+function sourceLabel(source: CollectionSource | undefined) {
+  if (!source) return "Category";
+  if (source.kind === "attribute" || LEGACY_ATTRIBUTE_KINDS.has(source.kind)) return source.value ? `Detail · ${source.value}` : "Product detail";
+  return SOURCE_OPTIONS.find((option) => option.id === source.kind)?.label ?? source.kind;
+}
+const SOURCE_OPTIONS: SelectOption[] = [
+  { id: "category", label: "Category" },
+  { id: "type", label: "Product type" },
+  { id: "attribute", label: "Product detail (fabric, fit…)" },
+  { id: "products", label: "Hand-picked products" },
+];
 const SORT_OPTIONS: SelectOption[] = [
   { id: "popular", label: "Most popular" },
   { id: "newest", label: "Newest" },
@@ -149,13 +160,19 @@ function ProductPicker({ ids, onChange }: { ids: string[]; onChange: (ids: strin
 
 /* ---------------------------------------------------------------- section editor */
 
-function SectionEditor({ section, categories, onChange }: {
+function SectionEditor({ section, categories, catalog, onChange }: {
   section: HomeSection;
   categories: CategoryOption[];
+  catalog: HomepageCatalogOptions;
   onChange: (patch: Partial<HomeSection>) => void;
 }) {
-  const source = section.source ?? { kind: "category" as const, value: "", productIds: [], sort: "popular" as const };
+  const source = section.source ?? { kind: "category" as const, attribute: "", value: "", productIds: [], sort: "popular" as const };
   const setSource = (patch: Partial<CollectionSource>) => onChange({ source: { ...source, ...patch } });
+  // Older attribute collections (kind "fabric"…) are shown, and saved, as product-detail collections.
+  const legacy = LEGACY_ATTRIBUTE_KINDS.has(source.kind);
+  const kind = legacy ? "attribute" : source.kind;
+  const attributeKey = legacy ? source.kind : source.attribute ?? "";
+  const attribute = catalog.attributes.find((entry) => entry.key === attributeKey);
   const items = section.items ?? [];
   const setItem = (index: number, patch: Partial<TrustItem>) => onChange({ items: items.map((item, position) => (position === index ? { ...item, ...patch } : item)) });
 
@@ -222,10 +239,10 @@ function SectionEditor({ section, categories, onChange }: {
             className="admin-field"
             label="Products from"
             options={SOURCE_OPTIONS}
-            value={source.kind}
-            onChange={(kind) => setSource({ kind: kind as CollectionSource["kind"], value: "" })}
+            value={kind}
+            onChange={(next) => setSource({ kind: next as CollectionSource["kind"], attribute: "", value: "" })}
           />
-          {source.kind === "category" ? (
+          {kind === "category" ? (
             <Combobox
               className="admin-field"
               label="Category"
@@ -234,13 +251,38 @@ function SectionEditor({ section, categories, onChange }: {
               value={source.value}
               onChange={(value) => setSource({ value })}
             />
-          ) : source.kind === "products" ? null : (
-            <label className="admin-field">
-              {SOURCE_LABELS[source.kind]} (as written on products)
-              <input value={source.value} maxLength={120} placeholder={source.kind === "fabric" ? "Silk" : source.kind === "weave" ? "Banarasi" : "Wedding"} onChange={(event) => setSource({ value: event.currentTarget.value })} />
-            </label>
-          )}
-          {source.kind === "products" ? (
+          ) : kind === "type" ? (
+            <Combobox
+              className="admin-field"
+              label="Product type"
+              placeholder="Choose a product type"
+              options={catalog.types.map((type) => ({ id: type.slug, label: type.name }))}
+              value={source.value}
+              onChange={(value) => setSource({ value })}
+            />
+          ) : kind === "attribute" ? (
+            <>
+              <Combobox
+                className="admin-field"
+                label="Detail"
+                placeholder="Fabric, Occasion…"
+                options={catalog.attributes.map((entry) => ({ id: entry.key, label: entry.name }))}
+                value={attributeKey}
+                onChange={(key) => setSource({ kind: "attribute", attribute: key, value: "" })}
+              />
+              <Combobox
+                key={attributeKey}
+                className="admin-field"
+                label="Value"
+                placeholder={attribute ? `Choose a ${attribute.name.toLowerCase()}` : "Choose the detail first"}
+                disabled={!attribute}
+                options={(attribute?.values ?? []).map((value) => ({ id: value.label, label: value.label, swatch: value.hex || undefined }))}
+                value={source.value}
+                onChange={(value) => setSource({ kind: "attribute", attribute: attributeKey, value })}
+              />
+            </>
+          ) : null}
+          {kind === "products" ? (
             <ProductPicker ids={source.productIds} onChange={(productIds) => setSource({ productIds })} />
           ) : (
             <Select
@@ -306,7 +348,7 @@ function SectionEditor({ section, categories, onChange }: {
 
 /* ---------------------------------------------------------------- page */
 
-export default function AdminHomepageClient() {
+export default function AdminHomepageClient({ catalog }: { catalog: HomepageCatalogOptions }) {
   const feedback = useFeedback();
   const { loading, error, data, refetch } = useApiRequest<AdminHomepageLayout>("/api/v1/admin/homepage");
   const { data: categoryData } = useApiRequest<CategoryOption[]>("/api/v1/categories");
@@ -417,7 +459,7 @@ export default function AdminHomepageClient() {
                     </div>
                     <div className="admin-home-row__copy">
                       <strong>{section.type === "collection" ? section.title || "New collection" : meta(section).label}</strong>
-                      <small>{section.type === "collection" ? `Collection · ${SOURCE_LABELS[section.source?.kind ?? "category"]}` : meta(section).help}</small>
+                      <small>{section.type === "collection" ? `Collection · ${sourceLabel(section.source)}` : meta(section).help}</small>
                     </div>
                     <AdminStatusChip status={section.enabled ? "active" : "draft"} label={section.enabled ? "Shown" : "Hidden"} />
                     <div className="admin-home-row__toggles" role="group" aria-label={`Where ${meta(section).label} shows`}>
@@ -443,7 +485,7 @@ export default function AdminHomepageClient() {
                     </div>
                   </div>
                   {expanded ? (
-                    <SectionEditor section={section} categories={categoryData ?? []} onChange={(patch) => update(section.key, patch)} />
+                    <SectionEditor section={section} categories={categoryData ?? []} catalog={catalog} onChange={(patch) => update(section.key, patch)} />
                   ) : null}
                 </li>
               );

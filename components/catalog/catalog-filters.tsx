@@ -5,19 +5,14 @@ import AutoSubmitForm from "@/components/catalog/auto-submit-form";
 import CountBadge from "@/components/ui/count-badge";
 import { TextField } from "@/components/ui/form/text-field";
 import { formatNumber } from "@/lib/format";
-import type { CatalogFacet, CatalogFacetKey, CatalogQuery, CatalogResult, CategorySummary } from "@/features/catalog/types";
-
-const FACET_LABELS: Record<CatalogFacetKey, string> = {
-  fabric: "Fabric",
-  weave: "Weave",
-  color: "Colour",
-  occasion: "Occasion",
-};
-
-const FACET_ORDER: CatalogFacetKey[] = ["fabric", "weave", "color", "occasion"];
+import type { CatalogFacet, CatalogFacetGroup, CatalogQuery, CatalogResult, CategorySummary } from "@/features/catalog/types";
 
 /** Options listed before "+ N more" (the rest are one tap away). */
 const VISIBLE_OPTIONS = 6;
+/** Groups whose values are all this short (sizes: S, M, XL, 32) show as a grid of chips. */
+const CHIP_VALUE_LENGTH = 5;
+
+export type TypeLink = { name: string; slug: string; count: number };
 
 /**
  * One collapsible filter group (native <details>, no script). Its badge
@@ -56,39 +51,55 @@ function ShortList<T>({ items, render, isSelected }: { items: T[]; render: (item
   );
 }
 
-function FacetGroup({ name, facets, selected }: { name: CatalogFacetKey; facets: CatalogFacet[]; selected: string[] }) {
-  if (facets.length === 0 && selected.length === 0) return null;
-  // Values match whatever their letter case (lib/catalog/query.js); a selected value stays listed even with no matches.
+function FacetGroup({ group, selected }: { group: CatalogFacetGroup; selected: string[] }) {
+  // A selected value stays listed even with no matches, so it can be cleared here.
   const chosen = new Set(selected.map((value) => value.toLowerCase()));
   const isSelected = (facet: CatalogFacet) => chosen.has(facet.value.toLowerCase());
-  const listed = new Set(facets.map((facet) => facet.value.toLowerCase()));
+  const listed = new Set(group.values.map((facet) => facet.value.toLowerCase()));
   const values: CatalogFacet[] = [
-    ...facets,
+    ...group.values,
     ...selected.filter((value) => !listed.has(value.toLowerCase())).map((value) => ({ value, count: 0 })),
   ];
+  if (!values.length) return null;
+  const chips = values.every((facet) => facet.value.length <= CHIP_VALUE_LENGTH);
+
+  const checkbox = (facet: CatalogFacet) => {
+    const checked = isSelected(facet);
+    /* Keyed by state: an untouched box follows the URL when a filter is removed elsewhere (chip, Clear all). */
+    return <input key={String(checked)} type="checkbox" name={group.key} value={facet.value} defaultChecked={checked} />;
+  };
 
   return (
-    <FilterGroup title={FACET_LABELS[name]} selected={selected.length}>
+    <FilterGroup title={group.name} selected={selected.length}>
       <fieldset className="catalog-facet__options">
-        <legend className="sr-only">{FACET_LABELS[name]}</legend>
-        <ShortList
-          items={values}
-          isSelected={isSelected}
-          render={(facet) => {
-            const checked = isSelected(facet);
-            return (
+        <legend className="sr-only">{group.name}</legend>
+        {chips ? (
+          <ul className="catalog-chip-options">
+            {values.map((facet) => (
+              <li key={facet.value}>
+                <label className="catalog-chip-option" title={`${facet.value} (${formatNumber(facet.count)})`}>
+                  {checkbox(facet)}
+                  <span>{facet.value}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <ShortList
+            items={values}
+            isSelected={isSelected}
+            render={(facet) => (
               <li key={facet.value}>
                 <label className="catalog-option">
-                  {/* Keyed by state: an untouched box follows the URL when a filter is removed elsewhere (chip, Clear all). */}
-                  <input key={String(checked)} type="checkbox" name={name} value={facet.value} defaultChecked={checked} />
+                  {checkbox(facet)}
                   {facet.hex ? <span className="swatch" style={{ backgroundColor: facet.hex }} aria-hidden="true" /> : null}
                   <span className="catalog-option__label">{facet.value}</span>
                   <span className="catalog-option__count">{formatNumber(facet.count)}</span>
                 </label>
               </li>
-            );
-          }}
-        />
+            )}
+          />
+        )}
       </fieldset>
     </FilterGroup>
   );
@@ -96,15 +107,19 @@ function FacetGroup({ name, facets, selected }: { name: CatalogFacetKey; facets:
 
 /**
  * The filters (no sort: that sits above the results). A GET form that applies
- * every change at once; it also works without JavaScript.
+ * every change at once; it also works without JavaScript. Groups come from
+ * the store's attributes, in the listing's type order.
  */
-export default function CatalogFilters({ basePath, query, result, categories }: {
+export default function CatalogFilters({ basePath, query, result, categories, types }: {
   basePath: string;
   query: CatalogQuery;
   result: CatalogResult;
   categories: CategorySummary[];
+  /** The product types on sale, when the store sells more than one. */
+  types: TypeLink[];
 }) {
   const isCategoryPage = basePath.startsWith("/categories/");
+  const isTypePage = basePath.startsWith("/shop/");
   const visibleCategories = categories.filter((category) => category.productCount > 0);
   const defaultSort = query.q ? "relevance" : "newest";
   const range = result.priceRange;
@@ -114,14 +129,37 @@ export default function CatalogFilters({ basePath, query, result, categories }: 
     <AutoSubmitForm action={basePath} className="catalog-filters" label="Filter products">
       {query.q ? <input type="hidden" name="q" value={query.q} /> : null}
       {query.category && !isCategoryPage ? <input type="hidden" name="category" value={query.category} /> : null}
+      {query.type && !isTypePage ? <input type="hidden" name="type" value={query.type} /> : null}
       {query.sort !== defaultSort ? <input type="hidden" name="sort" value={query.sort} /> : null}
+
+      {types.length > 1 ? (
+        <FilterGroup title="Product type">
+          <nav aria-label="Product types">
+            <ul className="catalog-options">
+              <li>
+                <Link className="catalog-option catalog-option--link" href="/products" aria-current={query.type ? undefined : "page"}>
+                  <span className="catalog-option__label">Everything</span>
+                </Link>
+              </li>
+              {types.map((type) => (
+                <li key={type.slug}>
+                  <Link className="catalog-option catalog-option--link" href={`/shop/${type.slug}`} aria-current={query.type === type.slug ? "page" : undefined}>
+                    <span className="catalog-option__label">{type.name}</span>
+                    <span className="catalog-option__count">{formatNumber(type.count)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </FilterGroup>
+      ) : null}
 
       {visibleCategories.length > 0 ? (
         <FilterGroup title="Category">
           <nav aria-label="Categories">
             <ul className="catalog-options">
               <li>
-                <Link className="catalog-option catalog-option--link" href="/products" aria-current={query.category ? undefined : "page"}>
+                <Link className="catalog-option catalog-option--link" href="/products" aria-current={query.category || query.type ? undefined : "page"}>
                   <span className="catalog-option__label">All products</span>
                 </Link>
               </li>
@@ -146,9 +184,15 @@ export default function CatalogFilters({ basePath, query, result, categories }: 
         </FilterGroup>
       ) : null}
 
-      {FACET_ORDER.map((key) => (
-        <FacetGroup key={key} name={key} facets={result.facets[key]} selected={query[key]} />
+      {result.facets.map((group) => (
+        <FacetGroup key={group.key} group={group} selected={query.filters[group.key] ?? []} />
       ))}
+      {/* Selections whose group has no values left (e.g. after a type change) can still be cleared. */}
+      {Object.entries(query.filters)
+        .filter(([key]) => !result.facets.some((group) => group.key === key))
+        .map(([key, values]) => (
+          <FacetGroup key={key} group={{ key, name: key, input: "select", values: [] }} selected={values} />
+        ))}
 
       <FilterGroup title="Price" selected={priced ? 1 : 0}>
         <div className="catalog-price-filter">

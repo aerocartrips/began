@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const tenant = await getCurrentTenant();
   const { phone, email } = tenant.contact;
   const ways = [phone ? `call ${phone}` : "", email ? `email ${email}` : ""].filter(Boolean);
-  const topics = tenant.salesMode === "wholesale" ? "saree details, wholesale orders and quotes" : "sarees, orders and delivery";
+  const topics = tenant.salesMode === "wholesale" ? "product details, wholesale orders and quotes" : "products, orders and delivery";
   return pageMetadata(tenant, {
     title: "Contact us",
     description: `Contact ${siteNameOf(tenant)} about ${topics}${ways.length ? `: ${ways.join(" or ")}` : ""}.`,

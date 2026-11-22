@@ -6,10 +6,11 @@ import CatalogSortSelect from "@/components/catalog/catalog-sort-select";
 import Pagination from "@/components/catalog/pagination";
 import ProductGrid from "@/components/catalog/product-grid";
 import Breadcrumbs, { type Crumb } from "@/components/seo/breadcrumbs";
-import { catalogHref } from "@/features/catalog/query-string";
+import { catalogHref, filterCount } from "@/features/catalog/query-string";
 import { getCategories, getFeaturedProducts, searchCatalog } from "@/lib/catalog/query";
+import { sellingTypes, typeBySlug } from "@/lib/catalog/catalog-config";
 import { CATALOG_PAGE_SIZE, CATALOG_SORT_LABELS } from "@/lib/constants/catalog";
-import type { CatalogQuery } from "@/features/catalog/types";
+import type { CatalogConfig, CatalogQuery } from "@/features/catalog/types";
 import type { PublicTenant } from "@/lib/tenant/types";
 
 type CatalogViewProps = {
@@ -20,33 +21,32 @@ type CatalogViewProps = {
   description?: string;
   /** Trail above the heading (category pages); its structured data comes with it. */
   breadcrumbs?: { origin: string; crumbs: Crumb[] };
+  /** What the store sells (lib/catalog/catalog-config.js). */
+  config: CatalogConfig;
 };
 
-/** Shared listing for /products, /categories/[slug] and search results. */
-export default async function CatalogView({ tenant, query, basePath, title, description, breadcrumbs }: CatalogViewProps) {
+/** Shared listing for /products, /categories/[slug], /shop/[type] and search results. */
+export default async function CatalogView({ tenant, query, basePath, title, description, breadcrumbs, config }: CatalogViewProps) {
   const [result, categories] = await Promise.all([
     searchCatalog(tenant.id, tenant.salesMode, query),
     getCategories(tenant.id),
   ]);
   const suggestions = result.total === 0 ? await getFeaturedProducts(tenant.id, tenant.salesMode, 8) : [];
   const first = (result.page - 1) * CATALOG_PAGE_SIZE + 1;
-  const activeFilterCount =
-    query.fabric.length +
-    query.weave.length +
-    query.color.length +
-    query.occasion.length +
-    (query.minPrice !== null || query.maxPrice !== null ? 1 : 0) +
-    (query.inStock ? 1 : 0);
-  // Clears the filters but keeps the search term and sort order.
+  const activeFilterCount = filterCount(query) + (query.minPrice !== null || query.maxPrice !== null ? 1 : 0) + (query.inStock ? 1 : 0);
+  // Clears the filters but keeps the search term, product type and sort order.
   const clearFiltersHref = catalogHref(basePath, query, {
-    fabric: [],
-    weave: [],
-    color: [],
-    occasion: [],
+    filters: Object.fromEntries(Object.keys(query.filters).map((key) => [key, []])),
     minPrice: null,
     maxPrice: null,
     inStock: false,
   });
+  const types = sellingTypes(config).map((type) => ({ name: type.pluralName, slug: type.slug, count: type.productCount }));
+  const names = Object.fromEntries(Object.values(config.attributes).map((attribute) => [attribute.key, attribute.name]));
+  const typeName = query.type ? typeBySlug(config, query.type)?.pluralName ?? null : null;
+  // A type's listing counts each category's products of that type only.
+  const counts = result.categoryCounts;
+  const shownCategories = counts ? categories.map((category) => ({ ...category, productCount: counts[category.id] ?? 0 })) : categories;
   // "Best match" only means something for a search.
   const sortOptions = Object.entries(CATALOG_SORT_LABELS)
     .filter(([value]) => value !== "relevance" || query.q)
@@ -65,10 +65,10 @@ export default async function CatalogView({ tenant, query, basePath, title, desc
         range={{ first, last: first + result.items.length - 1 }}
         activeCount={activeFilterCount}
         clearHref={clearFiltersHref}
-        filters={<CatalogFilters basePath={basePath} query={query} result={result} categories={categories} />}
+        filters={<CatalogFilters basePath={basePath} query={query} result={result} categories={shownCategories} types={types} />}
         sort={<CatalogSortSelect key={query.sort} basePath={basePath} query={query} options={sortOptions} />}
       >
-        <AppliedFilters basePath={basePath} query={query} />
+        <AppliedFilters basePath={basePath} query={query} names={names} typeName={typeName} />
         {result.total > 0 ? (
           <>
             <ProductGrid products={result.items} salesMode={tenant.salesMode} priorityCount={4} label={title} />

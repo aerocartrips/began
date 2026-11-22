@@ -62,7 +62,7 @@ export default function CartLine({ row, salesMode, lowStockThreshold, onQuantity
   const bulkPrice = row.unitPrice < row.basePrice;
   const wasPrice = bulkPrice ? row.basePrice : (line.compareAtPrice ?? 0) > row.unitPrice ? line.compareAtPrice : null;
   const fix = problem ? problemFix(problem) : null;
-  const locked = problem?.kind === "soldOut" || problem?.kind === "colour";
+  const locked = problem?.kind === "soldOut" || problem?.kind === "variant";
   const lowStock = !problem && available <= lowStockThreshold;
 
   return (
@@ -78,10 +78,10 @@ export default function CartLine({ row, salesMode, lowStockThreshold, onQuantity
           <Link href={href}>{name}</Link>
         </h3>
         <p className="cart-line__meta">
-          {line.colorName ? (
+          {line.variantTitle || line.colorName ? (
             <span className="cart-line__colour">
-              <span className="swatch" style={{ backgroundColor: line.colorHex || undefined }} aria-hidden="true" />
-              {line.colorName}
+              {line.colorName ? <span className="swatch" style={{ backgroundColor: line.colorHex || undefined }} aria-hidden="true" /> : null}
+              {line.variantTitle || line.colorName}
             </span>
           ) : null}
           {line.sku ? <span>SKU {line.sku}</span> : null}
@@ -100,8 +100,8 @@ export default function CartLine({ row, salesMode, lowStockThreshold, onQuantity
               <button type="button" className="cart-line__fix" onClick={() => onQuantity(row, fix)}>
                 Update to {formatNumber(fix)}
               </button>
-            ) : problem.kind === "colour" ? (
-              <Link className="cart-line__fix" href={href}>Choose a colour</Link>
+            ) : problem.kind === "variant" ? (
+              <Link className="cart-line__fix" href={href}>Choose an option</Link>
             ) : null}
           </p>
         ) : row.nextTier ? (

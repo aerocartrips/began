@@ -11,7 +11,8 @@ import type { CartItem, PricedCartLine } from "@/features/cart/types";
  */
 export type LineProblem =
   | { kind: "unavailable" }
-  | { kind: "colour" }
+  /** The variant (colour, size…) in the cart is no longer offered. */
+  | { kind: "variant" }
   /** Fewer in stock than the minimum order (0 = out of stock). */
   | { kind: "soldOut"; available: number; minimum: number }
   | { kind: "stock"; available: number }
@@ -37,7 +38,7 @@ export type CartRow = {
 export function lineProblem(line: PricedCartLine | null, quantity: number): LineProblem | null {
   if (!line) return null;
   if (line.unavailable) return { kind: "unavailable" };
-  if (line.issues?.some((issue) => issue.field === "variantId")) return { kind: "colour" };
+  if (line.issues?.some((issue) => issue.field === "variantId")) return { kind: "variant" };
   const available = line.available ?? 0;
   const minimum = line.minimumQuantity ?? 1;
   if (available < minimum) return { kind: "soldOut", available, minimum };
@@ -50,8 +51,8 @@ export function lineProblemText(problem: LineProblem, unit: string) {
   switch (problem.kind) {
     case "unavailable":
       return "This product is no longer available.";
-    case "colour":
-      return "This colour is no longer offered. Choose another on the product page.";
+    case "variant":
+      return "This option is no longer offered. Choose another on the product page.";
     case "soldOut":
       return problem.available > 0
         ? `Only ${formatNumber(problem.available)} left, below the minimum order of ${formatNumber(problem.minimum)} ${unit}.`

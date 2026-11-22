@@ -1,6 +1,7 @@
 /**
- * Seeds a store with attribute lists, categories and realistic saree products
- * (colour variants, quantity tiers, MOQs). Re-running adds nothing that exists.
+ * Seeds a store with the Saree product type (and its attributes), categories
+ * and realistic saree products (colour variants, quantity tiers, MOQs).
+ * Re-running adds nothing that exists.
  *
  *   npm run seed:catalog -- --tenant acme              # 60 products
  *   npm run seed:catalog -- --tenant acme --count 20000  # load-test a large catalogue
@@ -9,8 +10,11 @@
  */
 import { connect, disconnect, fail, parseCli } from "./lib/cli.mjs";
 import { Tenant } from "@/lib/db/models/Tenant";
-import { Attribute } from "@/lib/db/models/Attribute";
 import { Category } from "@/lib/db/models/Category";
+import { ProductAttribute } from "@/lib/db/models/ProductAttribute";
+import { ProductType } from "@/lib/db/models/ProductType";
+import { addAttributeValue } from "@/lib/services/attribute.service";
+import { createProductTypeFromTemplate } from "@/lib/services/product-type.service";
 import { Product } from "@/lib/db/models/Product";
 import { runWithTenant } from "@/lib/tenant/context";
 import { slugify } from "@/lib/utils/slugify";
@@ -54,6 +58,7 @@ const tenant = await Tenant.findOne({ slug: args.tenant }).lean();
 if (!tenant) fail(`No store with slug "${args.tenant}".`);
 
 await runWithTenant(String(tenant._id), async () => {
+  const type = (await ProductType.findOne({ template: "saree" }).lean()) ?? (await createProductTypeFromTemplate({ template: "saree" })).toObject();
   const lists = [
     ["fabric", FABRICS.map((label) => [label])],
     ["weave", WEAVES.map((label) => [label])],
@@ -61,16 +66,10 @@ await runWithTenant(String(tenant._id), async () => {
     ["pattern", PATTERNS.map((label) => [label])],
     ["color", COLOURS],
   ];
-  for (const [type, values] of lists) {
-    await Attribute.bulkWrite(
-      values.map(([label, hex = ""], sortOrder) => ({
-        updateOne: {
-          filter: { type, slug: slugify(label) },
-          update: { $setOnInsert: { type, label, slug: slugify(label), hex, sortOrder, isActive: true } },
-          upsert: true,
-        },
-      })),
-    );
+  for (const [key, values] of lists) {
+    const attribute = await ProductAttribute.findOne({ key }).select("_id").lean();
+    if (!attribute) continue;
+    for (const [label, hex = ""] of values) await addAttributeValue(String(attribute._id), { label, hex });
   }
 
   const categoryIds = [];
@@ -109,14 +108,19 @@ await runWithTenant(String(tenant._id), async () => {
         shortDescription: `${weave} weave in ${fabric.toLowerCase()} with ${pattern.toLowerCase()}.`,
         description: `A ${weave} saree in ${fabric.toLowerCase()}, finished with a ${pattern.toLowerCase()}. Comes with an unstitched blouse piece.\n\nEach piece is checked before dispatch; slight variations are a mark of handwork.`,
         category: categoryIds[index % categoryIds.length],
-        fabric,
-        weavingType: weave,
-        occasion: pick(OCCASIONS),
-        design: pattern,
-        sareeLength: "5.5 m + 0.8 m blouse",
-        blousePiece: "Included",
+        productType: type._id,
+        attributes: [
+          { key: "fabric", value: fabric },
+          { key: "weave", value: weave },
+          { key: "occasion", value: pick(OCCASIONS) },
+          { key: "pattern", value: pattern },
+          { key: "saree_length", value: "5.5" },
+          { key: "blouse_piece", value: "Included" },
+        ],
         careInstructions: fabric.includes("Silk") ? "Dry clean only. Store in muslin." : "Gentle hand wash in cold water. Dry in shade.",
         variants: colours.map(([colorName, colorHex], variantIndex) => ({
+          options: { color: colorName },
+          title: colorName,
           colorName,
           colorHex,
           sku: `${sku}-${variantIndex + 1}`,

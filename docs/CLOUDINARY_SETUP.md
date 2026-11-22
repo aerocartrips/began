@@ -41,7 +41,10 @@ Set the same environment variables in your hosting provider. Restrict Cloudinary
 
 - `files`: one or more images
 - `folder` (optional): one of the allowed `norosilk/...` folders
-- `fabric` (optional): used to infer product folder
+- `productType` (optional): the product type's slug; product photos are filed under `products/<slug>` (e.g. `products/t-shirts`)
+- `fabric` (optional, older clients): picks `products/silk`, `products/cotton` or `products/handloom` when no product type is sent
+
+Without any of these, photos go to `products/`. `POST /api/v1/products/{productId}/images` takes the same fields and files photos under the product's saved type when none is sent. Every folder sits inside the store's own `norosilk/stores/<storeId>/` folder.
 
 Requires admin access (dashboard admin cookie or MongoDB admin JWT).
 

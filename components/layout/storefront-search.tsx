@@ -24,6 +24,8 @@ type StorefrontSearchProps = {
   /** Called before navigating away (the phone sheet closes itself). */
   onNavigate?: () => void;
   onCancel?: () => void;
+  /** Says what the store sells ("Search sarees, T-shirts…"). */
+  placeholder?: string;
 };
 
 /**
@@ -31,7 +33,7 @@ type StorefrontSearchProps = {
  * catalogue API. Arrow keys move through suggestions; Enter opens the
  * highlighted product or the full results page.
  */
-export default function StorefrontSearch({ variant = "inline", onNavigate, onCancel }: StorefrontSearchProps) {
+export default function StorefrontSearch({ variant = "inline", onNavigate, onCancel, placeholder = "Search products, SKU…" }: StorefrontSearchProps) {
   const router = useRouter();
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -99,7 +101,7 @@ export default function StorefrontSearch({ variant = "inline", onNavigate, onCan
         aria-autocomplete="list"
         aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
         value={query}
-        placeholder="Search sarees, fabric, SKU…"
+        placeholder={placeholder}
         onChange={(event) => {
           setQuery(event.currentTarget.value);
           setOpen(true);

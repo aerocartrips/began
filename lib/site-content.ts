@@ -19,10 +19,15 @@ export function getSiteNavigation(): readonly NavigationItem[] {
   ];
 }
 
-export function getFooterColumns(salesMode: SalesMode) {
+/**
+ * Footer and phone-menu link groups. `types` are the product types the store
+ * sells; with more than one, each gets a link of its own.
+ */
+export function getFooterColumns(salesMode: SalesMode, types: readonly NavigationItem[] = []) {
   return {
     shop: [
       { label: "All products", href: "/products" },
+      ...(types.length > 1 ? types : []),
       { label: "Categories", href: "/categories" },
       { label: "Wishlist", href: "/wishlist" },
       ...(salesMode === "wholesale" ? [{ label: "Request a quote", href: "/request-quote" }] : []),
@@ -39,7 +44,7 @@ export function getFooterColumns(salesMode: SalesMode) {
       { label: "Track an order", href: "/track-order" },
       { label: "Shipping", href: "/shipping" },
       { label: "Returns & refunds", href: "/returns" },
-      { label: "Saree care guide", href: "/care-guide" },
+      { label: "Care guide", href: "/care-guide" },
       { label: "Buying guides", href: "/guides" },
     ],
     legal: [
@@ -48,5 +53,5 @@ export function getFooterColumns(salesMode: SalesMode) {
       { label: "Terms & conditions", href: "/terms-and-conditions" },
       { label: "Cancellation & refund policy", href: "/returns" },
     ],
-  } as const satisfies Record<string, readonly NavigationItem[]>;
+  } satisfies Record<string, readonly NavigationItem[]>;
 }

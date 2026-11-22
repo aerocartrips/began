@@ -20,6 +20,9 @@ export type OrderListItem = {
     product?: string;
     productName: string;
     sku: string;
+    /** "Red / M" (colour-only for orders placed before sizes existed). */
+    variantTitle?: string;
+    colorName?: string;
     quantity: number;
     unitPrice: number;
     lineTotal: number;

@@ -91,9 +91,9 @@ describe("line problems", () => {
     expect(lineProblemText({ kind: "soldOut", available: 3, minimum: 5 }, "pieces")).toBe("Only 3 left, below the minimum order of 5 pieces.");
   });
 
-  it("reports withdrawn products and colours first", () => {
+  it("reports withdrawn products and variants first", () => {
     expect(lineProblem({ productId: "x", variantId: null, quantity: 1, unavailable: true }, 1)).toEqual({ kind: "unavailable" });
-    expect(lineProblem(pricedLine(5, { issues: [{ field: "variantId", message: "Choose a colour." }] }), 5)).toEqual({ kind: "colour" });
+    expect(lineProblem(pricedLine(5, { issues: [{ field: "variantId", message: "Choose an option." }] }), 5)).toEqual({ kind: "variant" });
   });
 });
 

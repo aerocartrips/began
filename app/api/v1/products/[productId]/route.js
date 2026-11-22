@@ -3,7 +3,7 @@ import { withDatabase } from "@/lib/api/with-database";
 import { parseJsonBody } from "@/lib/api/parse-json";
 import { successResponse } from "@/lib/utils/api-response";
 import { requireAdminAccess, requireAdminUser } from "@/lib/auth/admin-access";
-import { PRODUCT_STATUS } from "@/lib/constants/product-status";
+import { isListedProduct } from "@/lib/constants/product-status";
 import {
   deleteProduct,
   getProduct,
@@ -13,8 +13,8 @@ import {
 export const GET = withDatabase(async (_request, context) => {
   const { productId } = await context.params;
   const product = await getProduct(productId);
-  // Unpublished products (drafts, inactive) are visible to catalogue staff only.
-  if (product.status !== PRODUCT_STATUS.ACTIVE) await requireAdminAccess(PERMISSIONS.CATALOG_MANAGE);
+  // Unlisted products (drafts, inactive, or of a type the store isn't selling) are visible to catalogue staff only.
+  if (!isListedProduct(product)) await requireAdminAccess(PERMISSIONS.CATALOG_MANAGE);
   return successResponse(product, "Product fetched successfully.");
 });
 

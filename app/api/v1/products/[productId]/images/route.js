@@ -21,9 +21,11 @@ export const POST = withDatabase(async (request, context) => {
 
   const folder = formData.get("folder");
   const fabric = formData.get("fabric");
+  const productType = formData.get("productType");
   const result = await attachProductImages(productId, extracted.files, {
     folder: typeof folder === "string" ? folder : undefined,
     fabric: typeof fabric === "string" ? fabric : undefined,
+    productType: typeof productType === "string" ? productType : undefined,
   });
 
   return successResponse(

@@ -22,6 +22,8 @@ beforeAll(async () => {
     Tenant: (await import("@/lib/db/models/Tenant")).Tenant,
     Product: (await import("@/lib/db/models/Product")).Product,
     Category: (await import("@/lib/db/models/Category")).Category,
+    ProductAttribute: (await import("@/lib/db/models/ProductAttribute")).ProductAttribute,
+    ProductType: (await import("@/lib/db/models/ProductType")).ProductType,
     ...(await import("@/lib/tenant/context")),
     ...(await import("@/lib/catalog/query")),
     ...(await import("@/lib/services/cart-pricing.service")),
@@ -32,8 +34,11 @@ beforeAll(async () => {
     ...(await import("@/lib/services/quote.service")),
     ...(await import("@/lib/services/product.service")),
     ...(await import("@/lib/services/category.service")),
+    ...(await import("@/lib/services/product-type.service")),
+    ...(await import("@/lib/services/attribute.service")),
+    ...(await import("@/lib/catalog/catalog-config")),
   };
-  await Promise.all([m.Product.syncIndexes(), m.Category.syncIndexes()]);
+  await Promise.all([m.Product.syncIndexes(), m.Category.syncIndexes(), m.ProductType.syncIndexes(), m.ProductAttribute.syncIndexes()]);
   // Request contexts hold the public view of a store (as withDatabase sets it), not the raw document.
   const { toPublicTenant } = await import("@/lib/tenant/resolve");
   wholesale = toPublicTenant((await m.Tenant.create({ slug: "w", name: "Wholesale Co", domains: ["w.test"], salesMode: "wholesale" })).toObject());
@@ -46,21 +51,26 @@ beforeAll(async () => {
   for (const [tenant, names] of catalogues) {
     await m.runWithTenant(tenant, async () => {
       const category = await m.Category.create({ name: "Sarees", slug: "sarees" });
+      // As stores are after the catalogue upgrade: a Saree type, details as attribute values, colour options.
+      const type = await m.createProductTypeFromTemplate({ template: "saree" });
+      const fabric = await m.ProductAttribute.findOne({ key: "fabric" });
+      await m.addAttributeValue(String(fabric._id), { label: "Silk" });
       for (const [index, name] of names.entries()) {
         const created = await m.Product.create({
           name,
           slug: name.toLowerCase().replace(/\s+/g, "-"),
           sku: `SKU-${tenant.slug}-${index}`,
           category: category._id,
-          fabric: name.includes("Cotton") ? "Cotton" : "Silk",
+          productType: type._id,
+          attributes: [{ key: "fabric", value: name.includes("Cotton") ? "Cotton" : "Silk" }],
           price: 1000,
           compareAtPrice: 1200,
           wholesalePrice: 700,
           minimumOrderQuantity: 10,
           bulkPricingTiers: [{ minQuantity: 50, pricePerUnit: 650 }],
           variants: [
-            { colorName: "Red", colorHex: "#aa0000", sku: `V-${tenant.slug}-${index}-R`, stockQuantity: 60 },
-            { colorName: "Gold", colorHex: "#c9a227", sku: `V-${tenant.slug}-${index}-G`, stockQuantity: 0 },
+            { options: { color: "Red" }, colorName: "Red", colorHex: "#aa0000", sku: `V-${tenant.slug}-${index}-R`, stockQuantity: 60 },
+            { options: { color: "Gold" }, colorName: "Gold", colorHex: "#c9a227", sku: `V-${tenant.slug}-${index}-G`, stockQuantity: 0 },
           ],
           status: "active",
         });
@@ -76,71 +86,91 @@ afterAll(async () => {
 });
 
 describe("catalogue search", () => {
+  /** The store's catalogue config: its attributes are the filter parameters. */
+  const query = async (tenant, params, fixed = {}) => m.parseCatalogQuery(params, fixed, await m.getCatalogConfig(String(tenant.id ?? tenant._id)));
+  const facet = (result, key) => result.facets.find((group) => group.key === key)?.values ?? [];
+
   it("derives totals from variants and returns facets for one store only", async () => {
     expect(product.stockQuantity).toBe(60);
     expect(product.colors).toEqual(["Red", "Gold"]);
-    const result = await m.searchCatalog(wholesale.id, "wholesale", m.parseCatalogQuery({}));
+    expect(product.variants.map((variant) => variant.title)).toEqual(["Red", "Gold"]);
+    const result = await m.searchCatalog(wholesale.id, "wholesale", await query(wholesale, {}));
     expect(result.total).toBe(3);
-    expect(result.facets.fabric).toEqual(expect.arrayContaining([{ value: "Silk", count: 2 }, { value: "Cotton", count: 1 }]));
+    expect(facet(result, "fabric")).toEqual(expect.arrayContaining([{ value: "Silk", count: 2 }, { value: "Cotton", count: 1 }]));
+    expect(facet(result, "color").map((entry) => [entry.value, entry.count])).toEqual(expect.arrayContaining([["Red", 3], ["Gold", 3]]));
     expect(result.items.every((item) => item.price === 700 && item.minimumQuantity === 10)).toBe(true);
   });
 
   it("keeps counts for other values when one value of a filter is selected", async () => {
-    const result = await m.searchCatalog(wholesale.id, "wholesale", m.parseCatalogQuery({ fabric: "Cotton" }));
+    const result = await m.searchCatalog(wholesale.id, "wholesale", await query(wholesale, { fabric: "Cotton" }));
     expect(result.total).toBe(1);
-    expect(result.facets.fabric.find((facet) => facet.value === "Silk")?.count).toBe(2);
+    expect(facet(result, "fabric").find((entry) => entry.value === "Silk")?.count).toBe(2);
   });
 
-  it("lists values that differ only in letter case as one option and matches them whatever the case", async () => {
+  it("counts and matches colours in stock only when asked", async () => {
+    const all = await m.searchCatalog(wholesale.id, "wholesale", await query(wholesale, { color: "Gold" }));
+    expect(all.total).toBe(3);
+    // Every Gold variant is sold out: in stock only, Gold matches nothing and isn't offered.
+    const inStock = await m.searchCatalog(wholesale.id, "wholesale", await query(wholesale, { color: "Gold", stock: "1" }));
+    expect(inStock.total).toBe(0);
+    const offered = await m.searchCatalog(wholesale.id, "wholesale", await query(wholesale, { stock: "1" }));
+    expect(facet(offered, "color").map((entry) => entry.value)).toEqual(["Red"]);
+  });
+
+  it("matches values in the attribute list's spelling, whole values only", async () => {
     // A store of its own, so the totals the other tests check stay as they are.
     const store = await m.Tenant.create({ slug: "c", name: "Cased Co", domains: ["c.test"], salesMode: "wholesale" });
     await m.runWithTenant(store, async () => {
       const category = await m.Category.create({ name: "Sarees", slug: "sarees" });
-      const fabrics = ["Pure Silk", "Pure Silk", "pure silk", "Cotton+Silk", "Linen"];
-      for (const [index, fabric] of fabrics.entries()) {
+      const type = await m.createProductTypeFromTemplate({ template: "saree" });
+      const fabric = await m.ProductAttribute.findOne({ key: "fabric" });
+      await m.addAttributeValue(String(fabric._id), { label: "Cotton+Silk" });
+      const fabrics = ["Pure Silk", "Pure Silk", "Pure Silk", "Cotton+Silk", "Linen"];
+      for (const [index, value] of fabrics.entries()) {
         await m.Product.create({
           name: `Cased ${index}`,
           slug: `cased-${index}`,
           sku: `SKU-c-${index}`,
           category: category._id,
-          fabric,
+          productType: type._id,
+          attributes: [{ key: "fabric", value }],
           price: 1000 + index * 100,
           wholesalePrice: 500 + index * 100,
           minimumOrderQuantity: 1,
-          variants: [{ colorName: "Red", colorHex: "#aa0000", sku: `V-c-${index}`, stockQuantity: 5 }],
+          variants: [{ options: { color: "Red" }, colorName: "Red", colorHex: "#aa0000", sku: `V-c-${index}`, stockQuantity: 5 }],
           status: "active",
         });
       }
     });
 
-    const all = await m.searchCatalog(String(store._id), "wholesale", m.parseCatalogQuery({}));
-    // One option per value, shown in its most common spelling, most products first.
-    expect(all.facets.fabric).toEqual([
+    const all = await m.searchCatalog(String(store._id), "wholesale", await query(store, {}));
+    expect(facet(all, "fabric")).toEqual([
       { value: "Pure Silk", count: 3 },
       { value: "Cotton+Silk", count: 1 },
       { value: "Linen", count: 1 },
     ]);
     expect(all.priceRange).toEqual({ min: 500, max: 900 });
 
-    const silk = await m.searchCatalog(String(store._id), "wholesale", m.parseCatalogQuery({ fabric: "pure SILK" }));
+    // The URL's spelling doesn't matter: the list's is used.
+    const silk = await m.searchCatalog(String(store._id), "wholesale", await query(store, { fabric: "pure SILK" }));
     expect(silk.total).toBe(3);
     expect(silk.priceRange).toEqual({ min: 500, max: 700 });
     // Whole values only, with regex characters taken literally.
-    const blend = await m.searchCatalog(String(store._id), "wholesale", m.parseCatalogQuery({ fabric: "cotton+silk" }));
+    const blend = await m.searchCatalog(String(store._id), "wholesale", await query(store, { fabric: "cotton+silk" }));
     expect(blend.items.map((item) => item.name)).toEqual(["Cased 3"]);
-    const partial = await m.searchCatalog(String(store._id), "wholesale", m.parseCatalogQuery({ fabric: "Silk" }));
+    const partial = await m.searchCatalog(String(store._id), "wholesale", await query(store, { fabric: "Silk" }));
     expect(partial.total).toBe(0);
   });
 
   it("matches word searches and name prefixes", async () => {
-    const words = await m.searchCatalog(wholesale.id, "wholesale", m.parseCatalogQuery({ q: "banarasi" }));
-    const prefix = await m.searchCatalog(wholesale.id, "wholesale", m.parseCatalogQuery({ q: "bana" }));
+    const words = await m.searchCatalog(wholesale.id, "wholesale", await query(wholesale, { q: "banarasi" }));
+    const prefix = await m.searchCatalog(wholesale.id, "wholesale", await query(wholesale, { q: "bana" }));
     expect(words.total).toBe(2);
     expect(prefix.total).toBe(2);
   });
 
   it("shows retail prices in a retail store and never another store's products", async () => {
-    const result = await m.searchCatalog(retail.id, "retail", m.parseCatalogQuery({}));
+    const result = await m.searchCatalog(retail.id, "retail", await query(retail, {}));
     expect(result.items.map((item) => item.name)).toEqual(["Retail Only Linen"]);
     expect(result.items[0]).toMatchObject({ price: 1000, compareAtPrice: 1200, minimumQuantity: 1 });
   });
@@ -154,6 +184,7 @@ describe("renamed products and categories keep their old addresses", () => {
         slug: "kora-organza",
         sku: "SKU-w-rename",
         category: product.category,
+        productType: product.productType,
         price: 1000,
         wholesalePrice: 700,
         minimumOrderQuantity: 1,
@@ -205,7 +236,7 @@ describe("cart pricing and stock", () => {
     const tiered = await m.runWithTenant(wholesale, () =>
       m.priceCartItems([{ productId: String(product._id), variantId: red(), quantity: 50 }]),
     );
-    expect(tiered.lines[0]).toMatchObject({ unitPrice: 650, lineTotal: 32500, colorName: "Red" });
+    expect(tiered.lines[0]).toMatchObject({ unitPrice: 650, lineTotal: 32500, colorName: "Red", variantTitle: "Red", options: [{ name: "Colour", value: "Red" }] });
   });
 
   it("reserves and releases stock per colour atomically, once, with a ledger entry each way", async () => {
@@ -253,7 +284,7 @@ describe("quotes", () => {
         },
         buyer,
       );
-      expect(submitted.items[0]).toMatchObject({ listUnitPrice: 650, colorName: "Red" });
+      expect(submitted.items[0]).toMatchObject({ listUnitPrice: 650, colorName: "Red", variantTitle: "Red" });
 
       const [{ id }] = await m.listCustomerQuotes(buyer);
       await expect(m.updateQuoteAsAdmin(id, admin, { status: "quoted" })).rejects.toThrow(/Price every line/);

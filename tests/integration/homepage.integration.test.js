@@ -14,6 +14,7 @@ let storeB;
 let silk;
 let banarasi;
 let cotton;
+let sareeType;
 /** @type {Record<string, any>} */
 const products = {};
 const DAY = 24 * 60 * 60 * 1000;
@@ -26,7 +27,8 @@ async function makeProduct(tenantId, n, overrides = {}) {
       slug: `saree-${n}`,
       sku: `SKU-${n}`,
       category: silk._id,
-      fabric: "Silk",
+      productType: sareeType._id,
+      attributes: [{ key: "fabric", value: "Silk" }],
       price: 1000 + n * 10,
       wholesalePrice: 700 + n * 10,
       minimumOrderQuantity: 5,
@@ -54,6 +56,7 @@ beforeAll(async () => {
     ...(await import("@/lib/services/product-activity.service")),
     ...(await import("@/lib/services/homepage.service")),
     ...(await import("@/lib/content/homepage")),
+    ...(await import("@/lib/services/product-type.service")),
   };
   storeA = String((await m.Tenant.create({ slug: "a", name: "A", domains: ["a.test"] }))._id);
   storeB = String((await m.Tenant.create({ slug: "b", name: "B", domains: ["b.test"] }))._id);
@@ -63,10 +66,16 @@ beforeAll(async () => {
     banarasi = await m.Category.create({ name: "Banarasi", slug: "banarasi", parentCategory: silk._id, sortOrder: 2 });
     cotton = await m.Category.create({ name: "Cotton", slug: "cotton", sortOrder: 3 });
     await m.Category.create({ name: "Empty", slug: "empty", sortOrder: 4 });
+    // The store sells sarees: fabric, weave and occasion are its filterable details.
+    sareeType = await m.createProductTypeFromTemplate({ template: "saree" });
   });
   for (let n = 1; n <= 20; n += 1) products[n] = await makeProduct(storeA, n);
-  for (let n = 21; n <= 25; n += 1) products[n] = await makeProduct(storeA, n, { category: banarasi._id, weavingType: "Banarasi" });
-  for (let n = 26; n <= 30; n += 1) products[n] = await makeProduct(storeA, n, { category: cotton._id, fabric: "Cotton", price: 400 + n, wholesalePrice: 300 + n });
+  for (let n = 21; n <= 25; n += 1) {
+    products[n] = await makeProduct(storeA, n, { category: banarasi._id, attributes: [{ key: "fabric", value: "Silk" }, { key: "weave", value: "Banarasi" }] });
+  }
+  for (let n = 26; n <= 30; n += 1) {
+    products[n] = await makeProduct(storeA, n, { category: cotton._id, attributes: [{ key: "fabric", value: "Cotton" }], price: 400 + n, wholesalePrice: 300 + n });
+  }
   products.draft = await makeProduct(storeA, 99, { status: "draft" });
   // Another store's product in a same-named category must never leak in.
   await m.runWithTenant(storeB, async () => {
@@ -280,14 +289,21 @@ describe("home page layout", () => {
     expect((await m.getHomepageSections(storeA)).length).toBeGreaterThan(3);
   });
 
-  it("builds collections from categories and attributes, with the full count for View all", async () => {
+  it("builds collections from categories, product types and details, with the full count for View all", async () => {
     const byCategory = await m.getCollectionProducts(storeA, "retail", { kind: "category", value: "silk", productIds: [], sort: "newest" }, 30);
     expect(byCategory.items).toHaveLength(25);
     const capped = await m.getCollectionProducts(storeA, "retail", { kind: "category", value: "silk", productIds: [], sort: "newest" }, 10);
     expect(capped.items).toHaveLength(10);
     expect(capped.total).toBe(25);
+    // An older collection (kind "weave") and a product-detail collection find the same products.
     const byWeave = await m.getCollectionProducts(storeA, "retail", { kind: "weave", value: "Banarasi", productIds: [], sort: "price-asc" }, 10);
     expect(byWeave.items.map((item) => item.name)).toEqual(["Saree 21", "Saree 22", "Saree 23", "Saree 24", "Saree 25"]);
+    const byDetail = await m.getCollectionProducts(storeA, "retail", { kind: "attribute", attribute: "weave", value: "Banarasi", productIds: [], sort: "price-asc" }, 10);
+    expect(byDetail.items.map((item) => item.name)).toEqual(byWeave.items.map((item) => item.name));
+    const byType = await m.getCollectionProducts(storeA, "retail", { kind: "type", value: "sarees", productIds: [], sort: "newest" }, 10);
+    expect(byType.total).toBe(30);
+    const unknownType = await m.getCollectionProducts(storeA, "retail", { kind: "type", value: "jeans", productIds: [], sort: "newest" }, 10);
+    expect(unknownType.total).toBe(0);
     expect(await m.getCatalogueTotal(storeA)).toBe(30);
   });
 });

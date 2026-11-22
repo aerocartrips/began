@@ -70,7 +70,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   // All cached per store; none of them waits for another.
   const [related, reviewPreview, policies, categories] = await Promise.all([
-    getRelatedProducts(tenant.id, tenant.salesMode, product.id, product.category?.slug ?? null),
+    getRelatedProducts(tenant.id, tenant.salesMode, product.id, product.category?.slug ?? null, 8, product.type?.id ?? null),
     getProductReviewPreview(tenant.id, product.id),
     getStorePolicies(tenant.id),
     getCategories(tenant.id),

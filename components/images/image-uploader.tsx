@@ -31,6 +31,8 @@ type ImageUploaderProps = {
   onChange: (images: ManagedImage[]) => void;
   productId?: string;
   folder?: string;
+  /** The product type's slug: photos are filed under it in Cloudinary. */
+  productType?: string;
   fabric?: string;
   maxImages?: number;
 };
@@ -42,6 +44,7 @@ export default function ImageUploader({
   onChange,
   productId,
   folder,
+  productType,
   fabric,
   maxImages = 8,
 }: ImageUploaderProps) {
@@ -104,6 +107,7 @@ export default function ImageUploader({
       const formData = new FormData();
       selectedFiles.forEach((file) => formData.append("files", file));
       if (folder) formData.append("folder", folder);
+      if (productType) formData.append("productType", productType);
       if (fabric) formData.append("fabric", fabric);
 
       const endpoint = productId
@@ -176,7 +180,7 @@ export default function ImageUploader({
       >
         <label className="admin-image-picker" htmlFor={inputId}>
           <ImagePlus size={18} aria-hidden="true" />
-          <span>{pending ? "Uploading..." : "Drag and drop saree images"}</span>
+          <span>{pending ? "Uploading..." : "Drag and drop product images"}</span>
           <small>JPG, PNG, WebP · Up to 10 MB · Upload on save action</small>
         </label>
         <input

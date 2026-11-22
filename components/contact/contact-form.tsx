@@ -110,7 +110,7 @@ export default function ContactForm() {
           rows={6}
           minLength={20}
           maxLength={5000}
-          placeholder="Tell us what you need—quantities, saree names, timelines, or questions."
+          placeholder="Tell us what you need—quantities, product names, timelines, or questions."
           hint="Please include at least 20 characters."
           error={errors.message}
           wide

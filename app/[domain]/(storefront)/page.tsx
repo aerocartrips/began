@@ -119,8 +119,11 @@ function collectionViewAll(section: HomeSectionConfig) {
   const source = section.source;
   if (!source?.value) return "";
   if (source.kind === "category") return `/categories/${source.value}`;
+  if (source.kind === "type") return `/shop/${source.value}`;
   if (source.kind === "products") return "";
-  return `/products?${new URLSearchParams({ [source.kind]: source.value })}`;
+  // Attribute collections (older ones used the attribute key as their kind) open the filtered catalogue.
+  const key = source.kind === "attribute" ? source.attribute : source.kind;
+  return key ? `/products?${new URLSearchParams({ [key]: source.value })}` : "";
 }
 
 export default async function Home() {
@@ -223,7 +226,7 @@ export default async function Home() {
 
       case T.QUICK_PICKS:
         return quickPicks.length ? (
-          <HomeSection section={section} title={section.title || "Find your saree faster"} description={section.description}>
+          <HomeSection section={section} title={section.title || "Find it faster"} description={section.description}>
             <QuickPicks groups={quickPicks} />
           </HomeSection>
         ) : null;
@@ -294,7 +297,7 @@ export default async function Home() {
         return feed?.items.length ? (
           <HomeFeed
             section={section}
-            title={section.title || "All sarees"}
+            title={section.title || "All products"}
             description={section.description || "Most popular first. Pick a category to narrow it down."}
             initialPage={feed}
             categories={categories.map(({ slug, name, productCount }) => ({ slug, name, count: productCount }))}

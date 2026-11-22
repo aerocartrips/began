@@ -385,6 +385,9 @@ html:has(dialog[open]) { overflow: hidden; }
   .price-tier strong { font-size: 15px; }
   .variant-picker__options { gap: 12px; }
   .variant-swatch { width: 44px; height: 44px; }
+  .option-chip { min-width: 52px; min-height: 44px; }
+  .catalog-chip-option { min-width: 48px; min-height: 44px; font-size: 14px; }
+  .size-guide-link { font-size: 13px; }
   .product-purchase-panel { gap: 14px; padding: 16px; }
   .product-purchase { display: block; }
   .product-purchase__quantity { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

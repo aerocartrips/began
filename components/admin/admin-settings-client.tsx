@@ -9,6 +9,8 @@ import LoadingButton from "@/components/ui/buttons/loading-button";
 import ErrorCard from "@/components/ui/feedback/error-card";
 import Select from "@/components/ui/form/select";
 import TableSkeleton from "@/components/ui/loaders/table-skeleton";
+import SellingSetup from "@/components/admin/selling-setup";
+import type { ProductTypesPayload } from "@/features/products/catalog-setup";
 import { useApiRequest } from "@/hooks/use-api-request";
 import { useFeedback } from "@/components/feedback/feedback-provider";
 import { useAsyncAction } from "@/hooks/use-async-action";
@@ -16,7 +18,7 @@ import { apiRequest } from "@/lib/api/api-client";
 import { formatDateTime } from "@/lib/format";
 
 type SettingsSection = "store" | "branding" | "theme" | "contact" | "business" | "seo" | "commerce" | "orders" | "shipping";
-type Tab = SettingsSection | "integrations";
+type Tab = SettingsSection | "selling" | "integrations";
 type SettingsValue = string | number;
 
 type SettingsDoc = Record<SettingsSection, Record<string, SettingsValue>> & { version: number };
@@ -42,6 +44,7 @@ const upper = (value: string) => value.toUpperCase();
 
 const TABS: { id: Tab; label: string; description: string }[] = [
   { id: "store", label: "Store", description: "Store name and how it sells." },
+  { id: "selling", label: "What you sell", description: "The kinds of product on sale." },
   { id: "branding", label: "Branding", description: "Title, tagline, logo and images shown on the storefront." },
   { id: "theme", label: "Colours", description: "Storefront colours. Changes apply to every page immediately." },
   { id: "contact", label: "Contact", description: "Contact details shown on the contact page, footer and emails." },
@@ -147,7 +150,7 @@ const FIELDS: Record<SettingsSection, FieldConfig[]> = {
   ],
 };
 
-export default function AdminSettingsClient() {
+export default function AdminSettingsClient({ selling }: { selling: ProductTypesPayload }) {
   const feedback = useFeedback();
   const settingsRequest = useApiRequest<SettingsDoc>("/api/v1/admin/settings");
   const healthRequest = useApiRequest<HealthResponse>("/api/v1/admin/settings/health");
@@ -235,7 +238,15 @@ export default function AdminSettingsClient() {
       </div>
 
       <div id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${tab}`}>
-        {tab === "integrations" ? (
+        {tab === "selling" ? (
+          // Keyed by what is saved, so the choices start from the stored selection after each save.
+          <SellingSetup
+            key={selling.types.map((type) => `${type.id}:${type.isActive}`).join(",")}
+            types={selling.types}
+            templates={selling.templates}
+            untypedCount={selling.untypedCount}
+          />
+        ) : tab === "integrations" ? (
           <AdminCard
             title="Integrations"
             description={

@@ -17,6 +17,8 @@ export type PricedCartLine = CartItem & {
   sku?: string;
   colorName?: string;
   colorHex?: string;
+  /** "Red / M" for a variant (its colour alone for colour-only products). */
+  variantTitle?: string;
   imageUrl?: string;
   imagePublicId?: string;
   minimumQuantity?: number;

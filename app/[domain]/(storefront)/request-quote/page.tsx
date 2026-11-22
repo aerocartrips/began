@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
   if (tenant.salesMode !== "wholesale") notFound();
   return pageMetadata(tenant, {
     title: "Request a quote",
-    description: `Request wholesale prices from ${siteNameOf(tenant)} for the sarees and quantities you need.`,
+    description: `Request wholesale prices from ${siteNameOf(tenant)} for the products and quantities you need.`,
     path: "/request-quote",
   });
 }
@@ -35,7 +35,7 @@ export default async function RequestQuotePage({ searchParams }: RequestQuotePag
         productId: product.id,
         variantId: variant?.id ?? null,
         name: product.name,
-        colorName: variant?.colorName ?? "",
+        colorName: variant?.title || variant?.colorName || "",
         imageUrl: (variant?.images[0] ?? product.images[0])?.url ?? "",
         minimumQuantity: product.minimumQuantity,
         listUnitPrice: product.price,

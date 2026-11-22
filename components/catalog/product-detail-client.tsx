@@ -7,6 +7,7 @@ import { FileText, Share2, ShoppingBag, Zap } from "lucide-react";
 import ProductGallery from "@/components/catalog/product-gallery";
 import Price from "@/components/catalog/price";
 import PurchaseTermsList from "@/components/catalog/purchase-terms-list";
+import SizeGuide from "@/components/catalog/size-guide";
 import WishlistButton from "@/components/catalog/wishlist-button";
 import MobileActionBar from "@/components/layout/mobile-action-bar";
 import RatingStars from "@/components/reviews/rating-stars";
@@ -17,10 +18,10 @@ import { cartActions } from "@/features/cart/cart-store";
 import { recordProductView } from "@/features/catalog/recently-viewed";
 import { MEANINGFUL_VIEW_MS, trackProductActivity } from "@/features/catalog/activity";
 import { compareAtPriceFor, unitPriceFor } from "@/lib/catalog/pricing";
-import { VARIANT_PARAM, variantFromParam, variantParamValues } from "@/lib/catalog/variant-url";
+import { SKU_PARAM, variantFromParams, variantParamValues } from "@/lib/catalog/variant-url";
 import { formatNumber, formatRupees } from "@/lib/format";
 import type { PurchaseTerm } from "@/lib/catalog/purchase-terms";
-import type { CatalogImage, ProductDetailData, ProductVariantData } from "@/features/catalog/types";
+import type { CatalogImage, ProductDetailData, ProductOptionData, ProductVariantData } from "@/features/catalog/types";
 
 type ProductDetailClientProps = {
   product: ProductDetailData;
@@ -30,6 +31,8 @@ type ProductDetailClientProps = {
   /** Payments, shipping and returns, from the store's settings. */
   terms: PurchaseTerm[];
 };
+
+type Selection = Record<string, string>;
 
 const photoKey = (image: CatalogImage) => image.publicId ?? image.url;
 
@@ -42,34 +45,41 @@ function photosFor(product: ProductDetailData, variant: ProductVariantData | nul
 
 const percentOff = (price: number, base: number) => (base > price && base > 0 ? Math.round((1 - price / base) * 100) : 0);
 
-/** The page address's `?color=` (null while server rendering and hydrating). */
+/** The page address's query (empty while server rendering and hydrating). */
 const subscribeToHistory = (onChange: () => void) => {
   window.addEventListener("popstate", onChange);
   return () => window.removeEventListener("popstate", onChange);
 };
-const linkedColour = () => new URLSearchParams(window.location.search).get(VARIANT_PARAM);
-const noLinkedColour = () => null;
+const currentSearch = () => window.location.search;
+const noSearch = () => "";
 
-/** Gallery + purchase panel: choosing a colour changes photos, SKU, stock and price. */
+/** Whether `variant` has every value in `selection` (keys it lacks don't count against it). */
+const matches = (variant: ProductVariantData, selection: Selection, except?: string) =>
+  Object.entries(selection).every(([key, value]) => key === except || !(key in variant.options) || variant.options[key] === value);
+
+/**
+ * Gallery + purchase panel. Shoppers pick each option (colour swatches, size
+ * chips with the size guide, other chips); the combination is a variant with
+ * its own photos, SKU and stock, and its own address (?color=red&size=m), so
+ * shared links and search results open on it.
+ */
 export default function ProductDetailClient({ product, salesMode, lowStockThreshold, terms }: ProductDetailClientProps) {
   const { pricing } = product;
   const router = useRouter();
   const feedback = useFeedback();
   const isWholesale = salesMode === "wholesale";
   const minimum = product.minimumQuantity;
-  const defaultVariant = product.variants.find((variant) => variant.stock >= minimum) ?? product.variants[0] ?? null;
-  // Each colour has its own address (?color=…, lib/catalog/variant-url.js): a link to one opens on it,
-  // and choosing a colour updates the address, so shared links and search results land on that colour.
-  const linkedVariant = variantFromParam(product.variants, useSyncExternalStore(subscribeToHistory, linkedColour, noLinkedColour));
+  const purchasableVariant = (variant: ProductVariantData) => variant.stock >= minimum;
+  const defaultVariant = product.variants.find(purchasableVariant) ?? product.variants[0] ?? null;
+  const linkedVariant = variantFromParams(product.variants, useSyncExternalStore(subscribeToHistory, currentSearch, noSearch));
   const [pickedId, setPickedId] = useState<string | null>(null);
-  const variant =
-    product.variants.find((entry) => entry.id === pickedId) ?? linkedVariant ?? defaultVariant ?? null;
-  const variantId = variant?.id ?? null;
+  const variant = product.variants.find((entry) => entry.id === pickedId) ?? linkedVariant ?? defaultVariant ?? null;
+  const selection: Selection = variant?.options ?? {};
   const stock = variant ? variant.stock : product.stock;
   const [quantity, setQuantity] = useState(minimum);
   const safeQuantity = Math.max(minimum, Math.min(quantity, Math.max(stock, minimum)));
   const purchasable = stock >= minimum;
-  const swatchesRef = useRef<HTMLDivElement>(null);
+  const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const priced = { ...pricing, bulkPricingTiers: product.tiers };
   const unitPrice = unitPriceFor(priced, safeQuantity, salesMode);
@@ -115,7 +125,7 @@ export default function ProductDetailClient({ product, salesMode, lowStockThresh
       feedback.error("Cart unavailable", "Your browser blocked storage, so the cart could not be saved.");
       return;
     }
-    feedback.success("Added to cart", `${formatNumber(safeQuantity)} × ${product.name}${variant ? ` (${variant.colorName})` : ""}`);
+    feedback.success("Added to cart", `${formatNumber(safeQuantity)} × ${product.name}${variant?.title ? ` (${variant.title})` : ""}`);
   }
 
   function buyNow() {
@@ -136,25 +146,50 @@ export default function ProductDetailClient({ product, salesMode, lowStockThresh
     }
   }
 
-  function chooseVariant(id: string) {
-    setPickedId(id);
-    const value = variantParamValues(product.variants).get(id);
-    if (!value) return;
+  /** Shows a variant and gives the address its parameters (no navigation, no new history entry). */
+  function showVariant(next: ProductVariantData) {
+    setPickedId(next.id);
+    const params = variantParamValues(product.variants).get(next.id) ?? {};
     const url = new URL(window.location.href);
-    url.searchParams.set(VARIANT_PARAM, value);
-    // Next.js keeps its router in step with replaceState; no navigation, no new history entry.
+    for (const option of product.options) url.searchParams.delete(option.key);
+    url.searchParams.delete(SKU_PARAM);
+    for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+    // Next.js keeps its router in step with replaceState.
     window.history.replaceState(null, "", url);
   }
 
+  /**
+   * Picks `value` for one option, keeping the other choices when that
+   * combination exists, else switching to the closest variant that has it
+   * (one in stock first), so the selection always names a real variant.
+   */
+  function choose(key: string, value: string) {
+    const wanted = { ...selection, [key]: value };
+    const candidates = product.variants.filter((entry) => entry.options[key] === value);
+    const exact = candidates.find((entry) => matches(entry, wanted));
+    const next =
+      exact ??
+      candidates.find((entry) => purchasableVariant(entry) && matches(entry, wanted, key)) ??
+      candidates.find(purchasableVariant) ??
+      candidates[0];
+    if (next) showVariant(next);
+  }
+
+  /** For each value of an option, given the other choices: does that combination exist, and can it be ordered? */
+  function valueState(option: ProductOptionData, value: string) {
+    const combos = product.variants.filter((entry) => entry.options[option.key] === value && matches(entry, selection, option.key));
+    return { exists: combos.length > 0, available: combos.some(purchasableVariant), stock: combos.reduce((total, entry) => Math.max(total, entry.stock), 0) };
+  }
+
   /** Radio group keys: arrows move the selection, as in a native radio group. */
-  function onSwatchKey(event: KeyboardEvent<HTMLDivElement>) {
+  function onGroupKey(event: KeyboardEvent<HTMLDivElement>, option: ProductOptionData) {
     const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
-    if (!step || product.variants.length < 2) return;
+    if (!step || option.values.length < 2) return;
     event.preventDefault();
-    const current = Math.max(0, product.variants.findIndex((entry) => entry.id === variantId));
-    const next = (current + step + product.variants.length) % product.variants.length;
-    chooseVariant(product.variants[next].id);
-    swatchesRef.current?.querySelectorAll<HTMLButtonElement>("[role=radio]")[next]?.focus();
+    const current = Math.max(0, option.values.findIndex((entry) => entry.value === selection[option.key]));
+    const next = (current + step + option.values.length) % option.values.length;
+    choose(option.key, option.values[next].value);
+    groupRefs.current[option.key]?.querySelectorAll<HTMLButtonElement>("[role=radio]")[next]?.focus();
   }
 
   const stockLabel = purchasable
@@ -172,7 +207,8 @@ export default function ProductDetailClient({ product, salesMode, lowStockThresh
 
   return (
     <div className="product-detail-grid" data-photos={images.length > 1 ? "many" : "one"}>
-      <ProductGallery key={variant?.images.length ? variant.id : "product"} images={images} productName={product.name} />
+      {/* Keyed by colour: a new size keeps the gallery where it was; a new colour shows its photos. */}
+      <ProductGallery key={variant?.images.length ? variant.colorName || variant.id : "product"} images={images} productName={product.name} />
 
       <div className="product-detail-copy">
         <header className="product-detail-head">
@@ -204,7 +240,7 @@ export default function ProductDetailClient({ product, salesMode, lowStockThresh
             {discount > 0 ? <span className="product-detail-badge product-detail-badge--offer">{discount}% off</span> : null}
           </div>
           <p className="product-detail-note">
-            {isWholesale ? `Minimum order ${formatNumber(minimum)} pieces · GST extra` : "GST extra, added at checkout"}
+            {isWholesale ? `Minimum order ${formatNumber(minimum)} ${minimum === 1 ? "piece" : "pieces"} · GST extra` : "GST extra, added at checkout"}
           </p>
         </div>
 
@@ -235,35 +271,65 @@ export default function ProductDetailClient({ product, salesMode, lowStockThresh
           </fieldset>
         ) : null}
 
-        {product.variants.length > 0 ? (
-          <fieldset className="variant-picker">
-            <legend>
-              Colour: <strong>{variant?.colorName ?? "Choose"}</strong>
-              {variant && variant.stock < minimum ? <span className="variant-picker__status"> · Out of stock</span> : null}
-            </legend>
-            <div ref={swatchesRef} role="radiogroup" aria-label="Colour" className="variant-picker__options" onKeyDown={onSwatchKey}>
-              {product.variants.map((entry) => {
-                const selected = entry.id === variantId;
-                const available = entry.stock >= minimum;
-                return (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={selected}
-                    tabIndex={selected || (!variant && entry === product.variants[0]) ? 0 : -1}
-                    aria-label={`${entry.colorName}${available ? "" : " (out of stock)"}`}
-                    title={entry.colorName}
-                    className={`variant-swatch${available ? "" : " is-unavailable"}`}
-                    onClick={() => chooseVariant(entry.id)}
-                  >
-                    <span style={{ backgroundColor: entry.colorHex }} />
-                  </button>
-                );
-              })}
+        {product.options.map((option) => {
+          const chosen = selection[option.key];
+          const chosenState = chosen ? valueState(option, chosen) : null;
+          const guide = option.kind === "size" ? product.sizeChart : null;
+          return (
+            // The size guide sits on the option's name line, beside the fieldset rather than inside its legend.
+            <div key={option.key} className={guide ? "variant-option has-guide" : "variant-option"}>
+              {guide ? (
+                <SizeGuide
+                  chart={guide}
+                  optionName={option.name}
+                  sizes={option.values.map((entry) => entry.value)}
+                  selected={chosen}
+                  onSelect={(size) => choose(option.key, size)}
+                />
+              ) : null}
+              <fieldset className="variant-picker">
+                <legend>
+                  {option.name}: <strong>{chosen ?? "Choose"}</strong>
+                  {chosenState && !chosenState.available ? <span className="variant-picker__status"> · Out of stock</span> : null}
+                </legend>
+                <div
+                  ref={(node) => {
+                    groupRefs.current[option.key] = node;
+                  }}
+                  role="radiogroup"
+                  aria-label={option.name}
+                  className={option.kind === "color" ? "variant-picker__options" : "variant-picker__options variant-picker__options--chips"}
+                  onKeyDown={(event) => onGroupKey(event, option)}
+                >
+                  {option.values.map((entry, index) => {
+                    const selected = entry.value === chosen;
+                    const state = valueState(option, entry.value);
+                    const unavailable = !state.available;
+                    const label = `${entry.value}${state.exists ? (unavailable ? " (out of stock)" : "") : " (not in this combination)"}`;
+                    const common = {
+                      type: "button" as const,
+                      role: "radio",
+                      "aria-checked": selected,
+                      tabIndex: selected || (!chosen && index === 0) ? 0 : -1,
+                      title: label,
+                      onClick: () => choose(option.key, entry.value),
+                    };
+                    return option.kind === "color" ? (
+                      <button key={entry.value} {...common} aria-label={label} className={`variant-swatch${unavailable ? " is-unavailable" : ""}`}>
+                        <span style={{ backgroundColor: entry.hex || undefined }} />
+                      </button>
+                    ) : (
+                      <button key={entry.value} {...common} aria-label={label} className={`option-chip${unavailable ? " is-unavailable" : ""}`}>
+                        {entry.value}
+                        {state.available && state.stock <= lowStockThreshold ? <small className="option-chip__note">{formatNumber(state.stock)} left</small> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
             </div>
-          </fieldset>
-        ) : null}
+          );
+        })}
 
         <div className="product-purchase-panel">
           <p className={`product-stock ${stockTone}`.trim()} role="status">
@@ -289,13 +355,19 @@ export default function ProductDetailClient({ product, salesMode, lowStockThresh
                   <span>Order total</span>
                   <strong>{formatRupees(lineTotal)}</strong>
                   <small>
-                    {formatNumber(safeQuantity)} {isWholesale ? "pieces" : "items"} × {formatRupees(unitPrice)} · GST extra
+                    {formatNumber(safeQuantity)} {isWholesale ? (safeQuantity === 1 ? "piece" : "pieces") : safeQuantity === 1 ? "item" : "items"} × {formatRupees(unitPrice)} · GST extra
                   </small>
                 </p>
               ) : null}
             </>
           ) : (
-            <StockAlertButton productId={product.id} />
+            // Shoppers wait for the size or colour they picked, not the whole product.
+            <StockAlertButton
+              key={variant?.id ?? "product"}
+              productId={product.id}
+              variantId={product.variants.length > 1 ? variant?.id ?? null : null}
+              variantTitle={product.variants.length > 1 ? variant?.title ?? "" : ""}
+            />
           )}
         </div>
 
@@ -312,7 +384,7 @@ export default function ProductDetailClient({ product, salesMode, lowStockThresh
                   ? `${formatNumber(safeQuantity)} pcs · ${formatRupees(lineTotal)}`
                   : compareAt
                     ? <del>{formatRupees(compareAt)}</del>
-                    : "GST extra"}
+                    : variant?.title || "GST extra"}
               </span>
             </p>
             <button type="button" className="button button-glass" onClick={buyNow}>

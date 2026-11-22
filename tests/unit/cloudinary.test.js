@@ -20,9 +20,18 @@ describe("cloudinary transformations", () => {
 });
 
 describe("cloudinary folders", () => {
-  it("resolves fabric-based folders", () => {
+  it("files product photos by type, then by fabric for older clients", () => {
+    expect(resolveUploadFolder("Cotton", undefined, "t-shirts")).toBe("norosilk/products/t-shirts");
     expect(resolveUploadFolder("Pure silk")).toBe("norosilk/products/silk");
+    expect(resolveUploadFolder(undefined)).toBe("norosilk/products");
     expect(resolveUploadFolder(undefined, ALLOWED_UPLOAD_FOLDERS[0])).toBe(ALLOWED_UPLOAD_FOLDERS[0]);
+    expect(resolveUploadFolder(undefined, "norosilk/../other")).toBeNull();
+  });
+
+  it("never turns a product type value into an arbitrary folder", () => {
+    for (const value of ["../avatars", "t-shirts/../../x", "T-Shirts", "a".repeat(81), "", "-x"]) {
+      expect(resolveUploadFolder(undefined, undefined, value)).toBe("norosilk/products");
+    }
   });
 
   it("blocks unmanaged public IDs", () => {

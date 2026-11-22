@@ -18,8 +18,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import BrandLink from "@/components/ui/brand-link";
+import ProductTypeIcon from "@/components/catalog/product-type-icon";
 import { useTenant } from "@/features/tenant/tenant-provider";
 import { getFooterColumns, type NavigationItem } from "@/lib/site-content";
+
+/** A product type link in the menu's Shop group. */
+type TypeLink = NavigationItem & { icon: string };
 
 const ICONS: Record<string, LucideIcon> = {
   "/products": LayoutGrid,
@@ -59,12 +63,13 @@ function isCurrent(pathname: string, href: string) {
  * and on back/forward. It reads the current page only when opened, so the
  * header never waits on the URL (see usePathname with Cache Components).
  */
-export default function MobileMenu() {
+export default function MobileMenu({ types = [] }: { types?: TypeLink[] }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [pathname, setPathname] = useState("");
   const { salesMode, contact } = useTenant();
   const wholesale = salesMode === "wholesale";
-  const sections = menuSections(getFooterColumns(salesMode), wholesale ? ["/request-quote"] : []);
+  const sections = menuSections(getFooterColumns(salesMode, types), wholesale ? ["/request-quote"] : []);
+  const typeIcons = new Map(types.map((type) => [type.href, type.icon]));
 
   useEffect(() => {
     const close = () => dialogRef.current?.close();
@@ -118,6 +123,7 @@ export default function MobileMenu() {
                 <ul className={section.compact ? "mobile-drawer__links is-compact" : "mobile-drawer__links"}>
                   {section.links.map((link) => {
                     const Icon = section.compact ? null : ICONS[link.href];
+                    const typeIcon = section.compact ? undefined : typeIcons.get(link.href);
                     return (
                       <li key={link.href}>
                         <Link
@@ -125,7 +131,7 @@ export default function MobileMenu() {
                           href={link.href}
                           aria-current={isCurrent(pathname, link.href) ? "page" : undefined}
                         >
-                          {Icon ? <Icon size={19} strokeWidth={1.8} aria-hidden="true" /> : null}
+                          {Icon ? <Icon size={19} strokeWidth={1.8} aria-hidden="true" /> : typeIcon ? <ProductTypeIcon icon={typeIcon} size={19} /> : null}
                           <span>{link.label}</span>
                           {section.compact ? null : <ChevronRight className="mobile-drawer__chevron" size={17} aria-hidden="true" />}
                         </Link>

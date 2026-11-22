@@ -352,7 +352,7 @@ export function AdminBannerForm({ initial }: { initial?: AdminBanner }) {
             <ImageField label="Desktop image" required hint="Wide image, at least 1920 × 500 px. The banner is a wide strip (about 4 : 1), so keep the subject in the middle band, away from the text side." value={draft.image} onChange={(image) => set("image", image)} />
             {error("image")}
             <ImageField label="Mobile image" hint="Optional crop for phones, about 1200 × 450 px (a short strip). Uses the desktop image when empty." value={draft.mobileImage} onChange={(image) => set("mobileImage", image)} />
-            <label className="admin-field admin-field-wide">Image description (for screen readers)<input value={draft.imageAlt} maxLength={160} placeholder="Model in a red Banarasi silk saree" onChange={(event) => set("imageAlt", event.currentTarget.value)} /></label>
+            <label className="admin-field admin-field-wide">Image description (for screen readers)<input value={draft.imageAlt} maxLength={160} placeholder="Model wearing a red kurta from the new collection" onChange={(event) => set("imageAlt", event.currentTarget.value)} /></label>
             <Select
               className="admin-field"
               label="Text position"

@@ -10,10 +10,10 @@
  * and rebuilds indexes (dropping the old global unique indexes). Safe to re-run.
  */
 
+import mongoose from "mongoose";
 import { connect, disconnect, fail, parseCli } from "./lib/cli.mjs";
 import { Tenant } from "@/lib/db/models/Tenant";
 import { Address } from "@/lib/db/models/Address";
-import { Attribute } from "@/lib/db/models/Attribute";
 import { Banner } from "@/lib/db/models/Banner";
 import { Quote } from "@/lib/db/models/Quote";
 import { StorePage } from "@/lib/db/models/StorePage";
@@ -25,6 +25,8 @@ import { Order } from "@/lib/db/models/Order";
 import { Payment } from "@/lib/db/models/Payment";
 import { PaymentWebhookEvent } from "@/lib/db/models/PaymentWebhookEvent";
 import { Product } from "@/lib/db/models/Product";
+import { ProductAttribute } from "@/lib/db/models/ProductAttribute";
+import { ProductType } from "@/lib/db/models/ProductType";
 import { Review } from "@/lib/db/models/Review";
 import { ReviewVote } from "@/lib/db/models/ReviewVote";
 import { ServiceRequest } from "@/lib/db/models/ServiceRequest";
@@ -36,7 +38,7 @@ import { User } from "@/lib/db/models/User";
 import { Wishlist } from "@/lib/db/models/Wishlist";
 
 const TENANT_MODELS = [
-  Address, Attribute, Banner, Cart, Category, JobRun, Notification, Order, Payment, PaymentWebhookEvent, Product,
+  Address, Banner, Cart, Category, JobRun, Notification, Order, Payment, PaymentWebhookEvent, Product, ProductAttribute, ProductType,
   Quote, Review, ReviewVote, ServiceRequest, StockAlert, StorePage, StoreSettings, SupportConversation, SupportMessage, User, Wishlist,
 ];
 
@@ -56,6 +58,9 @@ for (const Model of TENANT_MODELS) {
   );
   process.stdout.write(`${Model.modelName.padEnd(20)} assigned ${modifiedCount}\n`);
 }
+// The original per-value attribute lists, read by the catalogue upgrade (npm run catalog:upgrade).
+const legacyAttributes = await mongoose.connection.collection("attributes").updateMany({ tenantId: { $exists: false } }, { $set: { tenantId } });
+process.stdout.write(`${"attributes (legacy)".padEnd(20)} assigned ${legacyAttributes.modifiedCount}\n`);
 
 const admins = await User.collection.updateMany(
   { tenantId, role: "admin", adminRole: { $exists: false } },

@@ -12,8 +12,11 @@
  */
 import { connect, disconnect, fail, parseCli } from "./lib/cli.mjs";
 import { Tenant } from "@/lib/db/models/Tenant";
-import { Attribute } from "@/lib/db/models/Attribute";
 import { Category } from "@/lib/db/models/Category";
+import { ProductAttribute } from "@/lib/db/models/ProductAttribute";
+import { ProductType } from "@/lib/db/models/ProductType";
+import { addAttributeValue } from "@/lib/services/attribute.service";
+import { createProductTypeFromTemplate } from "@/lib/services/product-type.service";
 import { Product } from "@/lib/db/models/Product";
 import { runWithTenant } from "@/lib/tenant/context";
 import { getCloudinary } from "@/lib/cloudinary/config";
@@ -116,7 +119,8 @@ await runWithTenant(String(tenant._id), async () => {
     fail("Test data already exists in this store. Run with --remove first to recreate it.");
   }
 
-  // Attribute lists, so storefront filters and the admin product form have values.
+  // The Saree product type (from its template), and the values these products use in its attribute lists.
+  const type = (await ProductType.findOne({ template: "saree" }).lean()) ?? (await createProductTypeFromTemplate({ template: "saree" })).toObject();
   const lists = [
     ["fabric", FABRICS.map((label) => [label])],
     ["weave", WEAVES.map((label) => [label])],
@@ -124,16 +128,10 @@ await runWithTenant(String(tenant._id), async () => {
     ["pattern", PATTERNS.map((label) => [label])],
     ["color", COLOURS],
   ];
-  for (const [type, values] of lists) {
-    await Attribute.bulkWrite(
-      values.map(([label, hex = ""], sortOrder) => ({
-        updateOne: {
-          filter: { type, slug: slugify(label) },
-          update: { $setOnInsert: { type, label, slug: slugify(label), hex, sortOrder, isActive: true } },
-          upsert: true,
-        },
-      })),
-    );
+  for (const [key, values] of lists) {
+    const attribute = await ProductAttribute.findOne({ key }).select("_id").lean();
+    if (!attribute) continue;
+    for (const [label, hex = ""] of values) await addAttributeValue(String(attribute._id), { label, hex });
   }
 
   const categoryImages = await uploadPool(
@@ -191,24 +189,29 @@ await runWithTenant(String(tenant._id), async () => {
         `A ${weave} saree woven in ${fabric.toLowerCase()}, finished with a ${pattern.toLowerCase()} and a contrast pallu. ` +
         `Comes with an unstitched blouse piece.\n\nEach piece is checked before dispatch; slight variations in weave and colour are a mark of handwork.`,
       category: category._id,
+      productType: type._id,
       images: [image(imageIndex, `${name}, front`, true, 0), image(imageIndex + 1, `${name}, pallu detail`, false, 1)],
-      fabric,
-      weavingType: weave,
-      occasion,
-      design: pattern,
-      sareeLength: "5.5 m saree + 0.8 m blouse",
-      blousePiece: "Included (unstitched)",
+      attributes: [
+        { key: "fabric", value: fabric },
+        { key: "weave", value: weave },
+        { key: "occasion", value: occasion },
+        { key: "pattern", value: pattern },
+        { key: "saree_length", value: "5.5" },
+        { key: "blouse_piece", value: "Included" },
+      ],
       careInstructions: fabric.includes("Silk")
         ? "Dry clean only. Store folded in muslin, away from damp. Iron on low heat on the reverse."
         : "Hand wash separately in cold water with mild detergent. Dry in shade. Iron on medium heat.",
       variants: colours.map(([colorName, colorHex], variantIndex) => ({
+        options: { color: colorName },
+        title: colorName,
         colorName,
         colorHex,
         sku: `${sku}-${variantIndex + 1}`,
         stockQuantity: random() < 0.1 ? 0 : 20 + Math.floor(random() * 380),
-        images: [image(imageIndex + variantIndex, `${name} in ${colorName}`, true, 0)],
         sortOrder: variantIndex,
       })),
+      colorMedia: colours.map(([colorName], variantIndex) => ({ color: colorName, images: [image(imageIndex + variantIndex, `${name} in ${colorName}`, true, 0)] })),
       price: retail,
       compareAtPrice: random() < 0.35 ? Math.round((retail * 1.2) / 50) * 50 : 0,
       wholesalePrice: wholesale,

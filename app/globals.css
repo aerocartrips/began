@@ -389,6 +389,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .commerce-heading h1 { margin: 0; font-family: var(--heading-font); font-size: 38px; font-weight: 400; }
 .text-button { padding: 8px 0; border: 0; background: none; color: var(--color-text-muted); cursor: pointer; font-size: 10px; text-decoration: underline; text-underline-offset: 3px; }
 .text-button:hover { color: var(--color-brand); }
+/* An icon beside the label, not above it (Tailwind's preflight makes SVGs block elements). */
+.text-button:has(> svg) { display: inline-flex; align-items: center; gap: 5px; }
 .checkout-boundary { margin: 0; color: var(--color-text-muted); font-size: 10px; line-height: 1.75; }
 /* Submit button of the sign-in, register and password forms. */
 .checkout-submit { min-height: 48px; border: 0; border-radius: var(--radius-control); background: var(--color-night); color: white; cursor: pointer; font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
@@ -1378,6 +1380,24 @@ a.customer-review-product:hover { color: var(--color-brand); }
 .storefront-search { position: relative; }
 .storefront-search .search-field { width: clamp(150px, 14vw, 210px); }
 .nav-links a { white-space: nowrap; }
+
+/* "Shop" in the header (stores selling several product types): looks like the other links, opens a panel of real links. */
+.shop-menu { position: relative; }
+.shop-menu__trigger { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; color: #596273; cursor: pointer; font: inherit; font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; transition: color .2s ease; }
+.shop-menu__trigger:hover, .shop-menu__trigger[aria-expanded="true"] { color: var(--primary); }
+.shop-menu__trigger svg { transition: transform .2s ease; }
+.shop-menu__trigger[aria-expanded="true"] svg { transform: rotate(180deg); }
+.shop-menu__trigger:focus-visible { border-radius: 4px; outline: 2px solid var(--color-brand); outline-offset: 4px; }
+.shop-menu__panel { position: absolute; z-index: 45; top: calc(100% + 16px); left: -14px; width: 280px; padding: 8px; border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface); box-shadow: var(--shadow-overlay); }
+.shop-menu__panel[hidden] { display: none; }
+.shop-menu__panel ul { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.shop-menu__link { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: var(--radius-control); color: var(--color-text); font-size: 13px; transition: background .15s ease, color .15s ease; }
+.shop-menu__link:hover { background: #f3f2ff; color: var(--color-brand); }
+.shop-menu__icon { display: grid; width: 32px; height: 32px; flex: none; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--color-brand) 9%, transparent); color: var(--color-brand); }
+.shop-menu__name { min-width: 0; flex: 1; }
+.shop-menu__count { color: var(--color-text-subtle); font-size: 11px; font-variant-numeric: tabular-nums; }
+.shop-menu__foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; padding: 10px 10px 4px; border-top: 1px solid var(--color-border); }
+.shop-menu__foot a { color: var(--color-brand); font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
 .storefront-search .search-field { position: relative; padding-right: 36px; }
 .search-submit { position: absolute; top: 50%; right: 10px; display: grid; width: 22px; height: 22px; place-items: center; padding: 0; border: 0; background: transparent; color: #939baa; cursor: pointer; transform: translateY(-50%); }
 .search-submit:hover { color: var(--color-brand); }

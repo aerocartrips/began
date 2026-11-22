@@ -138,7 +138,7 @@ export default function ReviewModal({
             label="Your experience"
             value={comment}
             onChange={(event) => setComment(event.currentTarget.value)}
-            placeholder="Share fabric quality, drape, color accuracy, and wholesale fulfillment experience."
+            placeholder="Share quality, fit, colour accuracy and how your order arrived."
             minLength={MIN_REVIEW_COMMENT_LENGTH}
             maxLength={MAX_REVIEW_COMMENT_LENGTH}
             rows={5}

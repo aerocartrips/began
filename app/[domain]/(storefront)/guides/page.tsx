@@ -11,7 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const cover = guides.find((guide) => guide.coverImage);
   return pageMetadata(tenant, {
     title: "Buying guides",
-    description: `Fabric, weave and care guides from ${siteNameOf(tenant)}: know your sarees before you buy.`,
+    description: `Buying and care guides from ${siteNameOf(tenant)}: know what you're buying before you order.`,
     path: "/guides",
     // An empty index adds nothing for search engines.
     robots: guides.length ? "index" : "noindex",

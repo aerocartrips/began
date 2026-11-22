@@ -10,21 +10,24 @@ import {
 
 const STOCK_ALERT_RATE_LIMIT = { limit: 30, windowMs: 60 * 60 * 1000 };
 
-export const GET = withDatabase(async (_request, context) => {
+/** `?variant=<id>` asks about one variant (a size or colour) instead of the whole product. */
+const variantOf = (request) => new URL(request.url).searchParams.get("variant") || null;
+
+export const GET = withDatabase(async (request, context) => {
   const user = await requireAuthUser();
   const { productId } = await context.params;
-  return successResponse(await getStockAlert(user, productId), "Stock alert fetched.");
+  return successResponse(await getStockAlert(user, productId, variantOf(request)), "Stock alert fetched.");
 });
 
-export const PUT = withDatabase(async (_request, context) => {
+export const PUT = withDatabase(async (request, context) => {
   const user = await requireAuthUser();
   await consumeRateLimit(`stock-alert:${user._id}`, STOCK_ALERT_RATE_LIMIT);
   const { productId } = await context.params;
-  return successResponse(await subscribeStockAlert(user, productId), "We will notify you when it is back in stock.");
+  return successResponse(await subscribeStockAlert(user, productId, variantOf(request)), "We will notify you when it is back in stock.");
 });
 
-export const DELETE = withDatabase(async (_request, context) => {
+export const DELETE = withDatabase(async (request, context) => {
   const user = await requireAuthUser();
   const { productId } = await context.params;
-  return successResponse(await unsubscribeStockAlert(user, productId), "Stock alert removed.");
+  return successResponse(await unsubscribeStockAlert(user, productId, variantOf(request)), "Stock alert removed.");
 });

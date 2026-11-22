@@ -133,7 +133,7 @@ async function Confirmation({ searchParams }: ConfirmationPageProps) {
             Items <span>· {formatNumber(order.items.length)} {order.items.length === 1 ? "product" : "products"}, {formatNumber(pieces)} pcs</span>
           </h2>
           <ul className="confirmation-items">
-            {order.items.map((item: { product: string | null; variantId: string | null; productName: string; sku: string; colorName: string; quantity: number; unitPrice: number; lineTotal: number; imageUrl: string }) => (
+            {order.items.map((item: { product: string | null; variantId: string | null; productName: string; sku: string; colorName: string; variantTitle?: string; quantity: number; unitPrice: number; lineTotal: number; imageUrl: string }) => (
               <li key={`${item.product}:${item.variantId ?? ""}`} className="checkout-line">
                 <span className="checkout-line__media">
                   {item.imageUrl ? <ProductImage image={{ url: item.imageUrl, alt: item.productName }} preset="thumbnail" sizes="64px" /> : null}
@@ -141,7 +141,7 @@ async function Confirmation({ searchParams }: ConfirmationPageProps) {
                 </span>
                 <span className="checkout-line__info">
                   <strong>{item.productName}</strong>
-                  <small>{[item.colorName, item.sku].filter(Boolean).join(" · ")}</small>
+                  <small>{[item.variantTitle || item.colorName, item.sku].filter(Boolean).join(" · ")}</small>
                   <small>{formatNumber(item.quantity)} × {formatRupees(item.unitPrice)}</small>
                 </span>
                 <strong className="checkout-line__total">{formatRupees(item.lineTotal)}</strong>

@@ -1,10 +1,9 @@
-import { AdminAttributes } from "@/components/admin/admin-catalog-setup-client";
-import { guardAdminPage } from "@/lib/admin/guard";
-import { PERMISSIONS } from "@/lib/auth/permissions";
+import AttributeLibraryClient from "@/components/admin/attribute-library-client";
+import { loadAdminCatalog } from "@/lib/admin/catalog-data";
 
 export const metadata = { title: "Attributes | Admin" };
 
 export default async function AdminAttributesPage() {
-  await guardAdminPage(PERMISSIONS.CATALOG_MANAGE);
-  return <AdminAttributes />;
+  const { attributes } = await loadAdminCatalog();
+  return <AttributeLibraryClient attributes={attributes} />;
 }

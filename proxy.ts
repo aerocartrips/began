@@ -5,7 +5,7 @@ import { authHref, isAuthPath, isProtectedPath, safeRedirectPath } from "@/lib/a
 import { normalizeHost } from "@/lib/tenant/host";
 
 /** Storefront pages addressed by a slug (always lower case; see lib/utils/slugify.js). */
-const SLUG_PATH = /^\/(?:products|categories|guides)\/[^/]+\/?$/;
+const SLUG_PATH = /^\/(?:products|categories|guides|shop)\/[^/]+\/?$/;
 
 const ACCESS_SECRET = (() => {
   const secret = new TextEncoder().encode(process.env.JWT_SECRET?.trim() ?? "");

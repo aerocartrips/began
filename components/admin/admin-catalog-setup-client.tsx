@@ -11,10 +11,8 @@ import TableSkeleton from "@/components/ui/loaders/table-skeleton";
 import { useFeedback } from "@/components/feedback/feedback-provider";
 import { useApiRequest } from "@/hooks/use-api-request";
 import { sendJson } from "@/lib/api/send-json";
-import { ATTRIBUTE_TYPE_LABELS, ATTRIBUTE_TYPE_VALUES } from "@/lib/constants/catalog";
 
 type Category = { _id: string; name: string; slug: string; description?: string; image?: { url?: string }; parentCategory?: string | null; isActive: boolean; sortOrder: number };
-type Attribute = { _id: string; type: string; label: string; hex?: string; sortOrder: number; isActive: boolean };
 
 function useSave() {
   const feedback = useFeedback();
@@ -111,93 +109,6 @@ export function AdminCategories() {
           </form>
         </AdminCard>
       </div>
-    </>
-  );
-}
-
-export function AdminAttributes() {
-  const { loading, error, data, refetch } = useApiRequest<Attribute[]>("/api/v1/admin/attributes");
-  const { busy, run } = useSave();
-  const [type, setType] = useState<string>(ATTRIBUTE_TYPE_VALUES[0]);
-  const values = (data ?? []).filter((attribute) => attribute.type === type);
-
-  async function add(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const target = event.currentTarget;
-    const saved = await run(
-      "add",
-      () => sendJson("/api/v1/admin/attributes", "POST", {
-        type,
-        label: String(form.get("label") ?? "").trim(),
-        hex: type === "color" ? String(form.get("hex") ?? "") : "",
-        sortOrder: values.length,
-      }),
-      "Value added",
-    );
-    if (saved) {
-      target.reset();
-      await refetch();
-    }
-  }
-
-  async function update(attribute: Attribute, changes: Partial<Attribute>, message: string) {
-    if (await run(attribute._id, () => sendJson(`/api/v1/admin/attributes/${attribute._id}`, "PATCH", changes), message)) await refetch();
-  }
-  async function remove(attribute: Attribute) {
-    if (await run(attribute._id, () => sendJson(`/api/v1/admin/attributes/${attribute._id}`, "DELETE"), "Value deleted")) await refetch();
-  }
-
-  return (
-    <>
-      <AdminPageHeading
-        eyebrow="Catalogue"
-        title="Attributes"
-        description="The allowed values for product details. Storefront filters use exactly these, so they stay clean. Renaming a value updates every product using it."
-      />
-      {error ? <ErrorCard title="Unable to load attributes" description={error} /> : null}
-      <div className="admin-tabs" role="tablist" aria-label="Attribute types">
-        {ATTRIBUTE_TYPE_VALUES.map((value) => (
-          <button key={value} type="button" role="tab" aria-selected={type === value} className={type === value ? "is-active" : undefined} onClick={() => setType(value)}>
-            {ATTRIBUTE_TYPE_LABELS[value as keyof typeof ATTRIBUTE_TYPE_LABELS]}
-          </button>
-        ))}
-      </div>
-      <AdminCard title={ATTRIBUTE_TYPE_LABELS[type as keyof typeof ATTRIBUTE_TYPE_LABELS]}>
-        <form className="admin-repeater__row" onSubmit={add}>
-          <label className="admin-field">New value<input name="label" required maxLength={80} /></label>
-          {type === "color" ? <label className="admin-field">Swatch<input name="hex" type="color" defaultValue="#999999" /></label> : null}
-          <LoadingButton type="submit" size="sm" loading={busy === "add"}>Add</LoadingButton>
-        </form>
-        {loading && !data ? <TableSkeleton rows={4} /> : values.length === 0 ? (
-          <p className="admin-image-disclaimer">No values yet. Until you add some, products accept free text for this attribute.</p>
-        ) : (
-          <ul className="admin-attribute-list">
-            {values.map((attribute) => (
-              <li key={attribute._id}>
-                {type === "color" ? (
-                  <input type="color" aria-label={`Swatch for ${attribute.label}`} defaultValue={attribute.hex || "#999999"} onBlur={(event) => event.currentTarget.value !== attribute.hex && update(attribute, { hex: event.currentTarget.value }, "Swatch updated")} />
-                ) : null}
-                <input
-                  className="admin-inline-input"
-                  aria-label="Value"
-                  defaultValue={attribute.label}
-                  maxLength={80}
-                  onBlur={(event) => {
-                    const next = event.currentTarget.value.trim();
-                    if (next && next !== attribute.label) void update(attribute, { label: next }, "Value renamed");
-                  }}
-                />
-                <AdminStatusChip status={attribute.isActive ? "active" : "inactive"} />
-                <button type="button" className="text-button" disabled={busy === attribute._id} onClick={() => void update(attribute, { isActive: !attribute.isActive }, attribute.isActive ? "Value hidden" : "Value restored")}>
-                  {attribute.isActive ? "Deactivate" : "Activate"}
-                </button>
-                <button type="button" className="text-button" disabled={busy === attribute._id} onClick={() => void remove(attribute)}>Delete</button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </AdminCard>
     </>
   );
 }

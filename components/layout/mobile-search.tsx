@@ -9,7 +9,7 @@ import StorefrontSearch from "@/components/layout/storefront-search";
  * get the whole screen and the keyboard opens straight away. The sheet closes
  * itself when it navigates, and on back/forward.
  */
-export default function MobileSearch() {
+export default function MobileSearch({ placeholder }: { placeholder?: string }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export default function MobileSearch() {
         <Search size={20} strokeWidth={1.8} aria-hidden="true" />
       </button>
       <dialog ref={dialogRef} className="search-sheet" aria-label="Search products">
-        <StorefrontSearch variant="sheet" onNavigate={close} onCancel={close} />
+        <StorefrontSearch variant="sheet" onNavigate={close} onCancel={close} placeholder={placeholder} />
       </dialog>
     </>
   );

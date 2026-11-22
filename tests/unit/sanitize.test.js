@@ -31,9 +31,16 @@ describe("sanitizeMongoFilter", () => {
     });
   });
 
-  it("buildProductFilter keeps search $or after sanitisation", () => {
+  it("buildProductFilter keeps search $or after sanitisation, dotted paths included", () => {
     const filter = buildProductFilter({ search: "Jamdani Chiffon", admin: true });
-    expect(filter.$or).toHaveLength(6);
+    expect(filter.$or).toHaveLength(5);
     expect(filter.$or[0]).toHaveProperty("name");
+    // Variant SKUs and detail values are searched too; sanitising would have dropped these paths.
+    expect(filter.$or.map((clause) => Object.keys(clause)[0])).toEqual(["name", "sku", "variants.sku", "attributes.value", "colors"]);
+  });
+
+  it("buildProductFilter limits public reads to listed products of types on sale", () => {
+    expect(buildProductFilter({})).toEqual({ status: "active", typeHidden: { $ne: true } });
+    expect(buildProductFilter({ admin: true, type: "none" })).toEqual({ productType: null });
   });
 });

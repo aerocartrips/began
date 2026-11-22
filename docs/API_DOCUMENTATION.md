@@ -108,9 +108,9 @@ Public. Query params:
 | Param | Description |
 | --- | --- |
 | page, limit | Pagination (default 1/20, max limit 100) |
-| search | Text search (name, SKU) |
+| search | Text search (name, SKU, variant SKUs, detail values, colours) |
 | category | Category ObjectId |
-| fabric, weavingType | Exact match filters |
+| type | Product type ObjectId, or `none` for products not yet upgraded to a type (admin) |
 | minPrice, maxPrice | Wholesale price range |
 | availability | `in_stock` or `out_of_stock` |
 | status | Product status (defaults to `active` for public listings) |
@@ -123,23 +123,31 @@ Public. Accepts Mongo ObjectId or product slug.
 
 ### `POST /products`
 
-Admin auth. Create product (see validator fields in `lib/validators/product.validator.js`).
+Admin auth. Create product (see validator fields in `lib/validators/product.validator.js`). `productType` is required: details (`attributes`, keyed by attribute key) and variant `options` must use the type's fields, options and offered values, in any letter case (they are stored in the attribute library's spelling). Required details are enforced when the product is listed (`status: active`). Variant SKUs are unique across the store.
 
-Example:
+Example (a T-shirt with Colour × Size variants):
 
 ```json
 {
-  "name": "Aurora Silk 44",
-  "sku": "NS-AUR-44",
+  "name": "Classic Crew Tee",
+  "sku": "TEE-CREW",
+  "productType": "6650a1e2b3a4c00112233440",
   "category": "665f0c1e2b3a4c0011223344",
-  "price": 5200,
-  "wholesalePrice": 4300,
+  "attributes": { "fabric": "Cotton", "fit": "Regular", "gender": "Men" },
+  "price": 799,
+  "wholesalePrice": 520,
   "minimumOrderQuantity": 10,
-  "stockQuantity": 250,
-  "bulkPricingTiers": [{ "minQuantity": 50, "pricePerUnit": 4100 }],
+  "bulkPricingTiers": [{ "minQuantity": 50, "pricePerUnit": 480 }],
+  "variants": [
+    { "options": { "color": "Black", "size": "M" }, "sku": "TEE-CREW-BLK-M", "barcode": "8901234567897", "stockQuantity": 40 },
+    { "options": { "color": "Black", "size": "L" }, "sku": "TEE-CREW-BLK-L", "stockQuantity": 25 }
+  ],
+  "colorMedia": [{ "color": "Black", "images": [{ "url": "https://res.cloudinary.com/...", "publicId": "norosilk/stores/.../products/t-shirts/...", "alt": "Black, front" }] }],
   "status": "active"
 }
 ```
+
+Product stock is the sum of the variants' stock. A type without options has no variants: send the product's own `stockQuantity`.
 
 ### `PATCH /products/:productId`
 
@@ -152,6 +160,10 @@ Admin auth. Soft delete (`status: inactive`).
 ### `POST|PATCH /products/:productId/images`
 
 Admin auth. Body: `{ "images": [{ "url": "https://...", "alt": "...", "isPrimary": true, "sortOrder": 0 }] }`
+
+### `GET|PUT|DELETE /products/:productId/stock-alert`
+
+Customer auth. Back-in-stock alert for the product, or for one variant with `?variant=<variantId>` (a size or colour that is sold out). The email links to that variant (`?color=…&size=…`).
 
 ---
 
@@ -176,6 +188,41 @@ Admin auth.
 ### `DELETE /categories/:categoryId`
 
 Admin auth. Soft deactivate.
+
+---
+
+## Catalogue setup (admin)
+
+Product types, the attribute library and catalogue insights. Every write invalidates the store's catalogue cache. See README → Product types.
+
+### Product types
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET | `/admin/product-types` | Types with product counts, templates, and `untypedCount` (products not yet upgraded) |
+| POST | `/admin/product-types` | `{ "template": "t-shirt" }` adds a ready type (details, options, size chart; missing attributes are added to the library); or a full type body (`createProductTypeSchema` in `lib/validators/catalog-setup.validator.js`) |
+| GET | `/admin/product-types/:typeId` | One type |
+| PATCH | `/admin/product-types/:typeId` | Partial update. `isActive` switches the type on or off sale (its products are hidden, not deleted). Removing an option, or an option value that products use, is `409` |
+| DELETE | `/admin/product-types/:typeId` | `409` while products have this type |
+| PUT | `/admin/product-types/selling` | `{ "typeIds": [...], "templates": ["jeans"] }`: these types go on sale, every other type goes off. Templates are added and put on sale; one the store already has reuses that type, so repeating the request changes nothing |
+| GET | `/admin/product-types/upgrade` | Owners. Dry run of the catalogue upgrade (what would change) |
+| POST | `/admin/product-types/upgrade` | Owners. Upgrades products without a type to a Saree type and rebuilds the catalogue indexes (same as `npm run catalog:upgrade -- --apply`) |
+
+Catalogue permission (owners and managers) unless noted.
+
+### Attribute library
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET | `/admin/attributes` | Attributes with the types and number of products using each |
+| POST | `/admin/attributes` | `{ key, name, input, unit?, values?, filterable?, visible?, schemaProperty?, helpText? }`; `key` (`a-z`, `0-9`, `_`) and `input` can't change later. Keys that clash with URL parameters (`q`, `page`, `sort`, `type`…) are refused |
+| PATCH | `/admin/attributes/:attributeId` | Values are matched by `_id`: a changed label renames the value on every product, type, size chart and home page section; removing a value that products use is `409` |
+| DELETE | `/admin/attributes/:attributeId` | `409` while a type or product uses it |
+| POST | `/admin/attributes/:attributeId/values` | `{ label, hex? }`: adds one value (from the product form); returns the stored spelling, or the existing one when it differs only in letter case |
+
+### `GET /admin/insights/catalog`
+
+Catalogue permission. `?days=` (7–365, default 30) and optional `?type=<typeId>`. Returns `summary` (units sold, sales, sell-through, stock and its value, sold-out variants), `byType` (the same per type, plus weeks of cover and view-to-cart rate), `sizeCurves` (per size: share of units sold vs share of stock, gap in points and a reorder/overstock call once 10+ units sold), `restock` (variants with stock below the minimum order, which can't be bought, or at or below the low-stock alert; ranked by units sold, then views) and `deadStock` (products listed before the period, with stock and no sale in it, most money tied up first).
 
 ---
 
@@ -254,7 +301,7 @@ Auth required.
 
 ### `POST /upload`
 
-Admin auth. `multipart/form-data` field `file`. Requires Cloudinary env vars. Returns `{ url, publicId, ... }`.
+Admin auth. `multipart/form-data`: `files` (one or more images), optional `folder`, `productType` (type slug: photos go to `products/<slug>`) or `fabric` (older clients). Requires Cloudinary env vars. Returns `{ images: [{ url, publicId, width, height, ... }] }`. See `docs/CLOUDINARY_SETUP.md`.
 
 ---
 

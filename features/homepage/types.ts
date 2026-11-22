@@ -19,8 +19,11 @@ export type HomeSectionType =
 export type ProductTabKey = "bestsellers" | "new" | "trending";
 
 export type CollectionSource = {
-  kind: "category" | "products" | "fabric" | "weave" | "occasion";
-  /** Category slug or attribute value; unused for hand-picked products. */
+  /** "fabric", "weave" and "occasion" are older attribute collections (the attribute with that key). */
+  kind: "category" | "type" | "attribute" | "products" | "fabric" | "weave" | "occasion";
+  /** Attribute key for "attribute" collections. */
+  attribute?: string;
+  /** Category slug, product type slug or attribute value; unused for hand-picked products. */
   value: string;
   productIds: string[];
   sort: "popular" | "newest" | "price-asc";

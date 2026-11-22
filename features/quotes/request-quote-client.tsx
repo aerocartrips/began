@@ -19,6 +19,7 @@ export type QuoteLine = {
   productId: string;
   variantId: string | null;
   name: string;
+  /** The variant's title ("Red / M"), or its colour. */
   colorName: string;
   imageUrl: string;
   minimumQuantity: number;
@@ -41,7 +42,7 @@ function useCartLines(enabled: boolean): QuoteLine[] | null {
       productId: line.productId,
       variantId: line.variantId,
       name: line.name ?? "",
-      colorName: line.colorName ?? "",
+      colorName: line.variantTitle || line.colorName || "",
       imageUrl: line.imageUrl ?? "",
       minimumQuantity: line.minimumQuantity ?? 1,
       listUnitPrice: line.unitPrice ?? 0,

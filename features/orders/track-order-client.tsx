@@ -13,7 +13,7 @@ type TrackedOrder = {
   orderStatus: string;
   paymentStatus: string;
   itemCount: number;
-  items: { name: string; colorName: string; quantity: number }[];
+  items: { name: string; variantTitle: string; quantity: number }[];
   timeline: { status: string; at: string }[];
   shipment: {
     carrier: string;
@@ -80,7 +80,7 @@ export default function TrackOrderClient() {
           </header>
           <ul className="track-order-items">
             {order.items.map((item, index) => (
-              <li key={`${item.name}-${index}`}>{item.quantity} × {item.name}{item.colorName ? ` (${item.colorName})` : ""}</li>
+              <li key={`${item.name}-${index}`}>{item.quantity} × {item.name}{item.variantTitle ? ` (${item.variantTitle})` : ""}</li>
             ))}
           </ul>
           {order.shipment ? (

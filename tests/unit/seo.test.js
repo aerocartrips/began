@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { categoryTrail, subtreeTotals } from "@/lib/catalog/category-tree";
-import { variantFromParam, variantParamValues } from "@/lib/catalog/variant-url";
+import { variantFromParams, variantParamValues } from "@/lib/catalog/variant-url";
 import { defaultStorePage, dispatchWindow } from "@/lib/content/store-pages";
 import { brandIconVersion, monogramOf } from "@/lib/seo/brand-icon";
-import { categoryDescription, productDescription } from "@/lib/seo/descriptions";
+import { catalogueDescription, catalogueSubject, categoryDescription, inSentence, productDescription, typeDescription } from "@/lib/seo/descriptions";
 import { cloudinaryTransform, shareImage, squareIcon, structuredDataImages } from "@/lib/seo/images";
 import { isPlainListing, listingMetadata, pageMetadata, rootMetadata, xHandle } from "@/lib/seo/metadata";
 import { robotsTxt } from "@/lib/seo/robots";
@@ -76,9 +76,12 @@ const product = {
   isNew: false,
   rating: { average: 4.25, count: 2 },
   swatches: [],
+  sizeRange: "",
   shortDescription: "",
   description: "Pure silk  saree.\nZari border.",
   category: { name: "Banarasi", slug: "banarasi" },
+  type: { id: "t1", name: "Saree", pluralName: "Sarees", slug: "sarees" },
+  options: [],
   images: [
     { url: `${CLOUD}/v1/p/front.jpg`, alt: "Front" },
     { url: `${CLOUD}/v1/p/back.jpg`, alt: "Back" },
@@ -88,11 +91,13 @@ const product = {
   pricing: { price: 400, compareAtPrice: 0, wholesalePrice: 400, minimumOrderQuantity: 10 },
   stock: 25,
   specs: [
-    { label: "Fabric", value: "Silk" },
-    { label: "Weave", value: "Kadhwa" },
-    { label: "Pattern", value: "Zari buta" },
+    { key: "fabric", label: "Fabric", value: "Silk" },
+    { key: "weave", label: "Weave", value: "Kadhwa" },
+    { key: "pattern", label: "Pattern", value: "Zari buta" },
   ],
+  schemaFacts: { material: "Silk", pattern: "Zari buta" },
   careInstructions: "",
+  sizeChart: null,
   seoTitle: "Banarasi Red",
   seoDescription: "",
   ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 1, 5: 1 },
@@ -261,8 +266,8 @@ describe("page metadata", () => {
 });
 
 describe("listing metadata", () => {
-  const query = { q: "", category: "", fabric: [], weave: [], occasion: [], color: [], minPrice: null, maxPrice: null, inStock: false, sort: "newest", page: 2 };
-  const result = { items: [], total: 120, page: 2, pageCount: 5, priceRange: null, facets: {} };
+  const query = { q: "", category: "", type: "", filters: {}, minPrice: null, maxPrice: null, inStock: false, sort: "newest", page: 2 };
+  const result = { items: [], total: 120, page: 2, pageCount: 5, priceRange: null, facets: [] };
 
   it("indexes every page of a plain listing under its own canonical, with prev/next", () => {
     const metadata = listingMetadata(tenant, { basePath: "/products", title: "All products", description: "All.", query, result });
@@ -272,7 +277,7 @@ describe("listing metadata", () => {
   });
 
   it("keeps searches, filters, sorts and empty listings out of the index", () => {
-    for (const variation of [{ q: "silk" }, { fabric: ["Silk"] }, { sort: "popular" }, { inStock: true }, { minPrice: 500 }]) {
+    for (const variation of [{ q: "silk" }, { filters: { fabric: ["Silk"] } }, { filters: { size: ["M"] } }, { type: "sarees" }, { sort: "popular" }, { inStock: true }, { minPrice: 500 }]) {
       const metadata = listingMetadata(tenant, { basePath: "/products", title: "x", description: "x", query: { ...query, ...variation }, result });
       expect(metadata.robots).toEqual({ index: false, follow: true });
       expect(metadata.alternates).toBeUndefined();
@@ -281,9 +286,11 @@ describe("listing metadata", () => {
     expect(empty.robots).toEqual({ index: false, follow: true });
   });
 
-  it("treats the category in a category page's path as part of the page, not a filter", () => {
+  it("treats the category or type in a listing's path as part of the page, not a filter", () => {
     expect(isPlainListing({ ...query, category: "banarasi" }, "/categories/banarasi")).toBe(true);
     expect(isPlainListing({ ...query, category: "banarasi" }, "/products")).toBe(false);
+    expect(isPlainListing({ ...query, type: "t-shirts" }, "/shop/t-shirts")).toBe(true);
+    expect(isPlainListing({ ...query, type: "t-shirts", filters: { size: ["M"] } }, "/shop/t-shirts")).toBe(false);
   });
 });
 
@@ -354,42 +361,72 @@ describe("product structured data", () => {
     expect(data.offers.eligibleQuantity).toBeUndefined();
   });
 
+  const colour = { key: "color", name: "Colour", kind: "color", schemaProperty: "color", values: [] };
+  const variant = (id, color, sku, stock, extra = {}) => ({ id, title: color, options: { color }, colorName: color, colorHex: "#999999", sku, barcode: "", stock, images: [], ...extra });
+
   it("makes a product with colours a ProductGroup whose variants each have their own URL", () => {
     const variants = [
-      { id: "v1", colorName: "Red", colorHex: "#f00", sku: "BAN-1-RED", stock: 30, images: [{ url: `${CLOUD}/v1/p/red.jpg`, alt: "Red" }] },
-      { id: "v2", colorName: "Red", colorHex: "#e00", sku: "BAN-1-RED2", stock: 4, images: [] },
-      { id: "v3", colorName: "Peacock Teal", colorHex: "#088", sku: "BAN-1-TEAL", stock: 12, images: [] },
+      variant("v1", "Red", "BAN-1-RED", 30, { images: [{ url: `${CLOUD}/v1/p/red.jpg`, alt: "Red" }] }),
+      // A second "Red" (older colour-only data): the options can't tell it apart, so its address names its SKU.
+      variant("v2", "Red", "BAN-1-RED2", 4),
+      variant("v3", "Peacock Teal", "BAN-1-TEAL", 12),
     ];
-    const data = productJsonLd({ tenant, product: { ...product, variants }, reviews, policies });
+    const data = productJsonLd({ tenant, product: { ...product, variants, options: [colour] }, reviews, policies });
     expect(data).toMatchObject({ "@type": "ProductGroup", productGroupID: "BAN-1", variesBy: ["https://schema.org/color"] });
     expect(data.sku).toBeUndefined();
-    expect(data.hasVariant.map((variant) => [variant.name, variant.sku, variant.offers.url, variant.offers.availability])).toEqual([
-      ["Banarasi Red – Red", "BAN-1-RED", "https://silks.example/products/banarasi-red?color=red", "https://schema.org/InStock"],
-      ["Banarasi Red – Red", "BAN-1-RED2", "https://silks.example/products/banarasi-red?color=ban-1-red2", "https://schema.org/OutOfStock"],
-      ["Banarasi Red – Peacock Teal", "BAN-1-TEAL", "https://silks.example/products/banarasi-red?color=peacock-teal", "https://schema.org/InStock"],
+    expect(data.hasVariant.map((entry) => [entry.name, entry.sku, entry.color, entry.offers.url, entry.offers.availability])).toEqual([
+      ["Banarasi Red – Red", "BAN-1-RED", "Red", "https://silks.example/products/banarasi-red?color=red", "https://schema.org/InStock"],
+      ["Banarasi Red – Red", "BAN-1-RED2", "Red", "https://silks.example/products/banarasi-red?sku=ban-1-red2", "https://schema.org/OutOfStock"],
+      ["Banarasi Red – Peacock Teal", "BAN-1-TEAL", "Peacock Teal", "https://silks.example/products/banarasi-red?color=peacock-teal", "https://schema.org/InStock"],
     ]);
     expect(data.hasVariant[0].image).toEqual([`${CLOUD}/v1/p/red.jpg`]);
     expect(data.hasVariant[2].image).toEqual(product.images.map((image) => image.url));
   });
 
+  it("varies a group by colour and size, with each variant's size, barcode, audience and address", () => {
+    const size = { key: "size", name: "Size", kind: "size", schemaProperty: "size", values: [] };
+    const variants = [
+      { ...variant("v1", "Red", "TS-RED-M", 12), title: "Red / M", options: { color: "Red", size: "M" }, barcode: "8901234567890" },
+      { ...variant("v2", "Red", "TS-RED-L", 0), title: "Red / L", options: { color: "Red", size: "L" }, barcode: "12345" },
+    ];
+    const tee = { ...product, name: "Classic Tee", minimumQuantity: 1, options: [colour, size], variants, schemaFacts: { material: "Cotton", suggestedGender: "Women" } };
+    const data = productJsonLd({ tenant, product: tee, reviews: [], policies });
+    expect(data.variesBy).toEqual(["https://schema.org/color", "https://schema.org/size"]);
+    expect(data.audience).toEqual({ "@type": "PeopleAudience", suggestedGender: "female" });
+    expect(data.hasVariant[0]).toMatchObject({ name: "Classic Tee – Red / M", color: "Red", size: "M", gtin: "8901234567890", material: "Cotton" });
+    expect(data.hasVariant[0].offers.url).toBe("https://silks.example/products/banarasi-red?color=red&size=m");
+    // Not a GTIN (too short): left out rather than marked up wrongly.
+    expect(data.hasVariant[1].gtin).toBeUndefined();
+    expect(data.hasVariant[1].offers.availability).toBe("https://schema.org/OutOfStock");
+  });
+
   it("keeps a product with a single colour a Product, sold as that colour", () => {
-    const variants = [{ id: "v1", colorName: "Mustard", colorHex: "#cc0", sku: "BAN-1-MUS", stock: 3, images: [] }];
-    const data = productJsonLd({ tenant, product: { ...product, variants }, reviews: [], policies });
+    const variants = [variant("v1", "Mustard", "BAN-1-MUS", 3)];
+    const data = productJsonLd({ tenant, product: { ...product, variants, options: [colour] }, reviews: [], policies });
     expect(data).toMatchObject({ "@type": "Product", sku: "BAN-1-MUS", color: "Mustard" });
     expect(data.hasVariant).toBeUndefined();
     expect(data.offers).toMatchObject({ url: "https://silks.example/products/banarasi-red", availability: "https://schema.org/OutOfStock" });
   });
 
-  it("finds the variant a ?color= link names", () => {
+  it("finds the variant an address names, whole or partial, and older colour links", () => {
     const variants = [
-      { id: "v1", colorName: "Red", sku: "A-1" },
-      { id: "v2", colorName: "Red", sku: "A-2" },
+      { id: "v1", colorName: "Red", sku: "A-1", options: { color: "Red", size: "M" } },
+      { id: "v2", colorName: "Red", sku: "A-2", options: { color: "Red", size: "L" } },
+      { id: "v3", colorName: "Blue", sku: "A-3", options: { color: "Blue", size: "M" } },
     ];
-    expect([...variantParamValues(variants).values()]).toEqual(["red", "a-2"]);
-    expect(variantFromParam(variants, "RED")?.id).toBe("v1");
-    expect(variantFromParam(variants, "a-2")?.id).toBe("v2");
-    expect(variantFromParam(variants, "blue")).toBeNull();
-    expect(variantFromParam(variants, null)).toBeNull();
+    expect([...variantParamValues(variants).values()]).toEqual([
+      { color: "red", size: "m" },
+      { color: "red", size: "l" },
+      { color: "blue", size: "m" },
+    ]);
+    expect(variantFromParams(variants, "?color=RED&size=l")?.id).toBe("v2");
+    // Only the colour: the first variant in that colour.
+    expect(variantFromParams(variants, { color: "blue" })?.id).toBe("v3");
+    expect(variantFromParams(variants, new URLSearchParams("sku=a-2"))?.id).toBe("v2");
+    // Colour-only links used the SKU as the colour when two colours shared a name.
+    expect(variantFromParams(variants, "?color=a-3")?.id).toBe("v3");
+    expect(variantFromParams(variants, "?color=green")).toBeNull();
+    expect(variantFromParams(variants, "")).toBeNull();
   });
 });
 
@@ -489,16 +526,49 @@ describe("generated descriptions", () => {
   it("uses the store's description when there is one, else the product's facts", () => {
     expect(productDescription(tenant, { ...product, seoDescription: "Written by the store." })).toBe("Written by the store.");
     expect(productDescription(tenant, product)).toBe("Banarasi Red – Silk, Kadhwa, Zari buta. ₹400 per piece. Minimum order 10 pieces. Buy online from Silk House.");
+    const tee = { ...product, name: "Tee", specs: [], sizeRange: "S–XXL", options: [{ key: "color", name: "Colour", kind: "color", schemaProperty: "color", values: [{ value: "Red" }, { value: "Blue" }] }] };
+    expect(productDescription(tenant, tee)).toBe("Tee. ₹400 per piece. Minimum order 10 pieces. Available in 2 colours. Sizes S–XXL. Buy online from Silk House.");
+  });
+
+  const sarees = catalogueSubject({ types: [{ name: "Saree", pluralName: "Sarees", productCount: 3 }] });
+  const apparel = catalogueSubject({
+    types: [
+      { name: "Saree", pluralName: "Sarees", productCount: 3 },
+      { name: "T-shirt", pluralName: "T-shirts", productCount: 5 },
+      { name: "Jeans", pluralName: "Jeans", productCount: 0 },
+    ],
+  });
+
+  it("says what the store sells, from its product types", () => {
+    expect(inSentence("Sarees")).toBe("sarees");
+    expect(inSentence("T-shirts")).toBe("T-shirts");
+    expect(sarees).toEqual({ one: "saree", many: "sarees", list: "sarees" });
+    // Types without listed products aren't mentioned.
+    expect(apparel.list).toBe("sarees and T-shirts");
+    expect(catalogueDescription(tenant, 101, sarees)).toBe("Buy 101 sarees wholesale from Silk House, with per-piece prices and minimum order quantities on every product.");
+    expect(catalogueDescription({ ...tenant, salesMode: "retail" }, 8, apparel)).toBe("Shop sarees and T-shirts online from Silk House (8 products).");
+    expect(catalogueDescription({ ...tenant, salesMode: "retail" }, null, apparel)).toBe("Shop sarees and T-shirts online from Silk House.");
+    expect(typeDescription({ ...tenant, salesMode: "retail" }, { name: "T-shirt", pluralName: "T-shirts", description: "" }, 1)).toBe("Shop 1 T-shirt online from Silk House.");
   });
 
   it("names what a category lists", () => {
-    expect(categoryDescription(tenant, { name: "Linen Sarees", description: "" }, 1)).toContain("1 design of Linen Sarees wholesale");
-    expect(categoryDescription(tenant, { name: "Banarasi", description: "" }, 12)).toContain("12 designs of Banarasi sarees");
-    expect(categoryDescription(tenant, { name: "Banarasi", description: "Our weaves." }, 12)).toBe("Our weaves.");
+    expect(categoryDescription(tenant, { name: "Linen Sarees", description: "" }, 1, sarees)).toContain("1 design of Linen Sarees wholesale");
+    expect(categoryDescription(tenant, { name: "Banarasi", description: "" }, 12, sarees)).toContain("12 designs of Banarasi sarees");
+    expect(categoryDescription(tenant, { name: "Banarasi", description: "Our weaves." }, 12, sarees)).toBe("Our weaves.");
+    // A store selling several kinds doesn't guess what a category holds.
+    expect(categoryDescription(tenant, { name: "Festive edit", description: "" }, 4, apparel)).toContain("4 designs of Festive edit wholesale");
     // A filtered view isn't counted.
-    expect(categoryDescription(tenant, { name: "Banarasi", description: "" }, null)).toBe(
+    expect(categoryDescription(tenant, { name: "Banarasi", description: "" }, null, sarees)).toBe(
       "Buy Banarasi sarees wholesale from Silk House, with per-piece prices and minimum order quantities.",
     );
+  });
+
+  it("writes default pages for what the store sells", () => {
+    const store = { name: "Silk House", salesMode: "retail", contactEmail: "", returnWindowDays: 7, cancellationWindowHours: 48 };
+    expect(defaultStorePage("care-guide", { ...store, sareesOnly: true }).title).toBe("Saree care guide");
+    expect(defaultStorePage("care-guide", { ...store, sareesOnly: false }).title).toBe("Care guide");
+    expect(defaultStorePage("about", { ...store, sells: "T-shirts and jeans" }).summary).toBe("Silk House sells T-shirts and jeans to shoppers across India.");
+    expect(defaultStorePage("about", { ...store, sareesOnly: true }).summary).toContain("handwoven sarees");
   });
 
   it("quotes the store's dispatch time in its default shipping policy", () => {

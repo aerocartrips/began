@@ -157,7 +157,7 @@ export function AdminQuoteDetail({ quoteId }: { quoteId: string }) {
                   <tr key={item.id}>
                     <td>
                       <strong>{item.productName}</strong>
-                      <small className="admin-cell-sub">{[item.colorName, item.sku, item.notes].filter(Boolean).join(" · ")}</small>
+                      <small className="admin-cell-sub">{[item.variantTitle || item.colorName, item.sku, item.notes].filter(Boolean).join(" · ")}</small>
                     </td>
                     <td className="is-numeric">{formatNumber(item.quantity)}</td>
                     <td className="is-numeric">{formatRupees(item.listUnitPrice)}</td>

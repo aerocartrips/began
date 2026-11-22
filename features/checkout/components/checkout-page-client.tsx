@@ -111,7 +111,9 @@ function CheckoutLine({ row, salesMode }: { row: CartRow; salesMode: "wholesale"
       </span>
       <span className="checkout-line__info">
         <strong>{name}</strong>
-        {line.colorName || line.sku ? <small>{[line.colorName, line.sku].filter(Boolean).join(" · ")}</small> : null}
+        {line.variantTitle || line.colorName || line.sku ? (
+          <small>{[line.variantTitle || line.colorName, line.sku].filter(Boolean).join(" · ")}</small>
+        ) : null}
         {!line.unavailable ? (
           <small>
             {formatNumber(item.quantity)} × {formatRupees(row.unitPrice)}

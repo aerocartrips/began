@@ -107,13 +107,13 @@ export default function AdminOrderDetailClient({ orderId }: { orderId: string })
                 </thead>
                 <tbody>
                   {order.items.map((item) => (
-                    <tr key={`${item.sku}-${item.productName}`}>
+                    <tr key={`${item.sku}-${item.productName}-${item.variantTitle ?? ""}`}>
                       <td>
                         <div className="admin-product-cell">
                           {item.imageUrl ? <Image src={item.imageUrl} alt="" width={40} height={48} unoptimized /> : null}
                           <span>
                             <strong>{item.productName}</strong>
-                            <small>SKU {item.sku}</small>
+                            <small>{[item.variantTitle || item.colorName, `SKU ${item.sku}`].filter(Boolean).join(" · ")}</small>
                           </span>
                         </div>
                       </td>
