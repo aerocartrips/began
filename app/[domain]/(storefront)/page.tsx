@@ -5,7 +5,9 @@ import { ArrowRight } from "lucide-react";
 import Button from "@/components/ui/button";
 import HeroBanner from "@/components/landing/hero-banner";
 import HomeSection, { visibilityClass } from "@/components/landing/home-section";
-import CategoryRail from "@/components/landing/category-rail";
+import CategoryRail, { type RailShortcut } from "@/components/landing/category-rail";
+import TypeCards from "@/components/landing/type-cards";
+import TypeTabs from "@/components/landing/type-tabs";
 import TrustStrip from "@/components/landing/trust-strip";
 import ForYouRail from "@/components/landing/for-you-rail";
 import CatalogueOverview from "@/components/landing/catalogue-overview";
@@ -15,7 +17,7 @@ import QuickPicks from "@/components/landing/quick-picks";
 import RecentlyViewedRail from "@/components/landing/recently-viewed-rail";
 import HomeReviews from "@/components/landing/home-reviews";
 import HomeCta from "@/components/landing/home-cta";
-import HomeFeed from "@/components/landing/home-feed";
+import HomeFeed, { type FeedChip } from "@/components/landing/home-feed";
 import HomeStructuredData from "@/components/landing/home-structured-data";
 import HomeAnalytics from "@/components/landing/home-analytics";
 import NewsletterSignup from "@/components/landing/newsletter-signup";
@@ -33,8 +35,14 @@ import {
   getPopularProducts,
   getProductTabs,
   getQuickPicks,
+  getTypeShowcase,
 } from "@/lib/catalog/home";
-import { HOME_SECTION_TYPES as T, PRODUCT_TAB_LABELS } from "@/lib/constants/homepage";
+import { groupByType } from "@/lib/catalog/type-mix";
+import { getCategories } from "@/lib/catalog/query";
+import { subtreeTotals } from "@/lib/catalog/category-tree";
+import { leadsToProducts } from "@/lib/content/banner-links";
+import { inSentence } from "@/lib/catalog/words";
+import { FEED_PAGE_SIZE, HOME_SECTION_TYPES as T, PRODUCT_TAB_LABELS } from "@/lib/constants/homepage";
 import { shareImage } from "@/lib/seo/images";
 import { pageMetadata, siteNameOf } from "@/lib/seo/metadata";
 import { getCurrentTenant } from "@/lib/tenant/current";
@@ -136,13 +144,16 @@ export default async function Home() {
   const reviewsSection = find(T.REVIEWS);
   const guidesSection = find(T.GUIDES);
   const feedSection = find(T.FEED);
+  const typesSection = find(T.SHOP_BY_TYPE);
   const collectionSections = sections.filter((section) => section.type === T.COLLECTION && section.source);
   const needsCategories = Boolean(find(T.CATEGORY_NAV) || find(T.CATALOGUE) || feedSection);
+  // What the store sells shapes the page: shortcuts, "Shop by type", category groups and feed chips.
+  const needsTypes = Boolean(typesSection || needsCategories);
   // "View all" counts for rows that lead to the whole catalogue.
   const needsTotal = Boolean(tabsSection || forYouSection || feedSection);
 
   // Everything is fetched in parallel, and only for sections the store shows.
-  const [banners, categories, tabs, popular, quickPicks, reviews, guides, feed, catalogueTotal, collections] = await Promise.all([
+  const [banners, categories, tabs, popular, quickPicks, reviews, guides, feed, catalogueTotal, collections, types, linkCategories] = await Promise.all([
     find(T.HERO) ? safely("banners", () => getLiveBanners(tenant.id), []) : [],
     needsCategories ? safely("categories", () => getCategoryOverview(tenant.id, salesMode), []) : [],
     tabsSection ? safely("product tabs", () => getProductTabs(tenant.id, salesMode, tabsSection.limit), null) : null,
@@ -150,23 +161,104 @@ export default async function Home() {
     find(T.QUICK_PICKS) ? safely("quick picks", () => getQuickPicks(tenant.id, salesMode), []) : [],
     reviewsSection ? safely("reviews", () => getHomeReviews(tenant.id, reviewsSection.limit), []) : [],
     guidesSection ? safely("guides", () => getPublishedGuides(tenant.id, { limit: guidesSection.limit, withCover: true }), []) : [],
-    feedSection ? safely("feed", () => getFeedPage(tenant.id, salesMode, "", null), null) : null,
+    feedSection ? safely("feed", () => getFeedPage(tenant.id, salesMode, {}, null), null) : null,
     needsTotal ? safely("catalogue total", () => getCatalogueTotal(tenant.id), 0) : 0,
     Promise.all(
       collectionSections.map((section) =>
         safely(`collection ${section.key}`, () => getCollectionProducts(tenant.id, salesMode, section.source!, section.limit), { items: [], total: 0 }),
       ),
     ),
+    needsTypes ? safely("types", () => getTypeShowcase(tenant.id, salesMode, typesSection?.limit ?? 10), []) : [],
+    // Which categories have products on sale, to leave out hero slides that lead to an empty one.
+    find(T.HERO) ? safely("banner links", () => getCategories(tenant.id), null) : null,
   ]);
   const collectionProducts = new Map(collectionSections.map((section, index) => [section.key, collections[index]]));
 
+  /*
+   * One product type: the page is about it (categories, its feed). Two or three:
+   * a photo card and a row for each. Four or more: the shortcuts become the
+   * types and "Shop by type" becomes one tabbed row. Categories are grouped
+   * under the type their products are (lib/catalog/type-mix.js).
+   */
+  const multiType = types.length > 1;
+  const manyTypes = types.length >= 4;
+  const categoryGroups = multiType ? groupByType(categories, types) : [];
+  const orderedCategories = multiType ? categoryGroups.flatMap((group) => group.items) : categories;
+
+  const categoryTotals = linkCategories ? subtreeTotals(linkCategories) : null;
+  const stockedCategories = linkCategories
+    ? new Set(linkCategories.filter((category) => (categoryTotals?.get(category.id)?.productCount ?? 0) > 0).map((category) => category.slug))
+    : null;
+  const liveBanners = banners.filter(
+    (banner) => !banner.primaryCta || leadsToProducts(banner.primaryCta.href, stockedCategories, needsTypes ? new Set(types.map((type) => type.slug)) : null),
+  );
+  // A catalogue that fits in the feed's first batch: rows of "popular" or "new" would repeat the same products.
+  const fitsInFeed = Boolean(feedSection) && catalogueTotal > 0 && catalogueTotal <= FEED_PAGE_SIZE;
+
   function render(section: HomeSectionConfig): ReactNode {
     switch (section.type) {
-      case T.CATEGORY_NAV:
-        return categories.length > 1 ? <CategoryRail section={section} categories={categories} /> : null;
+      case T.CATEGORY_NAV: {
+        // Four or more types: the types. Two or three: the types first, then their categories. One: its categories.
+        const typeItems: RailShortcut[] = types.map((type) => ({ id: type.id, name: type.pluralName, href: `/shop/${type.slug}`, image: type.cover }));
+        const categoryItems: RailShortcut[] = orderedCategories.map((category) => ({
+          id: category.id,
+          name: category.name,
+          href: `/categories/${category.slug}`,
+          image: category.imageUrl ? { url: category.imageUrl, alt: "" } : category.previews[0] ?? null,
+        }));
+        const items = manyTypes ? typeItems : multiType ? [...typeItems, ...categoryItems] : categoryItems;
+        const label = manyTypes ? "Shop by type" : multiType ? "Shop by type and category" : "Shop by category";
+        return items.length > 1 ? <CategoryRail section={section} items={items} label={label} /> : null;
+      }
+
+      case T.SHOP_BY_TYPE: {
+        if (!multiType) return null;
+        const title = section.title || "Shop by type";
+        if (manyTypes) {
+          const headingId = `home-${section.key}`;
+          return (
+            <section
+              className={["home-section content-width", visibilityClass(section)].filter(Boolean).join(" ")}
+              aria-labelledby={headingId}
+              data-home-section={section.key}
+            >
+              <TypeTabs
+                sectionKey={section.key}
+                headingId={headingId}
+                title={title}
+                description={section.description}
+                types={types.map((type) => ({ slug: type.slug, name: type.pluralName, count: type.productCount }))}
+                // "All", open first: a card per type ("Popular right now" already mixes their products).
+                allPanel={<TypeCards types={types} salesMode={salesMode} layout="row" />}
+                limit={section.limit}
+                salesMode={salesMode}
+              />
+            </section>
+          );
+        }
+        return (
+          <>
+            <HomeSection section={section} title={title} description={section.description}>
+              <TypeCards types={types} salesMode={salesMode} />
+            </HomeSection>
+            {types.map((type) =>
+              type.products.length ? (
+                <HomeSection
+                  key={type.id}
+                  section={{ ...section, key: `${section.key}-${type.slug}` }}
+                  title={type.pluralName}
+                  viewAll={{ href: `/shop/${type.slug}`, label: `All ${inSentence(type.pluralName)}` }}
+                >
+                  <ProductRail products={type.products} salesMode={salesMode} label={type.pluralName} viewAll={{ href: `/shop/${type.slug}`, count: type.productCount }} />
+                </HomeSection>
+              ) : null,
+            )}
+          </>
+        );
+      }
 
       case T.HERO: {
-        const hero = banners.length ? <HeroBanner banners={banners} storeName={tenant.name} /> : <StoreHero tenant={tenant} />;
+        const hero = liveBanners.length ? <HeroBanner banners={liveBanners} storeName={tenant.name} /> : <StoreHero tenant={tenant} />;
         return (
           <div className={visibilityClass(section) || undefined} data-home-section={section.key}>
             {hero}
@@ -178,10 +270,48 @@ export default async function Home() {
         return <TrustStrip section={section} items={section.items?.length ? section.items : defaultTrustItems(salesMode)} storeName={tenant.name} />;
 
       case T.FOR_YOU:
+        if (fitsInFeed) return null;
         return <ForYouRail section={section} initialProducts={popular} catalogueTotal={catalogueTotal} salesMode={salesMode} />;
 
-      case T.CATALOGUE:
-        return categories.length ? (
+      case T.CATALOGUE: {
+        // One category: nothing to explore (the feed below lists it).
+        if (categories.length < 2) return null;
+        if (categoryGroups.length > 1) {
+          // "All" first (every category, type by type), then a tab per type and "Collections" for categories that mix types.
+          const headingId = `home-${section.key}`;
+          return (
+            <section
+              className={["home-section content-width", visibilityClass(section)].filter(Boolean).join(" ")}
+              aria-labelledby={headingId}
+              data-home-section={section.key}
+            >
+              <ProductTabs
+                headingId={headingId}
+                title={section.title || "Explore the collection"}
+                description={section.description}
+                tabs={[
+                  {
+                    key: "all",
+                    label: "All",
+                    href: section.viewAllHref || "/categories",
+                    panel: <CatalogueOverview categories={orderedCategories} salesMode={salesMode} listId="catalogue-all" />,
+                  },
+                  ...categoryGroups.map((group) => {
+                    const type = types.find((entry) => entry.id === group.typeId);
+                    const key = type?.slug ?? "collections";
+                    return {
+                      key,
+                      label: type?.pluralName ?? "Collections",
+                      href: type ? `/shop/${type.slug}` : section.viewAllHref || "/categories",
+                      panel: <CatalogueOverview categories={group.items} salesMode={salesMode} listId={`catalogue-${key}`} />,
+                    };
+                  }),
+                ]}
+              />
+            </section>
+          );
+        }
+        return (
           <HomeSection
             section={section}
             title={section.title || "Explore the collection"}
@@ -190,9 +320,11 @@ export default async function Home() {
           >
             <CatalogueOverview categories={categories} salesMode={salesMode} />
           </HomeSection>
-        ) : null;
+        );
+      }
 
       case T.PRODUCT_TABS: {
+        if (fitsInFeed) return null;
         const available = (section.tabs ?? (["bestsellers", "new", "trending"] as ProductTabKey[])).filter((key) => tabs?.[key].length);
         if (!tabs || !available.length) return null;
         const headingId = `home-${section.key}`;
@@ -293,18 +425,27 @@ export default async function Home() {
           />
         );
 
-      case T.FEED:
-        return feed?.items.length ? (
+      case T.FEED: {
+        if (!feed?.items.length) return null;
+        // Several types: the chips are the types (the feed takes turns between them); one type: its categories.
+        const chips: FeedChip[] = multiType
+          ? types.map((type) => ({ key: type.slug, name: type.pluralName, count: type.productCount, param: "type", href: `/shop/${type.slug}` }))
+          : categories.map(({ slug, name, productCount }) => ({ key: slug, name, count: productCount, param: "category", href: `/categories/${slug}` }));
+        return (
           <HomeFeed
             section={section}
             title={section.title || "All products"}
-            description={section.description || "Most popular first. Pick a category to narrow it down."}
+            description={
+              section.description ||
+              (multiType ? "Most popular first, every type in turn. Pick a type to narrow it down." : "Most popular first. Pick a category to narrow it down.")
+            }
             initialPage={feed}
-            categories={categories.map(({ slug, name, productCount }) => ({ slug, name, count: productCount }))}
+            chips={chips}
             catalogueTotal={catalogueTotal}
             salesMode={salesMode}
           />
-        ) : null;
+        );
+      }
 
       default:
         return null;

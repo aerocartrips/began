@@ -7,6 +7,7 @@ import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import AdminCard from "@/components/admin/admin-card";
 import NewAttributeForm from "@/components/admin/new-attribute-form";
 import SizeChartEditor from "@/components/admin/size-chart-editor";
+import ImageUploader, { type ManagedImage } from "@/components/images/image-uploader";
 import ProductTypeIcon from "@/components/catalog/product-type-icon";
 import LoadingButton from "@/components/ui/buttons/loading-button";
 import Combobox from "@/components/ui/form/combobox";
@@ -33,7 +34,10 @@ const move = <T,>(list: T[], index: number, step: number) => {
   return next;
 };
 
-type TypeDraft = Pick<AdminProductType, "name" | "pluralName" | "slug" | "description" | "icon" | "isActive" | "fields" | "options" | "sizeChart" | "defaults">;
+type TypeDraft = Pick<AdminProductType, "name" | "pluralName" | "slug" | "description" | "icon" | "isActive" | "fields" | "options" | "sizeChart" | "defaults"> & {
+  /** The storefront photo (at most one). */
+  cover: ManagedImage[];
+};
 
 /**
  * Editor for one product type: its name and icon, the details its products
@@ -56,6 +60,7 @@ export default function ProductTypeEditor({ type, attributes: initialAttributes 
     options: type.options.map((option) => ({ ...option, values: [...option.values] })),
     sizeChart: type.sizeChart,
     defaults: { ...type.defaults },
+    cover: type.coverImage ? [{ src: type.coverImage.url, secureUrl: type.coverImage.url, publicId: type.coverImage.publicId, alt: type.coverImage.alt }] : [],
   }));
   const [creating, setCreating] = useState<"field" | "option" | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -91,6 +96,7 @@ export default function ProductTypeEditor({ type, attributes: initialAttributes 
   async function save() {
     setSaving(true);
     setErrors({});
+    const cover = draft.cover.find((image) => !image.pendingUpload);
     try {
       await sendJson(`/api/v1/admin/product-types/${type.id}`, "PATCH", {
         name: draft.name.trim(),
@@ -102,6 +108,7 @@ export default function ProductTypeEditor({ type, attributes: initialAttributes 
         fields: draft.fields,
         options: draft.options,
         sizeChart: draft.sizeChart,
+        coverImage: cover ? { url: cover.secureUrl || cover.src, alt: cover.alt || draft.pluralName, publicId: cover.publicId || "" } : null,
         defaults: {
           ...draft.defaults,
           gstRatePercent: draft.defaults.gstRatePercent === null || Number.isNaN(draft.defaults.gstRatePercent) ? null : draft.defaults.gstRatePercent,
@@ -189,6 +196,14 @@ export default function ProductTypeEditor({ type, attributes: initialAttributes 
             </div>
           </fieldset>
         </div>
+      </section>
+
+      <section className="admin-form-section" aria-labelledby="type-cover">
+        <h2 id="type-cover">Storefront photo</h2>
+        <p className="admin-image-disclaimer">
+          Shown for {draft.pluralName || "this type"} on the home page and in the Shop menu when you sell several types. Without one, the photo of its most popular product is used.
+        </p>
+        <ImageUploader images={draft.cover} onChange={(cover) => set({ cover })} folder="norosilk/product-types" maxImages={1} />
       </section>
 
       <section className="admin-form-section" aria-labelledby="type-fields">

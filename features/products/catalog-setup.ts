@@ -54,6 +54,8 @@ export type AdminProductType = {
   fields: { key: string; required: boolean }[];
   options: { key: string; values: string[] }[];
   sizeChart: AdminSizeChart | null;
+  /** Storefront photo (home page, Shop menu); null uses its most popular product's photo. */
+  coverImage: { url: string; alt: string; publicId?: string } | null;
   defaults: { hsnCode: string; gstRatePercent: number | null; minimumOrderQuantity: number; careInstructions: string };
   template: string;
   productCount: number;

@@ -71,7 +71,7 @@ describe("feed on 20,000 products", () => {
     let slowest = 0;
     do {
       const started = performance.now();
-      const page = await m.getFeedPage(String(tenantId), "retail", "", cursor);
+      const page = await m.getFeedPage(String(tenantId), "retail", {}, cursor);
       slowest = Math.max(slowest, performance.now() - started);
       for (const item of page.items) {
         expect(seen.has(item.id)).toBe(false);
@@ -102,7 +102,7 @@ describe("feed on 20,000 products", () => {
 
   it("filters a category without scanning the catalogue", async () => {
     const started = performance.now();
-    const page = await m.getFeedPage(String(tenantId), "retail", "category-3", null);
+    const page = await m.getFeedPage(String(tenantId), "retail", { category: "category-3" }, null);
     expect(performance.now() - started).toBeLessThan(1000);
     expect(page.items).toHaveLength(FEED_PAGE_SIZE);
   });

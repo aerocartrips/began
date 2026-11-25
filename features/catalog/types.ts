@@ -166,6 +166,8 @@ export type CategoryOverview = {
   /** Lowest per-piece price in the store's sales mode. */
   startingPrice: number;
   previews: CatalogImage[];
+  /** The product type its products are (80% or more of them); null when it mixes types. */
+  typeId: string | null;
 };
 
 export type FeedPage = { items: ProductCardData[]; nextCursor: string | null };
@@ -215,8 +217,26 @@ export type CatalogTypeConfig = {
   sizeChart: SizeChartData | null;
   /** The template it was made from ("saree", "t-shirt"…; "" for none). */
   template: string;
+  /** Cover photo set in Admin → Product types; null uses its most popular product's photo. */
+  coverImage: CatalogImage | null;
   /** Listed products of this type. */
   productCount: number;
+};
+
+/** A product type as the storefront shows it: shortcuts, the "Shop by type" cards and rows. */
+export type TypeShowcase = {
+  id: string;
+  name: string;
+  pluralName: string;
+  slug: string;
+  icon: string;
+  description: string;
+  productCount: number;
+  /** Lowest per-piece price in the store's sales mode. */
+  startingPrice: number;
+  cover: CatalogImage | null;
+  /** Its most popular products. */
+  products: ProductCardData[];
 };
 
 export type CatalogAttributeConfig = {

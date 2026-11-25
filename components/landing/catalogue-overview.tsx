@@ -13,11 +13,13 @@ import type { CategoryOverview } from "@/features/catalog/types";
 export default function CatalogueOverview({
   categories,
   salesMode,
+  listId = "catalogue-overview",
 }: {
   categories: CategoryOverview[];
   salesMode: "wholesale" | "retail";
+  /** Unique per list on the page (one list per product type tab). */
+  listId?: string;
 }) {
-  const listId = "catalogue-overview";
   return (
     <>
       <ul className="catalogue-overview" id={listId} data-expanded="false">
@@ -65,6 +67,7 @@ export default function CatalogueOverview({
           );
         })}
       </ul>
+      {/* Shown by app/landing.css only when the list is longer than its first rows. */}
       <CatalogueMore listId={listId} total={categories.length} />
     </>
   );

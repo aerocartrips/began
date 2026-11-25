@@ -9,23 +9,33 @@ import StorefrontSearch from "@/components/layout/storefront-search";
 import ShopMenu from "@/components/layout/shop-menu";
 import { getSiteNavigation } from "@/lib/site-content";
 import { getCatalogConfig, sellingTypes } from "@/lib/catalog/catalog-config";
+import { getCategoryOverview } from "@/lib/catalog/home";
 import { inSentence } from "@/lib/seo/descriptions";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import Link from "next/link";
 import { Heart, ShoppingCart } from "lucide-react";
 
+/** Categories listed under each type in the Shop menu (the type's page lists the rest). */
+const MENU_CATEGORIES = 6;
+
 export default async function SiteHeader() {
   const tenant = await getCurrentTenant();
   const navigation = getSiteNavigation();
   const isWholesale = tenant.salesMode === "wholesale";
-  const types = sellingTypes(await getCatalogConfig(tenant.id)).map((type) => ({
+  const selling = sellingTypes(await getCatalogConfig(tenant.id));
+  // A store selling several types shows them under "Shop" with their categories; one type is the whole catalogue.
+  const multiType = selling.length > 1;
+  const categories = multiType ? await getCategoryOverview(tenant.id, tenant.salesMode) : [];
+  const largest = (list: typeof categories) =>
+    [...list].sort((left, right) => right.productCount - left.productCount).slice(0, MENU_CATEGORIES).map(({ name, slug }) => ({ name, slug }));
+  const types = selling.map((type) => ({
     name: type.pluralName,
     slug: type.slug,
     icon: type.icon,
     count: type.productCount,
+    categories: largest(categories.filter((category) => category.typeId === type.id)),
   }));
-  // A store selling several types shows them under "Shop"; one type is the whole catalogue.
-  const multiType = types.length > 1;
+  const collections = largest(categories.filter((category) => !selling.some((type) => type.id === category.typeId)));
   const searchPlaceholder = types.length
     ? `Search ${types.slice(0, 2).map((type) => inSentence(type.name)).join(", ")}${types.length > 2 ? "…" : ", SKU…"}`
     : "Search products, SKU…";
@@ -38,7 +48,7 @@ export default async function SiteHeader() {
         <nav className="nav-links" aria-label="Main navigation">
           {navigation.map((item) =>
             multiType && item.href === "/products" ? (
-              <ShopMenu key={item.href} types={types} />
+              <ShopMenu key={item.href} types={types} collections={collections} />
             ) : (
               <Link href={item.href} key={item.href}>{item.label}</Link>
             ),

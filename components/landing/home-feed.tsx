@@ -15,7 +15,8 @@ import type { FeedPage, ProductCardData } from "@/features/catalog/types";
 import type { HomeSection } from "@/features/homepage/types";
 
 type Status = "idle" | "loading" | "error" | "done";
-type CategoryChip = { slug: string; name: string; count: number };
+/** A filter chip: a product type in a store selling several, else a category. */
+export type FeedChip = { key: string; name: string; count: number; param: "type" | "category"; href: string };
 
 const SKELETONS = 4;
 /** Start loading this far before the shopper reaches the end. */
@@ -30,21 +31,23 @@ const AUTO_PAGES = { phone: 2, other: FEED_MAX_PAGES };
 /**
  * The catalogue, most popular first: 20 products at a time, at most three
  * times, then "View all" leads to the full listing (filters, sorting, pages).
+ * In a store selling several product types, "All" takes turns between them
+ * and the chips are the types; otherwise the chips are categories.
  * The first page is server-rendered (crawlable); later pages use keyset
  * cursors, so batches never overlap, and ids are de-duplicated as a second
  * guard. One request at a time; the button works without scrolling.
  */
-export default function HomeFeed({ section, title, description, initialPage, categories, catalogueTotal, salesMode }: {
+export default function HomeFeed({ section, title, description, initialPage, chips, catalogueTotal, salesMode }: {
   section: HomeSection;
   title: string;
   description: string;
   initialPage: FeedPage;
-  categories: CategoryChip[];
+  chips: FeedChip[];
   /** Active products in the store: the "All" count. */
   catalogueTotal: number;
   salesMode: "wholesale" | "retail";
 }) {
-  const [category, setCategory] = useState("");
+  const [chipKey, setChipKey] = useState("");
   const [items, setItems] = useState<ProductCardData[]>(initialPage.items);
   const [pages, setPagesState] = useState(1);
   const [status, setStatusState] = useState<Status>(initialPage.nextCursor ? "idle" : "done");
@@ -64,13 +67,13 @@ export default function HomeFeed({ section, title, description, initialPage, cat
   };
 
   const cursor = useRef<string | null>(initialPage.nextCursor);
-  const categoryRef = useRef("");
+  const chipRef = useRef<FeedChip | null>(null);
   const seen = useRef(new Set(initialPage.items.map((item) => item.id)));
   const inFlight = useRef<AbortController | null>(null);
   const sentinel = useRef<HTMLDivElement | null>(null);
   const observer = useRef<IntersectionObserver | null>(null);
 
-  /** `reset` starts over (category change); otherwise continues from the cursor. */
+  /** `reset` starts over (chip change); otherwise continues from the cursor. */
   const load = useCallback(async (reset = false) => {
     if (!reset && (inFlight.current || !cursor.current || pagesRef.current >= FEED_MAX_PAGES)) return;
     inFlight.current?.abort();
@@ -79,7 +82,7 @@ export default function HomeFeed({ section, title, description, initialPage, cat
     setStatus("loading");
 
     const params = new URLSearchParams();
-    if (categoryRef.current) params.set("category", categoryRef.current);
+    if (chipRef.current) params.set(chipRef.current.param, chipRef.current.key);
     if (!reset && cursor.current) params.set("cursor", cursor.current);
     try {
       const response = await fetch(`/api/v1/catalog/feed?${params}`, { signal: controller.signal });
@@ -94,7 +97,7 @@ export default function HomeFeed({ section, title, description, initialPage, cat
       setPages(reset ? 1 : pagesRef.current + 1);
       setStatus(page.nextCursor ? "idle" : "done");
       setAnnouncement(page.nextCursor ? `${fresh.length} more products loaded.` : "All products loaded.");
-      trackEvent("feed_load", { section: section.key, target: categoryRef.current || "all" });
+      trackEvent("feed_load", { section: section.key, target: chipRef.current?.key || "all" });
     } catch (error) {
       if (controller.signal.aborted) return;
       setStatus("error");
@@ -139,19 +142,20 @@ export default function HomeFeed({ section, title, description, initialPage, cat
 
   useEffect(() => () => inFlight.current?.abort(), []);
 
-  function chooseCategory(slug: string) {
-    if (slug === categoryRef.current) return;
-    categoryRef.current = slug;
-    setCategory(slug);
+  function choose(chip: FeedChip | null) {
+    if ((chip?.key ?? "") === (chipRef.current?.key ?? "")) return;
+    chipRef.current = chip;
+    setChipKey(chip?.key ?? "");
     setItems([]);
     void load(true);
   }
 
   const headingId = `home-${section.key}`;
-  const activeChip = categories.find((chip) => chip.slug === category);
+  const activeChip = chips.find((chip) => chip.key === chipKey);
   const total = activeChip ? activeChip.count : catalogueTotal;
   const remaining = Math.max(0, total - items.length);
-  const catalogueHref = category ? `/categories/${category}` : section.viewAllHref || "/products?sort=popular";
+  const catalogueHref = activeChip ? activeChip.href : section.viewAllHref || "/products?sort=popular";
+  const byType = chips[0]?.param === "type";
   const capped = status === "idle" && pages >= FEED_MAX_PAGES;
 
   return (
@@ -167,18 +171,18 @@ export default function HomeFeed({ section, title, description, initialPage, cat
         </Link>
       </div>
 
-      {categories.length > 1 ? (
-        <div className="home-feed__filters" role="group" aria-label="Filter products by category">
-          <button type="button" className="quick-pick" aria-pressed={category === ""} onClick={() => chooseCategory("")}>
+      {chips.length > 1 ? (
+        <div className="home-feed__filters" role="group" aria-label={byType ? "Filter products by type" : "Filter products by category"}>
+          <button type="button" className="quick-pick" aria-pressed={chipKey === ""} onClick={() => choose(null)}>
             All
           </button>
-          {categories.map((chip) => (
+          {chips.map((chip) => (
             <button
-              key={chip.slug}
+              key={chip.key}
               type="button"
               className="quick-pick"
-              aria-pressed={category === chip.slug}
-              onClick={() => chooseCategory(chip.slug)}
+              aria-pressed={chipKey === chip.key}
+              onClick={() => choose(chip)}
             >
               {chip.name}
               <span className="quick-pick__count">{chip.count}</span>
@@ -225,7 +229,7 @@ export default function HomeFeed({ section, title, description, initialPage, cat
           </button>
         ) : status === "done" ? (
           <p className="home-feed__end">
-            {items.length ? "You've seen everything here." : "No products in this category yet."}{" "}
+            {items.length ? "You've seen everything here." : "No products here yet."}{" "}
             <Link href={catalogueHref}>Browse with filters</Link>
           </p>
         ) : null}

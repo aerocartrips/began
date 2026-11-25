@@ -5,6 +5,7 @@ export type HomeSectionType =
   | "hero"
   | "trust"
   | "for-you"
+  | "shop-by-type"
   | "catalogue"
   | "product-tabs"
   | "quick-picks"

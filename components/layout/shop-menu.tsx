@@ -2,19 +2,22 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
+import { ArrowRight, ChevronDown, LayoutGrid } from "lucide-react";
 import ProductTypeIcon from "@/components/catalog/product-type-icon";
 import { formatNumber } from "@/lib/format";
+import { inSentence } from "@/lib/catalog/words";
 
-export type ShopMenuType = { name: string; slug: string; icon: string; count: number };
+export type ShopMenuLink = { name: string; slug: string };
+export type ShopMenuType = { name: string; slug: string; icon: string; count: number; categories: ShopMenuLink[] };
 
 /**
- * The header's "Shop" link for stores that sell several product types: a
- * disclosure (the WAI-ARIA pattern for site navigation, with real links)
- * listing everything, each type and the categories. Closes on Escape, on a
- * click outside and when a link is followed.
+ * The header's "Shop" for stores that sell several product types: a mega menu
+ * (the WAI-ARIA disclosure pattern for site navigation, with real links) with
+ * a column per type, its largest categories under it, then "Collections" for
+ * categories that mix types. Closes on Escape, on a click outside and when a
+ * link is followed.
  */
-export default function ShopMenu({ types }: { types: ShopMenuType[] }) {
+export default function ShopMenu({ types, collections }: { types: ShopMenuType[]; collections: ShopMenuLink[] }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -53,22 +56,56 @@ export default function ShopMenu({ types }: { types: ShopMenuType[] }) {
         Shop <ChevronDown size={13} strokeWidth={2} aria-hidden="true" />
       </button>
       <div id={panelId} className="shop-menu__panel" hidden={!open}>
-        <ul>
+        <div className="shop-menu__columns" data-count={types.length + (collections.length ? 1 : 0)}>
           {types.map((type) => (
-            <li key={type.slug}>
-              <Link href={`/shop/${type.slug}`} className="shop-menu__link" onClick={close}>
+            <div key={type.slug} className="shop-menu__column">
+              <Link href={`/shop/${type.slug}`} className="shop-menu__type" onClick={close}>
                 <span className="shop-menu__icon">
                   <ProductTypeIcon icon={type.icon} />
                 </span>
                 <span className="shop-menu__name">{type.name}</span>
                 <span className="shop-menu__count">{formatNumber(type.count)}</span>
               </Link>
-            </li>
+              {type.categories.length ? (
+                <ul aria-label={`${type.name} categories`}>
+                  {type.categories.map((category) => (
+                    <li key={category.slug}>
+                      <Link href={`/categories/${category.slug}`} className="shop-menu__category" onClick={close}>
+                        {category.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <Link href={`/shop/${type.slug}`} className="shop-menu__all" onClick={close}>
+                All {inSentence(type.name)}
+                <ArrowRight size={12} aria-hidden="true" />
+              </Link>
+            </div>
           ))}
-        </ul>
+          {collections.length ? (
+            <div className="shop-menu__column">
+              <span className="shop-menu__type shop-menu__type--plain">
+                <span className="shop-menu__icon">
+                  <LayoutGrid size={16} aria-hidden="true" />
+                </span>
+                <span className="shop-menu__name">Collections</span>
+              </span>
+              <ul aria-label="Collections">
+                {collections.map((category) => (
+                  <li key={category.slug}>
+                    <Link href={`/categories/${category.slug}`} className="shop-menu__category" onClick={close}>
+                      {category.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
         <div className="shop-menu__foot">
           <Link href="/products" onClick={close}>All products</Link>
-          <Link href="/categories" onClick={close}>Categories</Link>
+          <Link href="/categories" onClick={close}>All categories</Link>
         </div>
       </div>
     </div>

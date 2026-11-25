@@ -18,7 +18,8 @@ export type AnalyticsEventName =
   | "feed_load"
   | "newsletter_signup"
   | "rail_scroll"
-  | "view_all_click";
+  | "view_all_click"
+  | "tab_select";
 
 type QueuedEvent = { event: AnalyticsEventName; section: string; target: string };
 

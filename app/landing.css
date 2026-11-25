@@ -275,6 +275,43 @@
 .product-tabs__tab:hover { border-color: var(--color-text); color: var(--color-text); }
 .product-tabs__tab[aria-selected="true"] { border-color: var(--color-text); background: var(--color-text); color: var(--color-surface); }
 
+/* --- Shop by type: photo cards (2–3 types) and tabs (4+; components/landing/type-tabs.tsx) --- */
+.type-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin: 0; padding: 2px; list-style: none; }
+.type-card { display: grid; height: 100%; grid-template-rows: auto 1fr; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface); transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+.type-card:hover { border-color: var(--color-brand); box-shadow: var(--shadow-card); transform: translateY(-2px); }
+.type-card:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 3px; }
+.type-card__media { position: relative; display: block; aspect-ratio: 4 / 3; overflow: hidden; background: var(--color-background); }
+.type-card__media > .ui-image-frame { position: absolute; inset: 0; }
+.type-card__media img { transition: opacity .35s ease, transform .5s ease; }
+.type-card:hover .type-card__media img { transform: scale(1.04); }
+.type-card__icon { display: grid; height: 100%; place-items: center; color: var(--color-brand); }
+.type-card__icon svg { width: 44px; height: 44px; }
+.type-card__body { display: grid; align-content: start; gap: 4px; padding: 14px 16px 16px; }
+.type-card__name { color: var(--color-text); font-family: var(--heading-font); font-size: 21px; line-height: 1.2; }
+.type-card__meta { color: var(--color-text-muted); font-size: 12.5px; line-height: 1.45; }
+.type-card__cta { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; color: var(--color-brand); font-size: 13px; font-weight: 700; }
+.type-card:hover .type-card__cta svg { transform: translateX(3px); }
+.type-card__cta svg { transition: transform .2s ease; }
+/* Two types: wider cards, so a wider photo. */
+@media (min-width: 761px) { .type-cards[data-count="2"] .type-card__media { aspect-ratio: 16 / 9; } }
+/* Phones: the cards swipe sideways, a little of the next one showing. */
+@media (max-width: 760px) {
+  .type-cards { grid-template-columns: none; grid-auto-columns: 78%; grid-auto-flow: column; gap: 12px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; }
+  .type-cards::-webkit-scrollbar { display: none; }
+  .type-cards > li { scroll-snap-align: start; }
+  .type-card__name { font-size: 19px; }
+}
+/* In a swipeable row ("Shop by type" > All): the product cards' size and 4:5 photos. */
+.type-cards__item .type-card__media { aspect-ratio: 4 / 5; }
+.type-cards__item .type-card__body { gap: 3px; padding: 11px 12px 13px; }
+.type-cards__item .type-card__name { font-size: 17px; }
+.type-cards__item .type-card__meta { font-size: 11.5px; }
+.type-cards__item .type-card__cta { margin-top: 4px; font-size: 12px; }
+.type-tabs__count { margin-left: 7px; font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums; opacity: .62; }
+.type-tabs__loading { display: grid; grid-auto-columns: calc((100% - 4 * var(--card-gap, 16px)) / 5); grid-auto-flow: column; gap: var(--card-gap, 16px); margin: 0; padding: 2px 2px 8px; overflow: hidden; list-style: none; }
+@media (max-width: 760px) { .type-tabs__loading { grid-auto-columns: calc((100% - var(--card-gap, 12px)) / 2.2); } }
+.type-tabs__error { margin: 8px 0 4px; color: var(--color-text-muted); font-size: 13px; }
+
 /* --- Catalogue at a glance ---------------------------------------------------------- */
 .catalogue-overview { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none; }
 .catalogue-tile { display: grid; height: 100%; align-content: start; gap: 4px; padding: 8px 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface); transition: border-color .2s ease, box-shadow .2s ease; }
@@ -426,5 +463,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .category-rail__image,
-  .catalogue-tile { transition: none; }
+  .catalogue-tile,
+  .type-card,
+  .type-card__media img,
+  .type-card__cta svg { transition: none; }
+  .type-card:hover,
+  .type-card:hover .type-card__media img { transform: none; }
 }

@@ -241,6 +241,12 @@
 .catalog-suggestions { margin-top: 32px; text-align: left; }
 
 .category-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 18px; margin: 0; padding: 0; list-style: none; }
+/* /categories in a store selling several product types: a group per type, then "Collections". */
+.category-group + .category-group { margin-top: 44px; }
+.category-group__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--color-border); }
+.category-group__head h2 { margin: 0; font-family: var(--heading-font); font-size: clamp(20px, 2.2vw, 26px); font-weight: 400; line-height: 1.2; }
+.category-group__all { display: inline-flex; align-items: center; gap: 6px; color: var(--color-brand); font-size: 13px; font-weight: 600; }
+.category-group__all:hover { text-decoration: underline; text-underline-offset: 3px; }
 .category-tile { display: grid; gap: 4px; }
 .category-tile__media { position: relative; display: block; aspect-ratio: 1; overflow: hidden; border-radius: var(--radius-card); background: linear-gradient(135deg, var(--color-background), var(--color-border)); }
 .category-tile__name { font-weight: 600; }

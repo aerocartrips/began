@@ -2,6 +2,7 @@ import type { CatalogConfig, ProductDetailData } from "@/features/catalog/types"
 import type { PublicTenant } from "@/lib/tenant/types";
 import { formatNumber, formatRupees } from "@/lib/format";
 import { siteNameOf } from "@/lib/seo/metadata";
+import { inSentence } from "@/lib/catalog/words";
 
 /**
  * Meta descriptions for pages the store hasn't written one for. Google asks
@@ -15,11 +16,7 @@ const wholesale = (tenant: PublicTenant) => tenant.salesMode === "wholesale";
 const plural = (count: number, one: string, many: string) => `${formatNumber(count)} ${count === 1 ? one : many}`;
 
 /** "Sarees" → "sarees" mid-sentence; "T-shirts" keeps its capital (the second character says it is a code). */
-export function inSentence(word: string) {
-  const second = word.charAt(1);
-  if (second === "-" || (second && second !== second.toLowerCase())) return word;
-  return word.charAt(0).toLowerCase() + word.slice(1);
-}
+export { inSentence };
 
 /** "sarees", "sarees and T-shirts", "sarees, T-shirts and jeans". */
 function listOf(words: string[]) {

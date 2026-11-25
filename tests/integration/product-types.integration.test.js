@@ -458,3 +458,67 @@ describe("adding a colour from the product form", () => {
     });
   });
 });
+
+describe("a storefront organised by product type", () => {
+  let mixed;
+  let sareeType;
+  let teeType;
+  const make = (fields) => m.runWithTenant(mixed, () => m.Product.create({ minimumOrderQuantity: 1, stockQuantity: 10, status: "active", ...fields }));
+
+  beforeAll(async () => {
+    m = { ...m, ...(await import("@/lib/catalog/home")) };
+    mixed = m.toPublicTenant((await m.Tenant.create({ slug: "mixed", name: "Mixed Co", domains: ["mixed.test"], salesMode: "retail" })).toObject());
+    await m.runWithTenant(mixed, async () => {
+      sareeType = await m.createProductTypeFromTemplate({ template: "saree" });
+      teeType = await m.createProductTypeFromTemplate({ template: "t-shirt" });
+      const silk = await m.Category.create({ name: "Silk", slug: "silk" });
+      const tees = await m.Category.create({ name: "Tees", slug: "tees" });
+      const festive = await m.Category.create({ name: "Festive", slug: "festive" });
+      // 25 sarees with a long sales history, 3 new T-shirts, and a category that mixes both.
+      for (let n = 1; n <= 25; n += 1) {
+        await make({ name: `Saree ${n}`, slug: `saree-${n}`, sku: `S-${n}`, productType: sareeType._id, category: n <= 23 ? silk._id : festive._id, price: 2000 + n, wholesalePrice: 1500, popularityScore: 100 - n });
+      }
+      for (let n = 1; n <= 3; n += 1) {
+        await make({ name: `Tee ${n}`, slug: `tee-${n}`, sku: `T-${n}`, productType: teeType._id, category: n <= 1 ? tees._id : festive._id, price: 500 + n, wholesalePrice: 300, popularityScore: 5 - n });
+      }
+    });
+  });
+
+  it("takes turns between types in the popular row, so new types aren't buried", async () => {
+    const popular = await m.getPopularProducts(mixed.id, "retail", 6);
+    expect(popular.map((product) => product.name)).toEqual(["Saree 1", "Tee 1", "Saree 2", "Tee 2", "Saree 3", "Tee 3"]);
+  });
+
+  it("feeds every product exactly once across pages, types in turn, and filters by type", async () => {
+    const first = await m.getFeedPage(mixed.id, "retail", {}, null);
+    expect(first.items.slice(0, 6).map((product) => product.name)).toEqual(["Saree 1", "Tee 1", "Saree 2", "Tee 2", "Saree 3", "Tee 3"]);
+    expect(first.items).toHaveLength(20);
+    const second = await m.getFeedPage(mixed.id, "retail", {}, first.nextCursor);
+    expect(second.nextCursor).toBeNull();
+    const names = [...first.items, ...second.items].map((product) => product.name);
+    expect(names).toHaveLength(28);
+    expect(new Set(names).size).toBe(28);
+    // The sarees keep their own popularity order across pages.
+    const sarees = names.filter((name) => name.startsWith("Saree"));
+    expect(sarees).toEqual(Array.from({ length: 25 }, (_, index) => `Saree ${index + 1}`));
+
+    const tees = await m.getFeedPage(mixed.id, "retail", { type: "t-shirts" }, null);
+    expect(tees.items.map((product) => product.name)).toEqual(["Tee 1", "Tee 2", "Tee 3"]);
+    expect((await m.getFeedPage(mixed.id, "retail", { type: "no-such-type" }, null)).items).toEqual([]);
+  });
+
+  it("puts each category under the type its products are, and mixed ones under none", async () => {
+    const overview = await m.getCategoryOverview(mixed.id, "retail");
+    const typeOf = Object.fromEntries(overview.map((category) => [category.slug, category.typeId]));
+    expect(typeOf).toEqual({ silk: String(sareeType._id), tees: String(teeType._id), festive: null });
+  });
+
+  it("summarises each type for the storefront: count, starting price, cover and top products", async () => {
+    const showcase = await m.getTypeShowcase(mixed.id, "retail", 2);
+    expect(showcase.map((type) => [type.pluralName, type.productCount, type.startingPrice, type.products.map((product) => product.name)])).toEqual([
+      ["Sarees", 25, 2001, ["Saree 1", "Saree 2"]],
+      ["T-shirts", 3, 501, ["Tee 1", "Tee 2"]],
+    ]);
+    expect(showcase[0].cover).toBeNull(); // no photos in this test store, and no cover set
+  });
+});

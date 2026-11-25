@@ -107,7 +107,7 @@ describe("home feed", () => {
     const seen = [];
     let cursor = null;
     for (let guard = 0; guard < 20; guard += 1) {
-      const page = await m.getFeedPage(storeA, "retail", category, cursor);
+      const page = await m.getFeedPage(storeA, "retail", { category }, cursor);
       seen.push(...page.items.map((item) => item.id));
       if (!page.nextCursor) return seen;
       cursor = page.nextCursor;
@@ -126,13 +126,13 @@ describe("home feed", () => {
     expect(await readAll("silk")).toHaveLength(25);
     expect(await readAll("cotton")).toHaveLength(5);
     expect(await readAll("unknown")).toHaveLength(0);
-    const storeBFeed = await m.getFeedPage(storeB, "retail", "", null);
+    const storeBFeed = await m.getFeedPage(storeB, "retail", {}, null);
     expect(storeBFeed.items.map((item) => item.name)).toEqual(["Other store"]);
   });
 
   it("treats a malformed cursor as the first page", async () => {
-    const first = await m.getFeedPage(storeA, "retail", "", null);
-    const garbage = await m.getFeedPage(storeA, "retail", "", "%%%");
+    const first = await m.getFeedPage(storeA, "retail", {}, null);
+    const garbage = await m.getFeedPage(storeA, "retail", {}, "%%%");
     expect(garbage.items.map((item) => item.id)).toEqual(first.items.map((item) => item.id));
   });
 });
@@ -197,7 +197,7 @@ describe("demand metrics", () => {
       expect((await m.Product.findById(products[8]._id).lean()).salesCount).toBe(0); // outside the window
     });
     // The feed now leads with the most in-demand product.
-    expect((await m.getFeedPage(storeA, "retail", "", null)).items[0].name).toBe("Saree 9");
+    expect((await m.getFeedPage(storeA, "retail", {}, null)).items[0].name).toBe("Saree 9");
 
     // Another store's products are untouched.
     await m.runWithTenant(storeB, async () => {
@@ -245,7 +245,7 @@ describe("home page layout", () => {
   it("uses the default layout until the store saves its own", async () => {
     const types = (await m.getHomepageSections(storeA)).map((section) => section.type);
     // Products first; everything else after the feed, which ends after 60 products.
-    expect(types.slice(0, 4)).toEqual(["category-nav", "hero", "for-you", "product-tabs"]);
+    expect(types.slice(0, 5)).toEqual(["category-nav", "hero", "for-you", "shop-by-type", "product-tabs"]);
     for (const type of ["trust", "quick-picks", "reviews", "cta", "newsletter"]) {
       expect(types.indexOf("feed")).toBeLessThan(types.indexOf(type));
     }
@@ -270,12 +270,16 @@ describe("home page layout", () => {
 
     const visible = await m.getHomepageSections(storeA);
     const types = visible.map((section) => section.type);
-    // Saved order first (the feed may lead); section types the store never saw are added (enabled) after it.
-    expect(types.slice(0, 3)).toEqual(["feed", "collection", "hero"]);
+    // The saved order is kept (the feed may lead the saved sections); section types the store never
+    // saw are added, enabled, next to the section they follow by default (category circles first).
+    expect(types.filter((type) => ["feed", "collection", "hero"].includes(type))).toEqual(["feed", "collection", "hero"]);
+    expect(types[0]).toBe("category-nav");
+    expect(types[types.indexOf("hero") + 1]).toBe("for-you");
     expect(types).not.toContain("reviews"); // hidden by the admin
-    expect(types).toEqual(expect.arrayContaining(["guides", "newsletter", "for-you"]));
-    expect(visible[1]).toMatchObject({ showOnDesktop: false, showOnMobile: true });
-    const picks = await m.getCollectionProducts(storeA, "retail", visible[1].source, 10);
+    expect(types).toEqual(expect.arrayContaining(["guides", "newsletter", "for-you", "shop-by-type"]));
+    const collection = visible.find((section) => section.type === "collection");
+    expect(collection).toMatchObject({ showOnDesktop: false, showOnMobile: true });
+    const picks = await m.getCollectionProducts(storeA, "retail", collection.source, 10);
     expect(picks.items.map((item) => item.name)).toEqual(["Saree 2", "Saree 1"]);
     expect(picks.total).toBe(2);
 
