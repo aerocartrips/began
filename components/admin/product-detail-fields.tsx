@@ -35,46 +35,99 @@ export function useAddAttributeValue(onAdded: (attribute: AdminAttribute, value:
   };
 }
 
-/** "Add value" link that opens a one-line input under a list field. */
-function AddValue({ attribute, onAdd }: { attribute: AdminAttribute; onAdd: (label: string, hex: string) => Promise<unknown> }) {
+const DEFAULT_SWATCH = "#999999";
+
+/**
+ * A colour name the browser knows ("Coral", "Sky blue", "Maroon") as #rrggbb,
+ * so typing a name presets the swatch; "" for names it doesn't know ("Rani pink").
+ */
+function hexOfColourName(name: string) {
+  const keyword = name.trim().toLowerCase().replace(/\s+/g, "");
+  const context = keyword && typeof document !== "undefined" ? document.createElement("canvas").getContext("2d") : null;
+  if (!context) return "";
+  const sentinel = "#010203";
+  context.fillStyle = sentinel;
+  context.fillStyle = keyword;
+  const value = String(context.fillStyle);
+  return value !== sentinel && /^#[0-9a-f]{6}$/i.test(value) ? value : "";
+}
+
+/**
+ * "Add a …" link that opens a one-line input for a new list value. Colours
+ * get a swatch picker beside the name (preset from the name when the browser
+ * knows it), so a new colour never reaches the storefront without its swatch.
+ */
+export function AddValue({ attribute, onAdd }: { attribute: AdminAttribute; onAdd: (label: string, hex: string) => Promise<unknown> }) {
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
-  const [hex, setHex] = useState("#999999");
+  const [hex, setHex] = useState(DEFAULT_SWATCH);
+  // Once the admin picks a swatch, the name no longer changes it.
+  const [picked, setPicked] = useState(false);
   const [busy, setBusy] = useState(false);
+  const isColour = attribute.input === "color";
+  const noun = attribute.name.toLowerCase();
   if (!open) {
     return (
       <button type="button" className="text-button admin-add-value" onClick={() => setOpen(true)}>
-        <Plus size={13} aria-hidden="true" /> Add a {attribute.name.toLowerCase()}
+        <Plus size={13} aria-hidden="true" /> Add a {noun}
       </button>
     );
+  }
+  function close() {
+    setLabel("");
+    setHex(DEFAULT_SWATCH);
+    setPicked(false);
+    setOpen(false);
   }
   async function add() {
     if (!label.trim()) return;
     setBusy(true);
-    await onAdd(label.trim(), attribute.input === "color" ? hex : "");
+    await onAdd(label.trim(), isColour ? hex : "");
     setBusy(false);
-    setLabel("");
-    setOpen(false);
+    close();
   }
   return (
     <span className="admin-add-value__row">
       <input
-        aria-label={`New ${attribute.name.toLowerCase()}`}
+        aria-label={`New ${noun} name`}
+        placeholder={isColour ? "Name, e.g. Coral" : `New ${noun}`}
         value={label}
         maxLength={80}
         autoFocus
-        onChange={(event) => setLabel(event.currentTarget.value)}
+        onChange={(event) => {
+          const text = event.currentTarget.value;
+          setLabel(text);
+          if (isColour && !picked) setHex(hexOfColourName(text) || DEFAULT_SWATCH);
+        }}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             event.preventDefault();
             void add();
           }
-          if (event.key === "Escape") setOpen(false);
+          if (event.key === "Escape") close();
         }}
       />
-      {attribute.input === "color" ? <input type="color" aria-label="Swatch" value={hex} onChange={(event) => setHex(event.currentTarget.value)} /> : null}
+      {isColour ? (
+        <label className="admin-add-value__swatch">
+          <input
+            type="color"
+            value={hex}
+            onChange={(event) => {
+              setHex(event.currentTarget.value);
+              setPicked(true);
+            }}
+          />
+          <span>
+            <span className="sr-only">Swatch colour </span>
+            {hex.toUpperCase()}
+          </span>
+        </label>
+      ) : null}
       <button type="button" className="text-button" disabled={busy || !label.trim()} onClick={() => void add()}>
         Add
+      </button>
+      <button type="button" className="text-button" onClick={close}>
+        Cancel
       </button>
     </span>
   );

@@ -134,8 +134,8 @@
 .catalog-card__tier > span { white-space: nowrap; }
 .catalog-card__meta { display: flex; flex-wrap: wrap; gap: 0 10px; margin: 0; color: var(--color-text-muted); font-size: 11px; line-height: 1.4; }
 .catalog-card__stock { color: var(--color-success); }
-/* Takes the line's remaining space and never wraps it, so every card keeps one height. */
-.catalog-card__sizes { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Size run beside the colours ("S–XXL"): one unit, so it moves to the next line whole rather than being cut. */
+.catalog-card__sizes { color: var(--color-text-muted); font-size: 11px; line-height: 14px; white-space: nowrap; }
 /* Last line: colours on the left, rating on the right (on its own, it stays right). */
 .catalog-card__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; min-height: 14px; }
 .catalog-card__rating { margin-left: auto; color: var(--color-text-muted); font-size: 11px; line-height: 14px; white-space: nowrap; }
@@ -347,11 +347,13 @@
 .product-detail-badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: var(--radius-pill); background: color-mix(in srgb, var(--color-brand) 10%, transparent); color: var(--color-brand); font-size: 11px; font-weight: 700; white-space: nowrap; }
 .product-detail-badge--offer { background: color-mix(in srgb, var(--color-success) 12%, transparent); color: var(--color-success); font-size: 12px; }
 .product-detail-copy h1 { margin: 0; color: var(--color-text); font-family: var(--heading-font); font-size: clamp(26px, 2.3vw, 34px); font-weight: 400; line-height: 1.24; text-wrap: balance; }
-.product-detail-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; color: var(--color-text-muted); font-size: 13px; }
+/* overflow clips the divider of an item that wrapped to a new line; the padding keeps focus rings visible. */
+.product-detail-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: -3px; padding: 3px; overflow: hidden; color: var(--color-text-muted); font-size: 13px; }
 .product-detail-rating { display: inline-flex; align-items: center; gap: 8px; }
 .product-detail-rating strong { color: var(--color-text); }
 .product-detail-rating:hover > span:last-child { color: var(--color-brand); text-decoration: underline; text-underline-offset: 3px; }
-.product-detail-rating + .product-detail-sku { padding-left: 16px; border-left: 1px solid var(--color-border); }
+.product-detail-rating + .product-detail-sku { position: relative; }
+.product-detail-rating + .product-detail-sku::before { position: absolute; top: 50%; left: -9px; width: 1px; height: 1.1em; background: var(--color-border); content: ""; transform: translateY(-50%); }
 .product-detail-sku { font-variant-numeric: tabular-nums; }
 .product-detail-summary { margin: 0; color: var(--pdp-body); font-size: 15px; line-height: 1.7; }
 
@@ -446,7 +448,8 @@
 .product-purchase__buy { grid-column: 1 / -1; border: 1.5px solid var(--color-text); background: transparent; color: var(--color-text); }
 .product-purchase__buy:hover { background: var(--color-text); color: var(--color-surface); }
 .product-purchase__total { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 2px 12px; margin: 0; padding-top: 14px; border-top: 1px dashed var(--color-border); color: var(--color-text-muted); font-size: 13px; }
-.product-purchase__total strong { color: var(--color-text); font-size: 18px; font-variant-numeric: tabular-nums; }
+.product-purchase__total strong { color: var(--color-text); font-size: 18px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.product-purchase__total strong[data-size="xlong"] { font-size: 16px; }
 .product-purchase__total small { grid-column: 1 / -1; font-size: 12px; }
 .product-purchase-panel .stock-alert-button { width: 100%; min-height: 48px; font-size: 13px; }
 
@@ -739,6 +742,7 @@
 .admin-add-value__row { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .admin-add-value__row input:not([type="color"]) { width: 180px; min-height: 32px; padding: 5px 9px; border: 1px solid #dfe4ea; border-radius: 5px; font: inherit; font-size: 10px; }
 .admin-add-value__row input[type="color"] { width: 38px; height: 32px; padding: 2px; }
+.admin-add-value__swatch { display: inline-flex; align-items: center; gap: 6px; color: var(--color-text-muted); font-size: 10px; font-variant-numeric: tabular-nums; cursor: pointer; }
 .admin-variant-matrix { display: grid; gap: 12px; }
 .admin-variant-matrix legend small { color: #8b95a4; font-size: 9px; font-weight: 400; }
 .admin-variant-matrix__tools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 22px; }

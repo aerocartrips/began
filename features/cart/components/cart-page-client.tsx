@@ -19,7 +19,7 @@ import EmptyState from "@/components/ui/empty-state";
 import Button from "@/components/ui/button";
 import { useHydrated } from "@/lib/client/persistent-store";
 import type { PurchaseTerm } from "@/lib/catalog/purchase-terms";
-import { formatNumber, formatRupees } from "@/lib/format";
+import { amountSize, formatNumber, formatRupees } from "@/lib/format";
 
 type CartPageClientProps = {
   /** Payments, shipping, returns and invoices, from the store's settings. */
@@ -202,7 +202,9 @@ export default function CartPageClient({ terms, shipping, lowStockThreshold }: C
           <span>
             Total · {formatNumber(pieces)} {unit}
           </span>
-          <strong data-updating={updating || undefined}>{pricing ? formatRupees(pricing.totals.totalAmount) : "…"}</strong>
+          <strong data-updating={updating || undefined} data-size={pricing ? amountSize(formatRupees(pricing.totals.totalAmount)) : undefined}>
+            {pricing ? formatRupees(pricing.totals.totalAmount) : "…"}
+          </strong>
         </p>
         {blocked ? (
           <button type="button" className="button button-primary" disabled>

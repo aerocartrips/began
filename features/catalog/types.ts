@@ -77,6 +77,10 @@ export type ProductTypeSummary = { id: string; name: string; pluralName: string;
 
 export type ProductDetailData = ProductCardData & {
   sku: string;
+  /** HSN code for GST invoices; "" when not set. */
+  hsnCode: string;
+  /** The product's own GST rate (%); null uses the store's default. */
+  gstRatePercent: number | null;
   shortDescription: string;
   description: string;
   category: { name: string; slug: string } | null;

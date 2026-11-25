@@ -8,7 +8,7 @@ import { decodeFeedCursor, encodeFeedCursor, feedCursorFilter } from "@/lib/cata
 import { scoreProduct } from "@/lib/jobs/product-metrics.job";
 import { isAutomatedRequest } from "@/lib/security/bot-detection";
 import { homepageLayoutSchema } from "@/lib/validators/homepage.validator";
-import { defaultHomeSections, normalizeHomeSections } from "@/lib/content/homepage-defaults";
+import { defaultHomeSections, normalizeHomeSections, refreshLegacyCopy } from "@/lib/content/homepage-defaults";
 import { PERMISSIONS, roleHasPermission } from "@/lib/auth/permissions";
 import { MAX_SECTION_PRODUCTS, TRENDING_MIN_POINTS } from "@/lib/constants/homepage";
 
@@ -192,5 +192,45 @@ describe("home page layout", () => {
     expect(roleHasPermission("owner", PERMISSIONS.MARKETING_MANAGE)).toBe(true);
     expect(roleHasPermission("manager", PERMISSIONS.MARKETING_MANAGE)).toBe(true);
     expect(roleHasPermission("staff", PERMISSIONS.MARKETING_MANAGE)).toBe(false);
+  });
+});
+
+describe("home copy kept from saree-only layouts", () => {
+  const saved = defaultHomeSections().map((section) =>
+    section.key === "feed"
+      ? { ...section, title: "All sarees" }
+      : section.key === "quick-picks"
+        ? { ...section, title: "Find your saree faster" }
+        : section.key === "newsletter"
+          ? { ...section, description: "Be first to see new weaves, restocks and offers." }
+          : section.key === "reviews"
+            ? { ...section, title: "Our sarees, your words" }
+            : section,
+  );
+  const byKey = (sections) => Object.fromEntries(sections.map((section) => [section.key, section]));
+
+  it("gives way to today's defaults once the store sells more than sarees", () => {
+    const sections = byKey(refreshLegacyCopy(saved, false));
+    expect(sections.feed.title).toBe("All products");
+    expect(sections["quick-picks"].title).toBe("Find it faster");
+    expect(sections.newsletter.description).toBe("Be first to see new arrivals, restocks and offers.");
+    // Copy the admin wrote is never replaced.
+    expect(sections.reviews.title).toBe("Our sarees, your words");
+  });
+
+  it("stays as it is in a store that sells sarees only", () => {
+    expect(refreshLegacyCopy(saved, true)).toBe(saved);
+  });
+
+  it("updates the old saree trust item and keeps the others", () => {
+    const trust = { ...defaultHomeSections().find((section) => section.type === "trust"), items: [
+      { icon: "badge", title: "Authentic weaves", text: "Every saree is checked before it ships." },
+      { icon: "truck", title: "Fast dispatch", text: "Ships in 2 days." },
+    ] };
+    const [updated] = refreshLegacyCopy([trust], false);
+    expect(updated.items).toEqual([
+      { icon: "badge", title: "Quality checked", text: "Every piece is checked before it ships." },
+      { icon: "truck", title: "Fast dispatch", text: "Ships in 2 days." },
+    ]);
   });
 });

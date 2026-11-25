@@ -439,3 +439,22 @@ describe("catalogue insights", () => {
     });
   });
 });
+
+describe("adding a colour from the product form", () => {
+  it("saves its swatch, reuses an existing colour and fills in a missing swatch", async () => {
+    await inStore(async () => {
+      const colour = await m.ProductAttribute.findOne({ key: "color" });
+      const added = await m.addAttributeValue(String(colour._id), { label: "Coral", hex: "#ff7f50" });
+      expect(added.value).toMatchObject({ label: "Coral", hex: "#ff7f50" });
+
+      // Same name in another case: the existing value, swatch unchanged.
+      const again = await m.addAttributeValue(String(colour._id), { label: "coral", hex: "#000000" });
+      expect(again.value).toMatchObject({ label: "Coral", hex: "#ff7f50" });
+
+      // A colour saved without a swatch gets one the next time it is added with one.
+      await m.addAttributeValue(String(colour._id), { label: "Light red" });
+      const filled = await m.addAttributeValue(String(colour._id), { label: "Light red", hex: "#f08080" });
+      expect(filled.value).toMatchObject({ label: "Light red", hex: "#f08080" });
+    });
+  });
+});

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Droplets } from "lucide-react";
 import PurchaseTermsList from "@/components/catalog/purchase-terms-list";
 import type { ProductDetailData } from "@/features/catalog/types";
+import { formatNumber } from "@/lib/format";
 import type { PurchaseTerm } from "@/lib/catalog/purchase-terms";
 
 /**
@@ -9,12 +10,24 @@ import type { PurchaseTerm } from "@/lib/catalog/purchase-terms";
  * (description), the facts (specifications) and how to look after it and get
  * it (care, shipping and returns). Rendered on the server; no JavaScript.
  */
-export default function ProductDetails({ product, terms }: { product: ProductDetailData; terms: PurchaseTerm[] }) {
+export default function ProductDetails({ product, terms, gstRatePercent = 0, showHsn = false }: {
+  product: ProductDetailData;
+  terms: PurchaseTerm[];
+  /** GST rate checkout adds (%); 0 when not set. */
+  gstRatePercent?: number;
+  /** Business buyers (wholesale stores) need the HSN code for their input tax credit. */
+  showHsn?: boolean;
+}) {
   const paragraphs = product.description
     .split(/\n{2,}/)
     .map((paragraph) => paragraph.trim())
     .filter(Boolean);
-  const specs = [...product.specs, { key: "sku", label: "SKU", value: product.sku }];
+  const specs = [
+    ...product.specs,
+    { key: "sku", label: "SKU", value: product.sku },
+    ...(gstRatePercent > 0 ? [{ key: "gst", label: "GST", value: `${formatNumber(gstRatePercent)}%, added at checkout` }] : []),
+    ...(showHsn && product.hsnCode ? [{ key: "hsn", label: "HSN code", value: product.hsnCode }] : []),
+  ];
   const delivery = terms.filter((term) => term.key === "shipping" || term.key === "returns");
 
   return (

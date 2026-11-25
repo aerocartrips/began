@@ -37,6 +37,8 @@ describe("variants", () => {
     expect(sizeRangeOf(["XL", "S", "M", "L", "S"], ["XS", "S", "M", "L", "XL"])).toBe("S–XL");
     expect(sizeRangeOf(["32", "28"], ["28", "30", "32"])).toBe("28, 32");
     expect(sizeRangeOf([], [])).toBe("");
+    // Sizes that are ranges themselves don't run together.
+    expect(sizeRangeOf(["2–3Y", "3–4Y", "4–5Y", "7–8Y"], ["2–3Y", "3–4Y", "4–5Y", "7–8Y"])).toBe("2–3Y to 7–8Y");
     expect(variantSkuOf("TEE-01", ["Navy Blue", "XL"])).toBe("TEE-01-NAVYBLU-XL");
   });
 

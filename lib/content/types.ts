@@ -22,6 +22,8 @@ export type StorePolicies = {
   shippingFreeThreshold: number;
   /** "Only N left" shows at or below this stock. */
   lowStockThreshold: number;
+  /** GST rate (%) for products without their own; 0 means not set. */
+  defaultGstRatePercent: number;
   /** Minutes an unpaid order holds its stock while the shopper pays. */
   paymentReservationMinutes: number;
   /** Working days from payment to dispatch; a maximum of 0 means not stated. */

@@ -19,7 +19,7 @@ import { recordProductView } from "@/features/catalog/recently-viewed";
 import { MEANINGFUL_VIEW_MS, trackProductActivity } from "@/features/catalog/activity";
 import { compareAtPriceFor, unitPriceFor } from "@/lib/catalog/pricing";
 import { SKU_PARAM, variantFromParams, variantParamValues } from "@/lib/catalog/variant-url";
-import { formatNumber, formatRupees } from "@/lib/format";
+import { amountSize, formatNumber, formatRupees } from "@/lib/format";
 import type { PurchaseTerm } from "@/lib/catalog/purchase-terms";
 import type { CatalogImage, ProductDetailData, ProductOptionData, ProductVariantData } from "@/features/catalog/types";
 
@@ -28,6 +28,8 @@ type ProductDetailClientProps = {
   salesMode: "wholesale" | "retail";
   /** "Only N left" shows at or below this stock (Admin → Settings). */
   lowStockThreshold: number;
+  /** GST rate checkout adds (%); 0 when the store hasn't set one. */
+  gstRatePercent: number;
   /** Payments, shipping and returns, from the store's settings. */
   terms: PurchaseTerm[];
 };
@@ -63,7 +65,7 @@ const matches = (variant: ProductVariantData, selection: Selection, except?: str
  * its own photos, SKU and stock, and its own address (?color=red&size=m), so
  * shared links and search results open on it.
  */
-export default function ProductDetailClient({ product, salesMode, lowStockThreshold, terms }: ProductDetailClientProps) {
+export default function ProductDetailClient({ product, salesMode, lowStockThreshold, gstRatePercent, terms }: ProductDetailClientProps) {
   const { pricing } = product;
   const router = useRouter();
   const feedback = useFeedback();
@@ -90,6 +92,7 @@ export default function ProductDetailClient({ product, salesMode, lowStockThresh
   const activeBreak = breaks.findLast((tier) => safeQuantity >= tier.minQuantity) ?? breaks[0];
   const images = photosFor(product, variant);
   const lineTotal = unitPrice * safeQuantity;
+  const gstText = gstRatePercent > 0 ? `GST ${formatNumber(gstRatePercent)}% extra` : "GST extra";
 
   useEffect(() => {
     recordProductView(product.id);
@@ -175,9 +178,16 @@ export default function ProductDetailClient({ product, salesMode, lowStockThresh
     if (next) showVariant(next);
   }
 
-  /** For each value of an option, given the other choices: does that combination exist, and can it be ordered? */
+  /**
+   * For each value of an option, given the choices made in the options before
+   * it (colour, then size): does that combination exist, and can it be ordered?
+   * Later choices don't count, so a colour is crossed out only when it is sold
+   * out in every size, not because the size picked so far is.
+   */
   function valueState(option: ProductOptionData, value: string) {
-    const combos = product.variants.filter((entry) => entry.options[option.key] === value && matches(entry, selection, option.key));
+    const position = product.options.findIndex((entry) => entry.key === option.key);
+    const earlier = Object.fromEntries(product.options.slice(0, position).filter((entry) => entry.key in selection).map((entry) => [entry.key, selection[entry.key]]));
+    const combos = product.variants.filter((entry) => entry.options[option.key] === value && matches(entry, earlier));
     return { exists: combos.length > 0, available: combos.some(purchasableVariant), stock: combos.reduce((total, entry) => Math.max(total, entry.stock), 0) };
   }
 
@@ -240,7 +250,7 @@ export default function ProductDetailClient({ product, salesMode, lowStockThresh
             {discount > 0 ? <span className="product-detail-badge product-detail-badge--offer">{discount}% off</span> : null}
           </div>
           <p className="product-detail-note">
-            {isWholesale ? `Minimum order ${formatNumber(minimum)} ${minimum === 1 ? "piece" : "pieces"} · GST extra` : "GST extra, added at checkout"}
+            {isWholesale ? `Minimum order ${formatNumber(minimum)} ${minimum === 1 ? "piece" : "pieces"} · ${gstText}` : `${gstText}, added at checkout`}
           </p>
         </div>
 
@@ -353,9 +363,9 @@ export default function ProductDetailClient({ product, salesMode, lowStockThresh
               {isWholesale || safeQuantity > 1 ? (
                 <p className="product-purchase__total">
                   <span>Order total</span>
-                  <strong>{formatRupees(lineTotal)}</strong>
+                  <strong data-size={amountSize(formatRupees(lineTotal))}>{formatRupees(lineTotal)}</strong>
                   <small>
-                    {formatNumber(safeQuantity)} {isWholesale ? (safeQuantity === 1 ? "piece" : "pieces") : safeQuantity === 1 ? "item" : "items"} × {formatRupees(unitPrice)} · GST extra
+                    {formatNumber(safeQuantity)} {isWholesale ? (safeQuantity === 1 ? "piece" : "pieces") : safeQuantity === 1 ? "item" : "items"} × {formatRupees(unitPrice)} · {gstText}
                   </small>
                 </p>
               ) : null}
@@ -374,19 +384,20 @@ export default function ProductDetailClient({ product, salesMode, lowStockThresh
         {purchasable ? (
           // Phones: the purchase buttons stay within thumb reach while the shopper scrolls.
           <MobileActionBar className="product-buy-bar">
-            <p className="product-buy-bar__price">
-              <strong>
-                {formatRupees(unitPrice)}
-                {isWholesale ? <small>/pc</small> : null}
-              </strong>
-              <span>
-                {isWholesale
-                  ? `${formatNumber(safeQuantity)} pcs · ${formatRupees(lineTotal)}`
-                  : compareAt
-                    ? <del>{formatRupees(compareAt)}</del>
-                    : variant?.title || "GST extra"}
-              </span>
-            </p>
+            {isWholesale ? (
+              // Wholesale: the order total is the figure that grows with the quantity, so it leads.
+              <p className="product-buy-bar__price">
+                <strong data-size={amountSize(formatRupees(lineTotal))}>{formatRupees(lineTotal)}</strong>
+                <span>
+                  {formatNumber(safeQuantity)} pcs × {formatRupees(unitPrice)}/pc
+                </span>
+              </p>
+            ) : (
+              <p className="product-buy-bar__price">
+                <strong data-size={amountSize(formatRupees(unitPrice))}>{formatRupees(unitPrice)}</strong>
+                <span>{compareAt ? <del>{formatRupees(compareAt)}</del> : variant?.title || gstText}</span>
+              </p>
+            )}
             <button type="button" className="button button-glass" onClick={buyNow}>
               Buy now
             </button>

@@ -424,10 +424,18 @@ html:has(dialog[open]) { overflow: hidden; }
   .mobile-action-bar .button-primary { box-shadow: none; }
   .product-buy-bar .button svg { display: none; }
   .product-buy-bar__price { display: grid; min-width: 0; flex: 1; gap: 1px; margin: 0; }
-  .product-buy-bar__price strong { overflow: hidden; color: var(--color-text); font-size: 17px; text-overflow: ellipsis; white-space: nowrap; }
+  /* Amounts are never cut: long figures step down a size (data-size from amountSize() in lib/format.ts); the line under them may shorten instead. */
+  .product-buy-bar__price strong { color: var(--color-text); font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .mobile-action-bar strong[data-size="long"] { font-size: 15px; }
+  .mobile-action-bar strong[data-size="xlong"] { font-size: 13.5px; letter-spacing: -.01em; }
   .product-buy-bar__price small { margin-left: 2px; color: var(--color-text-muted); font-size: 12px; font-weight: 500; }
   .product-buy-bar__price span { overflow: hidden; color: var(--color-text-muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
   .product-buy-bar .button-glass { padding: 0 14px; }
+}
+
+@media (max-width: 400px) {
+  .mobile-action-bar .button { padding: 0 11px; font-size: 11.5px; letter-spacing: .02em; }
+  .mobile-action-bar { gap: 6px; }
 }
 
 @media (max-width: 359px) {
@@ -467,7 +475,9 @@ html:has(dialog[open]) { overflow: hidden; }
   .cart-line .quantity-step { width: 42px; height: 42px; }
   .cart-line .quantity-selector input { width: 52px; height: 42px; }
   .cart-line__total { align-self: center; }
-  .cart-line__total strong { font-size: 17px; }
+  .cart-line__total strong { font-size: 17px; white-space: nowrap; }
+  .cart-line__total strong[data-size="long"] { font-size: 15.5px; }
+  .cart-line__total strong[data-size="xlong"] { font-size: 14px; }
   .cart-line__actions { gap: 0 22px; }
   .cart-line__action { min-height: 40px; }
   .cart-line--unavailable { grid-template-areas: "media info" "actions actions"; grid-template-columns: 84px minmax(0, 1fr); }
@@ -487,10 +497,12 @@ html:has(dialog[open]) { overflow: hidden; }
   .checkout-submit-bar__total { display: grid; min-width: 0; flex: 1; gap: 1px; margin: 0; }
   .cart-checkout-bar__total span,
   .checkout-submit-bar__total span { color: var(--color-text-muted); font-size: 12px; }
+  .cart-checkout-bar__total span,
+  .checkout-submit-bar__total span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cart-checkout-bar__total strong,
-  .checkout-submit-bar__total strong { overflow: hidden; color: var(--color-text); font-size: 18px; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; transition: opacity .2s ease; }
+  .checkout-submit-bar__total strong { color: var(--color-text); font-size: 18px; font-variant-numeric: tabular-nums; white-space: nowrap; transition: opacity .2s ease; }
   .cart-checkout-bar__total strong[data-updating] { opacity: .5; }
-  .cart-checkout-bar .button { min-width: 148px; }
+  .cart-checkout-bar .button { min-width: 0; }
 
   /* Checkout: the summary folds above the form (app/commerce.css); the pay button stays on screen. */
   .checkout-layout { gap: 12px; }

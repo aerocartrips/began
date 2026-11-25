@@ -80,6 +80,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
     paymentsEnabled: Boolean(tenant.razorpayKeyId),
     hasGstin: Boolean(tenant.business.gstin),
   });
+  // The rate checkout charges: the product's own, else the store's default (0 = not set, so not stated).
+  const gstRatePercent = product.gstRatePercent ?? policies.defaultGstRatePercent;
 
   // The category and its parents, as in the catalogue's own breadcrumbs.
   const trail = product.category ? categoryTrail(categories, product.category.slug) : [];
@@ -101,10 +103,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
         product={product}
         salesMode={tenant.salesMode}
         lowStockThreshold={policies.lowStockThreshold}
+        gstRatePercent={gstRatePercent}
         terms={terms}
       />
 
-      <ProductDetails product={product} terms={terms} />
+      <ProductDetails product={product} terms={terms} gstRatePercent={gstRatePercent} showHsn={tenant.salesMode === "wholesale"} />
 
       <ProductReviewsSection
         key={product.id}

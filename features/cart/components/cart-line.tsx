@@ -6,7 +6,7 @@ import ProductImage from "@/components/images/product-image";
 import QuantitySelector from "@/components/ui/quantity-selector";
 import { CartLineSkeleton } from "@/components/ui/loaders/cart-skeleton";
 import { lineProblemText, problemFix, unitLabel, type CartRow } from "@/features/cart/cart-rows";
-import { formatNumber, formatRupees } from "@/lib/format";
+import { amountSize, formatNumber, formatRupees } from "@/lib/format";
 
 type CartLineProps = {
   row: CartRow;
@@ -132,7 +132,7 @@ export default function CartLine({ row, salesMode, lowStockThreshold, onQuantity
       </div>
 
       <div className="cart-line__total">
-        <strong>{formatRupees(row.lineTotal)}</strong>
+        <strong data-size={amountSize(formatRupees(row.lineTotal))}>{formatRupees(row.lineTotal)}</strong>
         {row.saving > 0 ? <small>You save {formatRupees(row.saving)}</small> : null}
       </div>
 

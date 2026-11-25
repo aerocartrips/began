@@ -3,7 +3,7 @@
 import { useState } from "react";
 import ImageUploader, { type ManagedImage } from "@/components/images/image-uploader";
 import { useFeedback } from "@/components/feedback/feedback-provider";
-import { useAddAttributeValue } from "@/components/admin/product-detail-fields";
+import { AddValue, useAddAttributeValue } from "@/components/admin/product-detail-fields";
 import { formatNumber } from "@/lib/format";
 import { variantSkuOf, variantTitleOf } from "@/lib/catalog/variants";
 import { colorKeyOf, variantsFor, type AdminProductDraft, type VariantDraft } from "@/features/products/admin-product";
@@ -32,7 +32,6 @@ export default function ProductVariantMatrix({ draft, type, attributes, errors, 
   const feedback = useFeedback();
   const addValue = useAddAttributeValue(onAttributeUpdated);
   const [bulkStock, setBulkStock] = useState("");
-  const [adding, setAdding] = useState<Record<string, string>>({});
   const colorKey = colorKeyOf(type, attributes);
   const colours = colorKey ? draft.optionValues[colorKey] ?? [] : [];
   const totalStock = draft.variants.reduce((total, variant) => total + (Number(variant.stockQuantity) || 0), 0);
@@ -65,12 +64,11 @@ export default function ProductVariantMatrix({ draft, type, attributes, errors, 
   const setVariant = (key: string, changes: Partial<VariantDraft>) =>
     onChange({ variants: draft.variants.map((variant) => (variant.key === key ? { ...variant, ...changes } : variant)) });
 
-  async function addOptionValue(key: string) {
+  /** Adds a value (a colour with its swatch) to the library and chooses it here. */
+  async function addOptionValue(key: string, label: string, hex: string) {
     const attribute = attributes.get(key);
-    const label = (adding[key] ?? "").trim();
     if (!attribute || !label) return;
-    const added = await addValue(attribute, label);
-    setAdding((current) => ({ ...current, [key]: "" }));
+    const added = await addValue(attribute, label, hex);
     if (added && !(draft.optionValues[key] ?? []).includes(added)) {
       const optionValues = { ...draft.optionValues, [key]: [...(draft.optionValues[key] ?? []), added] };
       onChange({ optionValues, variants: variantsFor({ ...draft, optionValues }, type) });
@@ -107,27 +105,7 @@ export default function ProductVariantMatrix({ draft, type, attributes, errors, 
               })}
             </div>
             {attribute && !type.options.find((entry) => entry.key === option.key)?.values.length ? (
-              <span className="admin-add-value__row">
-                <input
-                  aria-label={`New ${attribute.name.toLowerCase()}`}
-                  placeholder={`Another ${attribute.name.toLowerCase()}`}
-                  value={adding[option.key] ?? ""}
-                  maxLength={80}
-                  onChange={(event) => {
-                    const text = event.currentTarget.value;
-                    setAdding((current) => ({ ...current, [option.key]: text }));
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      void addOptionValue(option.key);
-                    }
-                  }}
-                />
-                <button type="button" className="text-button" disabled={!(adding[option.key] ?? "").trim()} onClick={() => void addOptionValue(option.key)}>
-                  Add
-                </button>
-              </span>
+              <AddValue attribute={attribute} onAdd={(label, hex) => addOptionValue(option.key, label, hex)} />
             ) : null}
           </fieldset>
         );

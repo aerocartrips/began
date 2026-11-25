@@ -67,9 +67,8 @@ export default function ProductCard({ product, salesMode, priority = false }: Pr
         <p className="catalog-card__meta">
           {moq ? <span>MOQ {formatNumber(moq)} pcs</span> : null}
           {product.inStock ? <span className="catalog-card__stock">In stock</span> : null}
-          {product.sizeRange ? <span className="catalog-card__sizes" title={`Sizes ${product.sizeRange}`}>{product.sizeRange}</span> : null}
         </p>
-        {swatches.length > 0 || rated ? (
+        {swatches.length > 0 || rated || product.sizeRange ? (
           <div className="catalog-card__foot">
             {swatches.length > 0 ? (
               <ul className="swatch-list" aria-label="Available colours">
@@ -80,6 +79,12 @@ export default function ProductCard({ product, salesMode, priority = false }: Pr
                 ))}
                 {extraSwatches > 0 ? <li className="swatch-more" aria-label={`${extraSwatches} more colours`}>+{extraSwatches}</li> : null}
               </ul>
+            ) : null}
+            {product.sizeRange ? (
+              <span className="catalog-card__sizes" title={`Sizes ${product.sizeRange}`}>
+                <span className="sr-only">Sizes </span>
+                {product.sizeRange}
+              </span>
             ) : null}
             {rated ? (
               <span className="catalog-card__rating" role="img" aria-label={`Rated ${product.rating.average.toFixed(1)} out of 5 from ${product.rating.count} reviews`}>

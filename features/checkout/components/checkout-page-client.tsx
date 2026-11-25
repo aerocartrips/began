@@ -35,7 +35,7 @@ import { authHref } from "@/lib/auth/redirect";
 import type { SessionUser } from "@/lib/auth/session-user";
 import type { PurchaseTerm } from "@/lib/catalog/purchase-terms";
 import { useHydrated } from "@/lib/client/persistent-store";
-import { formatNumber, formatRupees } from "@/lib/format";
+import { amountSize, formatNumber, formatRupees } from "@/lib/format";
 
 type CheckoutPageClientProps = {
   buyNow: boolean;
@@ -415,7 +415,7 @@ export default function CheckoutPageClient({
         <ShoppingBag size={17} aria-hidden="true" />
         <span>{summaryOpen ? "Hide" : "Show"} order summary</span>
         <ChevronDown size={16} aria-hidden="true" />
-        <strong>{totalLabel}</strong>
+        <strong data-size={amountSize(totalLabel)}>{totalLabel}</strong>
       </button>
 
       <div className="checkout-layout">
@@ -547,7 +547,7 @@ export default function CheckoutPageClient({
             <MobileActionBar className="checkout-submit-bar">
               <p className="checkout-submit-bar__total">
                 <span>To pay</span>
-                <strong>{totalLabel}</strong>
+                <strong data-size={amountSize(totalLabel)}>{totalLabel}</strong>
               </p>
               <LoadingButton
                 type="submit"

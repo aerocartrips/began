@@ -8,11 +8,18 @@ import { extractUploadFiles } from "@/lib/validators/upload.validator";
 import { uploadImagesFromRequest } from "@/lib/services/upload.service";
 import { ApiError } from "@/lib/utils/api-error";
 
-export const POST = withDatabase(async (request) => {
-  await requireAdminAccess(PERMISSIONS.CATALOG_MANAGE);
+/**
+ * Per staff account: a product with colour photos takes one request per
+ * colour, so cataloguing a few dozen products must fit in a window. Still
+ * bounds Cloudinary use if an account is misused (8 files per request).
+ */
+const UPLOAD_RATE_LIMIT = { limit: 120, windowMs: 15 * 60 * 1000 };
 
-  const ip = getClientIp(request);
-  const limit = await checkRateLimit(`upload:${ip}`);
+export const POST = withDatabase(async (request) => {
+  const access = await requireAdminAccess(PERMISSIONS.CATALOG_MANAGE);
+
+  const key = `upload:${access.user?._id ?? getClientIp(request)}`;
+  const limit = await checkRateLimit(key, UPLOAD_RATE_LIMIT);
   if (!limit.allowed) {
     throw new ApiError(429, "Too many upload attempts. Please wait before trying again.");
   }
@@ -35,7 +42,7 @@ export const POST = withDatabase(async (request) => {
     filenamePrefix: typeof filenamePrefix === "string" ? filenamePrefix : undefined,
   });
 
-  await recordRateLimitHit(`upload:${ip}`);
+  await recordRateLimitHit(key, UPLOAD_RATE_LIMIT);
 
   return successResponse(
     {

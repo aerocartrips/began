@@ -1,4 +1,4 @@
-import { formatNumber, formatRupees } from "@/lib/format";
+import { amountSize, formatNumber, formatRupees } from "@/lib/format";
 import { gstLabel, unitLabel } from "@/features/cart/labels";
 import type { CartTotals } from "@/features/cart/types";
 
@@ -48,7 +48,7 @@ export default function OrderTotals({ totals, pieces, gstRates, salesMode, total
           {totalLabel}
           <small>Inclusive of all taxes</small>
         </dt>
-        <dd>{amount(totals?.totalAmount)}</dd>
+        <dd data-size={totals ? amountSize(formatRupees(totals.totalAmount)) : undefined}>{amount(totals?.totalAmount)}</dd>
       </div>
     </dl>
   );

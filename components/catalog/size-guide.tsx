@@ -43,9 +43,10 @@ export default function SizeGuide({ chart, optionName, sizes, selected, onSelect
   return (
     <>
       <button type="button" className="size-guide-link" onClick={() => setOpen(true)}>
-        <Ruler size={15} strokeWidth={1.8} aria-hidden="true" /> {optionName} guide
+        {/* "Size guide" for every kind (shoes, waist, kids): the label shoppers look for; the table names the size system. */}
+        <Ruler size={15} strokeWidth={1.8} aria-hidden="true" /> Size guide
       </button>
-      <AccountDialog open={open} title={`${optionName} guide`} description={chart.note || undefined} onClose={() => setOpen(false)}>
+      <AccountDialog open={open} title="Size guide" description={chart.note || undefined} onClose={() => setOpen(false)}>
         <div className="size-guide">
           <div className="size-guide__units" role="radiogroup" aria-labelledby={unitGroupId}>
             <span id={unitGroupId} className="sr-only">Units</span>

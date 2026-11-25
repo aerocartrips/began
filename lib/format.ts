@@ -31,6 +31,15 @@ export function formatRupees(amount: number | null | undefined, { compact = fals
   return (compact ? compactRupeeFormatter : rupeeFormatter).format(Number.isFinite(value) ? value : 0);
 }
 
+/**
+ * Length band of a formatted amount, for totals that must never be cut off:
+ * they step their font down for long figures ("₹1,23,15,721.95") instead of
+ * truncating. Set as data-size; undefined for usual lengths.
+ */
+export function amountSize(text: string): "long" | "xlong" | undefined {
+  return text.length >= 14 ? "xlong" : text.length >= 11 ? "long" : undefined;
+}
+
 export function formatNumber(value: number | null | undefined) {
   return numberFormatter.format(Number(value ?? 0));
 }
